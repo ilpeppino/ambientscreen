@@ -1,0 +1,98 @@
+########################################
+# Node / Monorepo
+########################################
+node_modules/
+.pnpm-store/
+.npm/
+.yarn/
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+
+########################################
+# Build outputs
+########################################
+dist/
+build/
+.next/
+.expo/
+.expo-shared/
+web-build/
+
+########################################
+# Logs
+########################################
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+########################################
+# Environment files (IMPORTANT)
+########################################
+.env
+.env.*
+!.env.example
+
+########################################
+# Prisma
+########################################
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+
+########################################
+# Expo / React Native
+########################################
+.expo/
+.expo-shared/
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/local.properties
+
+ios/Pods/
+ios/build/
+ios/DerivedData/
+*.xcworkspace
+*.xcuserdata
+
+########################################
+# TypeScript
+########################################
+*.tsbuildinfo
+
+########################################
+# macOS
+########################################
+.DS_Store
+
+########################################
+# VSCode
+########################################
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+########################################
+# JetBrains
+########################################
+.idea/
+
+########################################
+# Docker / runtime
+########################################
+docker-data/
+postgres-data/
+*.pid
+
+########################################
+# Misc
+########################################
+coverage/
+tmp/
+.cache/
