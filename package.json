@@ -1,0 +1,8 @@
+{
+  "name": "ambient-display-monorepo",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}

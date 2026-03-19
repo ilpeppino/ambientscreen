@@ -1,0 +1,7 @@
+{
+  "name": "@ambient/client",
+  "private": true,
+  "scripts": {
+    "start": "expo start"
+  }
+}
