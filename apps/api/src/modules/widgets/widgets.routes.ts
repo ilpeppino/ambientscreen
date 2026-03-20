@@ -6,6 +6,18 @@ import { usersService } from "../users/users.service";
 
 export const widgetsRouter = Router();
 
+function isWidgetCreateValidationError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientValidationError) {
+    return true;
+  }
+
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === "P2003";
+  }
+
+  return false;
+}
+
 widgetsRouter.get("/", async (_req, res) => {
   try {
     const users = await usersService.getAllUsers();
@@ -41,9 +53,9 @@ widgetsRouter.post("/", async (req, res) => {
     const userId = users[0].id;
 
     const schema = z.object({
-      type: z.string(),
-      config: z.unknown(),
-      position: z.number()
+      type: z.string().trim().min(1),
+      config: z.record(z.string(), z.unknown()),
+      position: z.number().int().min(0)
     });
 
     const result = schema.safeParse(req.body);
@@ -65,6 +77,12 @@ widgetsRouter.post("/", async (req, res) => {
 
     res.status(201).json(widget);
   } catch (error) {
+    if (isWidgetCreateValidationError(error)) {
+      return res.status(400).json({
+        error: "Invalid widget payload"
+      });
+    }
+
     console.error("Failed to create widget", error);
     res.status(500).json({
       error: "Failed to create widget"

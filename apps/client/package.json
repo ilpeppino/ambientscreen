@@ -3,7 +3,10 @@
   "private": true,
   "main": "index.ts",
   "scripts": {
-    "start": "expo start"
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test /tmp/ambient-client-test-dist/tests/**/*.test.js"
   },
   "dependencies": {
     "expo": "~54.0.0",

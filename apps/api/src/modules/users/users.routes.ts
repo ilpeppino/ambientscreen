@@ -1,8 +1,21 @@
 import { Router } from "express";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { usersService } from "./users.service";
 
 export const usersRouter = Router();
+
+function isDuplicateEmailError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === "P2002";
+  }
+
+  if (typeof error === "object" && error !== null && "code" in error) {
+    return (error as { code?: unknown }).code === "P2002";
+  }
+
+  return false;
+}
 
 usersRouter.get("/", async (_req, res) => {
   try {
@@ -40,6 +53,12 @@ usersRouter.post("/", async (req, res) => {
 
     res.status(201).json(user);
   } catch (error) {
+    if (isDuplicateEmailError(error)) {
+      return res.status(409).json({
+        error: "A user with this email already exists"
+      });
+    }
+
     console.error("Failed to create user", error);
     res.status(500).json({
       error: "Failed to create user"
