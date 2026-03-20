@@ -44,3 +44,7 @@ Allows:
 
 - Each widget belongs to a user
 - Position defines ordering
+
+
+  brew services start postgresql@18                                                                                         
+  brew services stop postgresql@18 
