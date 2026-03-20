@@ -13,6 +13,7 @@
   },
   "include": [
     "src/features/display/displayScreen.logic.ts",
+    "src/features/display/services/keepAwake.lifecycle.ts",
     "tests/**/*.ts"
   ]
 }
