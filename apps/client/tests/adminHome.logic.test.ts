@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildCreateWidgetInput,
   CREATABLE_WIDGET_TYPES,
+  WEATHER_UNITS,
   selectAdminActiveWidget
 } from "../src/features/admin/adminHome.logic";
 
@@ -39,4 +41,38 @@ test("selectAdminActiveWidget returns null when there is no active widget", () =
 
 test("CREATABLE_WIDGET_TYPES exposes the initial M1-2 widget set", () => {
   assert.deepEqual(CREATABLE_WIDGET_TYPES, ["clockDate", "weather", "calendar"]);
+});
+
+test("WEATHER_UNITS exposes weather unit options for admin config", () => {
+  assert.deepEqual(WEATHER_UNITS, ["metric", "imperial"]);
+});
+
+test("buildCreateWidgetInput omits config for non-weather widgets", () => {
+  const payload = buildCreateWidgetInput({
+    widgetType: "clockDate",
+    weatherConfig: {
+      location: "Amsterdam",
+      units: "metric"
+    }
+  });
+
+  assert.deepEqual(payload, { type: "clockDate" });
+});
+
+test("buildCreateWidgetInput includes weather config for weather widgets", () => {
+  const payload = buildCreateWidgetInput({
+    widgetType: "weather",
+    weatherConfig: {
+      location: "Berlin",
+      units: "imperial"
+    }
+  });
+
+  assert.deepEqual(payload, {
+    type: "weather",
+    config: {
+      location: "Berlin",
+      units: "imperial"
+    }
+  });
 });

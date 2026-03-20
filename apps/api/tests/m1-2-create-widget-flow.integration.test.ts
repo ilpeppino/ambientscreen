@@ -258,6 +258,51 @@ test("M1-2: unsupported widget type is rejected", async () => {
   assert.equal(createResponse.statusCode, 400);
 });
 
+test("M3-3: weather widget can be created with location and units config", async () => {
+  await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev" }
+  });
+
+  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "weather",
+      config: {
+        location: "Rotterdam",
+        units: "imperial"
+      }
+    }
+  });
+  assert.equal(createResponse.statusCode, 201);
+
+  const createdWidget = createResponse.body as {
+    type: string;
+    config: {
+      location?: string;
+      units?: string;
+    };
+  };
+  assert.equal(createdWidget.type, "weather");
+  assert.equal(createdWidget.config.location, "Rotterdam");
+  assert.equal(createdWidget.config.units, "imperial");
+});
+
+test("M3-3: weather widget creation rejects invalid units config", async () => {
+  await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev" }
+  });
+
+  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "weather",
+      config: {
+        location: "Rotterdam",
+        units: "kelvin"
+      }
+    }
+  });
+  assert.equal(createResponse.statusCode, 400);
+});
+
 test("M2-1: widget config must match widget contract schema", async () => {
   await invokeRoute(usersRouter, "post", "/", {
     body: { email: "owner@ambient.dev" }

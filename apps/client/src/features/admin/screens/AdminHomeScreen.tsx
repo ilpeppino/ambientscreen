@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import {
@@ -14,8 +15,11 @@ import {
   type WidgetInstance,
 } from "../../../services/api/widgetsApi";
 import {
+  buildCreateWidgetInput,
   CREATABLE_WIDGET_TYPES,
   type CreatableWidgetType,
+  WEATHER_UNITS,
+  type WeatherUnit,
   selectAdminActiveWidget,
 } from "../adminHome.logic";
 
@@ -27,6 +31,8 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [selectedWidgetType, setSelectedWidgetType] =
     useState<CreatableWidgetType>(CREATABLE_WIDGET_TYPES[0]);
+  const [weatherLocation, setWeatherLocation] = useState("Amsterdam");
+  const [weatherUnits, setWeatherUnits] = useState<WeatherUnit>("metric");
   const [loading, setLoading] = useState(true);
   const [creatingWidget, setCreatingWidget] = useState(false);
   const [settingActiveWidgetId, setSettingActiveWidgetId] = useState<string | null>(null);
@@ -74,11 +80,23 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
       setCreateError(null);
       setActiveError(null);
 
-      await createWidget({ type: selectedWidgetType });
+      await createWidget(
+        buildCreateWidgetInput({
+          widgetType: selectedWidgetType,
+          weatherConfig: {
+            location: weatherLocation,
+            units: weatherUnits,
+          },
+        }),
+      );
       await loadWidgets();
     } catch (err) {
       console.error(err);
-      setCreateError("Failed to create widget");
+      if (err instanceof Error) {
+        setCreateError(err.message);
+      } else {
+        setCreateError("Failed to create widget");
+      }
     } finally {
       setCreatingWidget(false);
     }
@@ -148,6 +166,40 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
             );
           })}
         </View>
+        {selectedWidgetType === "weather" ? (
+          <View style={styles.weatherConfig}>
+            <Text style={styles.weatherConfigLabel}>Location</Text>
+            <TextInput
+              accessibilityLabel="Weather location"
+              autoCapitalize="words"
+              autoCorrect={false}
+              style={styles.textInput}
+              value={weatherLocation}
+              onChangeText={setWeatherLocation}
+              placeholder="City or location"
+              placeholderTextColor="#7f7f7f"
+            />
+            <Text style={styles.weatherConfigLabel}>Units</Text>
+            <View style={styles.unitsRow}>
+              {WEATHER_UNITS.map((unit) => {
+                const selected = weatherUnits === unit;
+
+                return (
+                  <Pressable
+                    key={unit}
+                    accessibilityRole="button"
+                    style={[styles.unitButton, selected && styles.unitButtonSelected]}
+                    onPress={() => setWeatherUnits(unit)}
+                  >
+                    <Text style={[styles.unitButtonLabel, selected && styles.unitButtonLabelSelected]}>
+                      {unit}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           style={[styles.createButton, creatingWidget && styles.createButtonDisabled]}
@@ -257,6 +309,48 @@ const styles = StyleSheet.create({
   },
   createButtonDisabled: {
     opacity: 0.6,
+  },
+  weatherConfig: {
+    gap: 8,
+  },
+  weatherConfigLabel: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#555",
+    backgroundColor: "#111",
+    borderRadius: 8,
+    color: "#fff",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+  },
+  unitsRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  unitButton: {
+    borderWidth: 1,
+    borderColor: "#555",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#111",
+  },
+  unitButtonSelected: {
+    borderColor: "#fff",
+    backgroundColor: "#1e1e1e",
+  },
+  unitButtonLabel: {
+    color: "#d1d1d1",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  unitButtonLabelSelected: {
+    color: "#fff",
   },
   createButtonLabel: {
     color: "#fff",
