@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test, { after, beforeEach } from "node:test";
 import type { Router } from "express";
+import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
 import { usersRouter } from "../src/modules/users/users.routes";
+import { widgetDataRouter } from "../src/modules/widgetData/widget-data.routes";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
-import { widgetDataRouter } from "../src/modules/widgetData/widget-data.routes";
 
 interface TestUser {
   id: string;
@@ -34,13 +35,13 @@ interface InvokeRouteOptions {
 const originalUsersRepository = {
   findAll: usersRepository.findAll,
   findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create,
+  create: usersRepository.create
 };
 
 const originalWidgetsRepository = {
   findAll: widgetsRepository.findAll,
   findById: widgetsRepository.findById,
-  create: widgetsRepository.create,
+  create: widgetsRepository.create
 };
 
 const mutableUsersRepository = usersRepository as unknown as {
@@ -85,7 +86,7 @@ beforeEach(() => {
     const newUser: TestUser = {
       id: `user-${userCounter}`,
       email,
-      createdAt: new Date(),
+      createdAt: new Date()
     };
     usersStore.push(newUser);
     return newUser;
@@ -110,7 +111,7 @@ beforeEach(() => {
       position: input.position,
       isActive: true,
       createdAt: now,
-      updatedAt: now,
+      updatedAt: now
     };
     widgetsStore.push(newWidget);
     return newWidget;
@@ -139,7 +140,7 @@ function getRouteHandler(router: Router, method: RouteMethod, path: string) {
       const route = (layer as { route?: { path?: string; methods?: Record<string, boolean> } })
         .route;
       return route?.path === path && route.methods?.[method];
-    },
+    }
   ) as
     | {
         route: {
@@ -159,18 +160,21 @@ async function invokeRoute(
   router: Router,
   method: RouteMethod,
   path: string,
-  options: InvokeRouteOptions = {},
+  options: InvokeRouteOptions = {}
 ) {
   const handler = getRouteHandler(router, method, path);
 
   const req = {
+    method: method.toUpperCase(),
+    path,
+    originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {},
+    params: options.params ?? {}
   };
 
   const response = {
     statusCode: 200,
-    body: null as unknown,
+    body: null as unknown
   };
 
   const res = {
@@ -181,22 +185,27 @@ async function invokeRoute(
     json(body: unknown) {
       response.body = body;
       return res;
-    },
+    }
   };
 
-  await handler(req, res);
+  await handler(req, res, (error: unknown) => {
+    if (error) {
+      globalErrorMiddleware(error, req as never, res as never, (() => undefined) as never);
+    }
+  });
+
   return response;
 }
 
 test("M0-1: users endpoints handle create/list and duplicate safely", async () => {
   const createResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" },
+    body: { email: "owner@ambient.dev" }
   });
   assert.equal(createResponse.statusCode, 201);
   assert.equal((createResponse.body as { email: string }).email, "owner@ambient.dev");
 
   const duplicateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" },
+    body: { email: "owner@ambient.dev" }
   });
   assert.equal(duplicateResponse.statusCode, 409);
 
@@ -212,21 +221,21 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
     body: {
       type: "clockDate",
       config: {},
-      position: 0,
-    },
+      position: 0
+    }
   });
   assert.equal(noUserWidgetResponse.statusCode, 400);
 
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" },
+    body: { email: "owner@ambient.dev" }
   });
 
   const invalidWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
       type: "clockDate",
       config: {},
-      position: "not-a-number",
-    },
+      position: "not-a-number"
+    }
   });
   assert.equal(invalidWidgetResponse.statusCode, 400);
 
@@ -234,8 +243,8 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
     body: {
       type: "clockDate",
       config: { timezone: "UTC" },
-      position: 1,
-    },
+      position: 1
+    }
   });
   assert.equal(createFirstWidgetResponse.statusCode, 201);
 
@@ -243,8 +252,8 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
     body: {
       type: "clockDate",
       config: { timezone: "Europe/Amsterdam" },
-      position: 0,
-    },
+      position: 0
+    }
   });
   assert.equal(createSecondWidgetResponse.statusCode, 201);
 
@@ -258,20 +267,20 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
 
 test("M0-1: widget-data endpoint returns clock data and handles missing/unsupported widgets", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" },
+    body: { email: "owner@ambient.dev" }
   });
 
   const clockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
       type: "clockDate",
       config: {},
-      position: 0,
-    },
+      position: 0
+    }
   });
   const clockWidgetId = (clockWidgetResponse.body as { id: string }).id;
 
   const clockDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: clockWidgetId },
+    params: { id: clockWidgetId }
   });
   assert.equal(clockDataResponse.statusCode, 200);
   const clockData = clockDataResponse.body as {
@@ -285,18 +294,18 @@ test("M0-1: widget-data endpoint returns clock data and handles missing/unsuppor
     body: {
       type: "weather",
       config: { location: "Amsterdam" },
-      position: 1,
-    },
+      position: 1
+    }
   });
   const unsupportedWidgetId = (unsupportedWidgetResponse.body as { id: string }).id;
 
   const unsupportedDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: unsupportedWidgetId },
+    params: { id: unsupportedWidgetId }
   });
   assert.equal(unsupportedDataResponse.statusCode, 400);
 
   const missingWidgetResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: "does-not-exist" },
+    params: { id: "does-not-exist" }
   });
   assert.equal(missingWidgetResponse.statusCode, 404);
 });
