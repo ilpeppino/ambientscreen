@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { getWidgets, type WidgetInstance } from "../../../services/api/widgetsApi";
 import {
   getWidgetData,
@@ -21,7 +21,11 @@ import {
   selectDisplayWidget,
 } from "../displayScreen.logic";
 
-export function DisplayScreen() {
+interface DisplayScreenProps {
+  onExitDisplayMode?: () => void;
+}
+
+export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [selectedWidget, setSelectedWidget] = useState<WidgetInstance | null>(null);
   const [widgetData, setWidgetData] =
@@ -177,13 +181,47 @@ export function DisplayScreen() {
     );
   }, [loadingWidgets, loadingWidgetData, error, selectedWidget, widgetData]);
 
-  return <View style={styles.screen}>{content}</View>;
+  return (
+    <View style={styles.screen}>
+      {onExitDisplayMode ? (
+        <View style={styles.exitButtonContainer}>
+          <Pressable
+            accessibilityRole="button"
+            style={styles.exitButton}
+            onPress={onExitDisplayMode}
+          >
+            <Text style={styles.exitButtonLabel}>Back to Admin</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {content}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#000",
+  },
+  exitButtonContainer: {
+    position: "absolute",
+    top: 12,
+    right: 12,
+    zIndex: 20,
+  },
+  exitButton: {
+    borderWidth: 1,
+    borderColor: "#777",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+  },
+  exitButtonLabel: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
   centered: {
     flex: 1,
