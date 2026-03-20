@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { widgetsRepository } from "./widgets.repository";
 
 export const widgetsService = {
@@ -5,10 +6,14 @@ export const widgetsService = {
     return widgetsRepository.findAll(userId);
   },
 
+  getWidgetById(id: string) {
+    return widgetsRepository.findById(id);
+  },
+
   createWidget(data: {
     userId: string;
     type: string;
-    config: any;
+    config: Prisma.InputJsonValue;
     position: number;
   }) {
     return widgetsRepository.create(data);

@@ -3,6 +3,7 @@ import cors from "cors";
 
 import { usersRouter } from "./modules/users/users.routes";
 import { widgetsRouter } from "./modules/widgets/widgets.routes";
+import { widgetDataRouter } from "./modules/widgetData/widget-data.routes";
 
 export function createApp() {
   const app = express();
@@ -16,6 +17,7 @@ export function createApp() {
 
   app.use("/users", usersRouter);
   app.use("/widgets", widgetsRouter);
+  app.use("/widget-data", widgetDataRouter);
 
   return app;
 }

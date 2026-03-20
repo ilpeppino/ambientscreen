@@ -1,7 +1,21 @@
 {
   "name": "@ambient/client",
   "private": true,
+  "main": "index.ts",
   "scripts": {
     "start": "expo start"
+  },
+  "dependencies": {
+    "expo": "~54.0.0",
+    "expo-keep-awake": "~14.0.2",
+    "expo-screen-orientation": "~8.0.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-native": "0.77.3",
+    "react-native-web": "~0.19.13"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.18",
+    "typescript": "~5.8.3"
   }
 }

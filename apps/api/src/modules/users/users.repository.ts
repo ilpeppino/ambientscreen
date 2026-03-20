@@ -2,7 +2,9 @@ import { prisma } from "../../core/db/prisma";
 
 export const usersRepository = {
   findAll() {
-    return prisma.user.findMany();
+    return prisma.user.findMany({
+      orderBy: { createdAt: "asc" }
+    });
   },
 
   findByEmail(email: string) {
