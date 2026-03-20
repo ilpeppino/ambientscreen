@@ -16,6 +16,10 @@ import {
   unlockDisplayOrientation,
 } from "../services/orientation";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
+import {
+  getDisplayRefreshIntervalMs,
+  selectDisplayWidget,
+} from "../displayScreen.logic";
 
 export function DisplayScreen() {
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
@@ -53,19 +57,7 @@ export function DisplayScreen() {
 
         setWidgets(response);
 
-        const defaultWidget =
-          response.find((widget) => widget.type === "clockDate") ??
-          response[0] ??
-          null;
-
-        setSelectedWidget((previous) => {
-          if (!previous) {
-            return defaultWidget;
-          }
-
-          const stillExists = response.find((widget) => widget.id === previous.id);
-          return stillExists ?? defaultWidget;
-        });
+        setSelectedWidget((previous) => selectDisplayWidget(response, previous));
       } catch (err) {
         if (cancelled) {
           return;
@@ -92,7 +84,7 @@ export function DisplayScreen() {
     if (!selectedWidgetId) {
       return;
     }
-    const widgetId = selectedWidgetId as string;
+    const widgetId = selectedWidgetId;
 
     let intervalId: ReturnType<typeof setInterval> | null = null;
 
@@ -113,10 +105,11 @@ export function DisplayScreen() {
 
     loadWidgetData();
 
-    if (selectedWidget?.type === "clockDate") {
+    const refreshIntervalMs = getDisplayRefreshIntervalMs(selectedWidget?.type);
+    if (refreshIntervalMs !== null) {
       intervalId = setInterval(() => {
         loadWidgetData();
-      }, 1000);
+      }, refreshIntervalMs);
     }
 
     return () => {
