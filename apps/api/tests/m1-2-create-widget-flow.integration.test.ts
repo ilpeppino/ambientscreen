@@ -4,7 +4,6 @@ import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
 import { usersRouter } from "../src/modules/users/users.routes";
-import { widgetDataRouter } from "../src/modules/widgetData/widget-data.routes";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
 
@@ -197,113 +196,46 @@ async function invokeRoute(
   return response;
 }
 
-test("M0-1: users endpoints handle create/list and duplicate safely", async () => {
-  const createResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-  assert.equal(createResponse.statusCode, 201);
-  assert.equal((createResponse.body as { email: string }).email, "owner@ambient.dev");
-
-  const duplicateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-  assert.equal(duplicateResponse.statusCode, 409);
-
-  const listResponse = await invokeRoute(usersRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
-  const users = listResponse.body as Array<{ id: string }>;
-  assert.equal(users.length, 1);
-  assert.equal(users[0].id, "user-1");
-});
-
-test("M0-1: widgets endpoints create/list and validate input payload", async () => {
-  const noUserWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: {},
-      position: 0
-    }
-  });
-  assert.equal(noUserWidgetResponse.statusCode, 400);
-
+test("M1-2: widget can be created from UI types and appears in refreshed list", async () => {
   await invokeRoute(usersRouter, "post", "/", {
     body: { email: "owner@ambient.dev" }
   });
 
-  const invalidWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "unsupported-widget"
-    }
+  const createClockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: { type: "clockDate" }
   });
-  assert.equal(invalidWidgetResponse.statusCode, 400);
+  assert.equal(createClockWidgetResponse.statusCode, 201);
 
-  const createFirstWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: { timezone: "UTC" },
-      position: 1
-    }
+  const createCalendarWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: { type: "calendar" }
   });
-  assert.equal(createFirstWidgetResponse.statusCode, 201);
-
-  const createSecondWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: { timezone: "Europe/Amsterdam" },
-      position: 0
-    }
-  });
-  assert.equal(createSecondWidgetResponse.statusCode, 201);
+  assert.equal(createCalendarWidgetResponse.statusCode, 201);
 
   const listResponse = await invokeRoute(widgetsRouter, "get", "/");
   assert.equal(listResponse.statusCode, 200);
-  const widgets = listResponse.body as Array<{ position: number }>;
+
+  const widgets = listResponse.body as Array<{ type: string; position: number }>;
   assert.equal(widgets.length, 2);
+  assert.equal(widgets[0].type, "clockDate");
   assert.equal(widgets[0].position, 0);
+  assert.equal(widgets[1].type, "calendar");
   assert.equal(widgets[1].position, 1);
 });
 
-test("M0-1: widget-data endpoint returns clock data and handles missing/unsupported widgets", async () => {
+test("M1-2: unsupported widget type is rejected", async () => {
   await invokeRoute(usersRouter, "post", "/", {
     body: { email: "owner@ambient.dev" }
   });
 
-  const clockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: {},
-      position: 0
-    }
+  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: { type: "stocksTicker" }
   });
-  const clockWidgetId = (clockWidgetResponse.body as { id: string }).id;
+  assert.equal(createResponse.statusCode, 400);
+});
 
-  const clockDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: clockWidgetId }
+test("M1-2: creating widget fails when no user exists", async () => {
+  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: { type: "weather" }
   });
-  assert.equal(clockDataResponse.statusCode, 200);
-  const clockData = clockDataResponse.body as {
-    state: string;
-    data: { formattedTime: string };
-  };
-  assert.equal(clockData.state, "ready");
-  assert.equal(typeof clockData.data.formattedTime, "string");
-
-  const unsupportedWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "weather",
-      config: { location: "Amsterdam" },
-      position: 1
-    }
-  });
-  const unsupportedWidgetId = (unsupportedWidgetResponse.body as { id: string }).id;
-
-  const unsupportedDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: unsupportedWidgetId }
-  });
-  assert.equal(unsupportedDataResponse.statusCode, 400);
-
-  const missingWidgetResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: "does-not-exist" }
-  });
-  assert.equal(missingWidgetResponse.statusCode, 404);
+  assert.equal(createResponse.statusCode, 400);
 });
