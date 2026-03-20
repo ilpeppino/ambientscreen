@@ -56,3 +56,22 @@ widgetsRouter.post(
     res.status(201).json(widget);
   })
 );
+
+widgetsRouter.patch(
+  "/:id/active",
+  asyncHandler(async (req, res) => {
+    const userId = await getPrimaryUserId();
+    const idParam = req.params.id;
+    const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
+    const activatedWidget = await widgetsService.activateWidgetForUser({
+      userId,
+      widgetId
+    });
+
+    if (!activatedWidget) {
+      throw apiErrors.notFound("Widget not found");
+    }
+
+    res.json(activatedWidget);
+  })
+);

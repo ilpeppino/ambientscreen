@@ -43,3 +43,15 @@ export async function createWidget(input: CreateWidgetInput): Promise<WidgetInst
 
   return response.json();
 }
+
+export async function setActiveWidget(widgetId: string): Promise<WidgetInstance> {
+  const response = await fetch(`${API_BASE_URL}/widgets/${widgetId}/active`, {
+    method: "PATCH"
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to set active widget: ${response.status}`);
+  }
+
+  return response.json();
+}

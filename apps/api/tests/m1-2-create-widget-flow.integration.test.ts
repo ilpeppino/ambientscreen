@@ -40,7 +40,8 @@ const originalUsersRepository = {
 const originalWidgetsRepository = {
   findAll: widgetsRepository.findAll,
   findById: widgetsRepository.findById,
-  create: widgetsRepository.create
+  create: widgetsRepository.create,
+  activateWidget: widgetsRepository.activateWidget
 };
 
 const mutableUsersRepository = usersRepository as unknown as {
@@ -57,7 +58,9 @@ const mutableWidgetsRepository = widgetsRepository as unknown as {
     type: string;
     config: unknown;
     position: number;
+    isActive: boolean;
   }) => Promise<TestWidget>;
+  activateWidget: (userId: string, widgetId: string) => Promise<TestWidget>;
 };
 
 let usersStore: TestUser[] = [];
@@ -108,12 +111,32 @@ beforeEach(() => {
       type: input.type,
       config: input.config as Record<string, unknown>,
       position: input.position,
-      isActive: true,
+      isActive: input.isActive,
       createdAt: now,
       updatedAt: now
     };
     widgetsStore.push(newWidget);
     return newWidget;
+  };
+  mutableWidgetsRepository.activateWidget = async (userId: string, widgetId: string) => {
+    const widget = widgetsStore.find((item) => item.id === widgetId && item.userId === userId);
+    if (!widget) {
+      throw new Error("Widget not found");
+    }
+
+    widgetsStore = widgetsStore.map((item) => {
+      if (item.userId !== userId) {
+        return item;
+      }
+
+      return {
+        ...item,
+        isActive: item.id === widgetId,
+        updatedAt: new Date()
+      };
+    });
+
+    return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
   };
 });
 
@@ -131,6 +154,8 @@ after(() => {
     originalWidgetsRepository.findById as typeof mutableWidgetsRepository.findById;
   mutableWidgetsRepository.create =
     originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
+  mutableWidgetsRepository.activateWidget =
+    originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
