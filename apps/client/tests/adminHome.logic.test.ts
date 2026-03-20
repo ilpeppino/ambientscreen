@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildCreateWidgetInput,
+  CALENDAR_PROVIDERS,
+  CALENDAR_TIME_WINDOWS,
   CREATABLE_WIDGET_TYPES,
   WEATHER_UNITS,
   selectAdminActiveWidget
@@ -47,13 +49,23 @@ test("WEATHER_UNITS exposes weather unit options for admin config", () => {
   assert.deepEqual(WEATHER_UNITS, ["metric", "imperial"]);
 });
 
+test("calendar admin config options expose providers and time windows", () => {
+  assert.deepEqual(CALENDAR_PROVIDERS, ["ical"]);
+  assert.deepEqual(CALENDAR_TIME_WINDOWS, ["today", "next24h", "next7d"]);
+});
+
 test("buildCreateWidgetInput omits config for non-weather widgets", () => {
   const payload = buildCreateWidgetInput({
     widgetType: "clockDate",
     weatherConfig: {
       location: "Amsterdam",
       units: "metric"
-    }
+    },
+    calendarConfig: {
+      provider: "ical",
+      account: "https://calendar.example.com/feed.ics",
+      timeWindow: "next7d",
+    },
   });
 
   assert.deepEqual(payload, { type: "clockDate" });
@@ -65,7 +77,12 @@ test("buildCreateWidgetInput includes weather config for weather widgets", () =>
     weatherConfig: {
       location: "Berlin",
       units: "imperial"
-    }
+    },
+    calendarConfig: {
+      provider: "ical",
+      account: "https://calendar.example.com/feed.ics",
+      timeWindow: "today",
+    },
   });
 
   assert.deepEqual(payload, {
@@ -74,5 +91,33 @@ test("buildCreateWidgetInput includes weather config for weather widgets", () =>
       location: "Berlin",
       units: "imperial"
     }
+  });
+});
+
+test("buildCreateWidgetInput includes calendar config for calendar widgets", () => {
+  const payload = buildCreateWidgetInput({
+    widgetType: "calendar",
+    weatherConfig: {
+      location: "Berlin",
+      units: "metric",
+    },
+    calendarConfig: {
+      provider: "ical",
+      account: "https://calendar.example.com/work.ics",
+      timeWindow: "next24h",
+      maxEvents: 5,
+      includeAllDay: false,
+    },
+  });
+
+  assert.deepEqual(payload, {
+    type: "calendar",
+    config: {
+      provider: "ical",
+      account: "https://calendar.example.com/work.ics",
+      timeWindow: "next24h",
+      maxEvents: 5,
+      includeAllDay: false,
+    },
   });
 });

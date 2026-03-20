@@ -24,9 +24,9 @@ export interface WeatherWidgetConfig {
 }
 
 export interface CalendarWidgetConfig {
-  sourceType?: "ical";
-  feedUrl?: string;
-  lookAheadDays?: number;
+  provider?: "ical";
+  account?: string;
+  timeWindow?: "today" | "next24h" | "next7d";
   maxEvents?: number;
   includeAllDay?: boolean;
 }

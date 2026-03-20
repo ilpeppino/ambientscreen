@@ -16,6 +16,10 @@ import {
 } from "../../../services/api/widgetsApi";
 import {
   buildCreateWidgetInput,
+  CALENDAR_PROVIDERS,
+  CALENDAR_TIME_WINDOWS,
+  type CalendarProvider,
+  type CalendarTimeWindow,
   CREATABLE_WIDGET_TYPES,
   type CreatableWidgetType,
   WEATHER_UNITS,
@@ -33,6 +37,9 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
     useState<CreatableWidgetType>(CREATABLE_WIDGET_TYPES[0]);
   const [weatherLocation, setWeatherLocation] = useState("Amsterdam");
   const [weatherUnits, setWeatherUnits] = useState<WeatherUnit>("metric");
+  const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>("ical");
+  const [calendarAccount, setCalendarAccount] = useState("");
+  const [calendarTimeWindow, setCalendarTimeWindow] = useState<CalendarTimeWindow>("next7d");
   const [loading, setLoading] = useState(true);
   const [creatingWidget, setCreatingWidget] = useState(false);
   const [settingActiveWidgetId, setSettingActiveWidgetId] = useState<string | null>(null);
@@ -86,6 +93,11 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
           weatherConfig: {
             location: weatherLocation,
             units: weatherUnits,
+          },
+          calendarConfig: {
+            provider: calendarProvider,
+            account: calendarAccount || undefined,
+            timeWindow: calendarTimeWindow,
           },
         }),
       );
@@ -193,6 +205,58 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
                   >
                     <Text style={[styles.unitButtonLabel, selected && styles.unitButtonLabelSelected]}>
                       {unit}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : selectedWidgetType === "calendar" ? (
+          <View style={styles.calendarConfig}>
+            <Text style={styles.weatherConfigLabel}>Provider</Text>
+            <View style={styles.unitsRow}>
+              {CALENDAR_PROVIDERS.map((provider) => {
+                const selected = calendarProvider === provider;
+
+                return (
+                  <Pressable
+                    key={provider}
+                    accessibilityRole="button"
+                    style={[styles.unitButton, selected && styles.unitButtonSelected]}
+                    onPress={() => setCalendarProvider(provider)}
+                  >
+                    <Text style={[styles.unitButtonLabel, selected && styles.unitButtonLabelSelected]}>
+                      {provider}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.weatherConfigLabel}>Account (iCal URL)</Text>
+            <TextInput
+              accessibilityLabel="Calendar account"
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={styles.textInput}
+              value={calendarAccount}
+              onChangeText={setCalendarAccount}
+              placeholder="https://calendar.example.com/feed.ics"
+              placeholderTextColor="#7f7f7f"
+            />
+            <Text style={styles.weatherConfigLabel}>Time window</Text>
+            <View style={styles.unitsRow}>
+              {CALENDAR_TIME_WINDOWS.map((window) => {
+                const selected = calendarTimeWindow === window;
+
+                return (
+                  <Pressable
+                    key={window}
+                    accessibilityRole="button"
+                    style={[styles.unitButton, selected && styles.unitButtonSelected]}
+                    onPress={() => setCalendarTimeWindow(window)}
+                  >
+                    <Text style={[styles.unitButtonLabel, selected && styles.unitButtonLabelSelected]}>
+                      {window}
                     </Text>
                   </Pressable>
                 );
@@ -311,6 +375,9 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   weatherConfig: {
+    gap: 8,
+  },
+  calendarConfig: {
     gap: 8,
   },
   weatherConfigLabel: {
