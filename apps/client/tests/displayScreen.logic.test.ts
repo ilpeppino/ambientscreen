@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getDisplayStatusModel,
   getDisplayFrameModel,
   getDisplayRefreshIntervalMs,
   resolveDisplayUiState,
@@ -128,7 +129,7 @@ test("getDisplayFrameModel returns default shell when no widget is selected", ()
   const model = getDisplayFrameModel(undefined);
 
   assert.equal(model.title, "Ambient Display");
-  assert.equal(model.subtitle, "Display Mode");
+  assert.equal(model.subtitle, "Live ambient mode");
   assert.equal(model.footerLabel, "Ambient Screen");
 });
 
@@ -136,6 +137,33 @@ test("getDisplayFrameModel includes manifest title and refresh policy label", ()
   const model = getDisplayFrameModel("weather");
 
   assert.equal(model.title, "Weather");
-  assert.equal(model.subtitle, "Display Mode");
+  assert.equal(model.subtitle, "Live ambient mode");
   assert.equal(model.footerLabel, "Refresh every 5m");
+});
+
+test("getDisplayStatusModel exposes loading widgets status copy", () => {
+  const model = getDisplayStatusModel("loadingWidgets", null);
+
+  assert.equal(model.title, "Preparing display");
+  assert.equal(model.message, "Loading widgets and display settings.");
+  assert.equal(model.tone, "neutral");
+  assert.equal(model.showSpinner, true);
+});
+
+test("getDisplayStatusModel returns error tone and provided message", () => {
+  const model = getDisplayStatusModel("error", "Failed to load widgets");
+
+  assert.equal(model.title, "Display unavailable");
+  assert.equal(model.message, "Failed to load widgets");
+  assert.equal(model.tone, "error");
+  assert.equal(model.showSpinner, false);
+});
+
+test("getDisplayStatusModel returns unsupported copy for unsupported state", () => {
+  const model = getDisplayStatusModel("unsupported", null);
+
+  assert.equal(model.title, "Unsupported widget");
+  assert.equal(model.message, "This widget type is not available in display mode yet.");
+  assert.equal(model.tone, "error");
+  assert.equal(model.showSpinner, false);
 });

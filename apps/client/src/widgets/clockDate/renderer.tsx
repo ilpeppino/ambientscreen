@@ -9,20 +9,24 @@ export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetD
   if (!data) {
     return (
       <View style={styles.container}>
-        <Text style={styles.loadingText}>No clock data</Text>
+        <View style={styles.card}>
+          <Text style={styles.loadingText}>No clock data available.</Text>
+        </View>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={styles.time}>{data.formattedTime}</Text>
-      {data.weekdayLabel ? (
-        <Text style={styles.weekday}>{data.weekdayLabel}</Text>
-      ) : null}
-      {data.formattedDate ? (
-        <Text style={styles.date}>{data.formattedDate}</Text>
-      ) : null}
+      <View style={styles.card}>
+        <Text style={styles.time}>{data.formattedTime}</Text>
+        {data.weekdayLabel ? (
+          <Text style={styles.weekday}>{data.weekdayLabel}</Text>
+        ) : null}
+        {data.formattedDate ? (
+          <Text style={styles.date}>{data.formattedDate}</Text>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -32,26 +36,46 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#000",
+    paddingHorizontal: 20,
+    paddingVertical: 24,
+    backgroundColor: "transparent",
+  },
+  card: {
+    width: "100%",
+    maxWidth: 720,
+    borderWidth: 1,
+    borderColor: "#1c1c1c",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 28,
+    paddingVertical: 36,
   },
   time: {
-    fontSize: 64,
+    fontSize: 108,
     fontWeight: "700",
     color: "#fff",
+    letterSpacing: 1.2,
+    textAlign: "center",
   },
   weekday: {
-    marginTop: 12,
-    fontSize: 28,
-    color: "#ddd",
+    marginTop: 14,
+    fontSize: 30,
+    color: "#efefef",
+    letterSpacing: 2,
+    textTransform: "uppercase",
+    textAlign: "center",
   },
   date: {
-    marginTop: 8,
-    fontSize: 24,
-    color: "#bbb",
+    marginTop: 10,
+    fontSize: 28,
+    color: "#bfbfbf",
+    textAlign: "center",
   },
   loadingText: {
-    fontSize: 20,
-    color: "#fff",
+    fontSize: 22,
+    color: "#d5d5d5",
+    textAlign: "center",
   },
 });
