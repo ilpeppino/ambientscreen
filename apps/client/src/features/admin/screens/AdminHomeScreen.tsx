@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -8,10 +8,15 @@ import {
   View,
 } from "react-native";
 import {
+  createWidget,
   getWidgets,
   type WidgetInstance,
 } from "../../../services/api/widgetsApi";
-import { selectAdminActiveWidget } from "../adminHome.logic";
+import {
+  CREATABLE_WIDGET_TYPES,
+  type CreatableWidgetType,
+  selectAdminActiveWidget,
+} from "../adminHome.logic";
 
 interface AdminHomeScreenProps {
   onEnterDisplayMode: () => void;
@@ -19,41 +24,61 @@ interface AdminHomeScreenProps {
 
 export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
+  const [selectedWidgetType, setSelectedWidgetType] =
+    useState<CreatableWidgetType>(CREATABLE_WIDGET_TYPES[0]);
   const [loading, setLoading] = useState(true);
+  const [creatingWidget, setCreatingWidget] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadWidgets = useCallback(async (signal?: { cancelled: boolean }) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await getWidgets();
 
-    async function loadWidgets() {
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await getWidgets();
-        if (cancelled) {
-          return;
-        }
-        setWidgets(response);
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        console.error(err);
-        setWidgets([]);
-        setError("Failed to load widgets");
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+      if (signal?.cancelled) {
+        return;
+      }
+      setWidgets(response);
+    } catch (err) {
+      if (signal?.cancelled) {
+        return;
+      }
+      console.error(err);
+      setWidgets([]);
+      setError("Failed to load widgets");
+    } finally {
+      if (!signal?.cancelled) {
+        setLoading(false);
       }
     }
+  }, []);
 
-    loadWidgets();
+  useEffect(() => {
+    const signal = { cancelled: false };
+
+    loadWidgets(signal);
 
     return () => {
-      cancelled = true;
+      signal.cancelled = true;
     };
-  }, []);
+  }, [loadWidgets]);
+
+  async function handleCreateWidget() {
+    try {
+      setCreatingWidget(true);
+      setCreateError(null);
+
+      await createWidget({ type: selectedWidgetType });
+      await loadWidgets();
+    } catch (err) {
+      console.error(err);
+      setCreateError("Failed to create widget");
+    } finally {
+      setCreatingWidget(false);
+    }
+  }
 
   const activeWidget = useMemo(() => selectAdminActiveWidget(widgets), [widgets]);
 
@@ -81,6 +106,39 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
         <Text style={styles.subtitle}>
           Active widget: {activeWidget ? `${activeWidget.type} (${activeWidget.id})` : "none"}
         </Text>
+      </View>
+
+      <View style={styles.createSection}>
+        <Text style={styles.createLabel}>Create widget</Text>
+        <View style={styles.typeGrid}>
+          {CREATABLE_WIDGET_TYPES.map((widgetType) => {
+            const selected = widgetType === selectedWidgetType;
+
+            return (
+              <Pressable
+                key={widgetType}
+                accessibilityRole="button"
+                style={[styles.typeButton, selected && styles.typeButtonSelected]}
+                onPress={() => setSelectedWidgetType(widgetType)}
+              >
+                <Text style={[styles.typeButtonLabel, selected && styles.typeButtonLabelSelected]}>
+                  {widgetType}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          style={[styles.createButton, creatingWidget && styles.createButtonDisabled]}
+          disabled={creatingWidget}
+          onPress={handleCreateWidget}
+        >
+          <Text style={styles.createButtonLabel}>
+            {creatingWidget ? "Creating..." : "Create Widget"}
+          </Text>
+        </Pressable>
+        {createError ? <Text style={styles.error}>{createError}</Text> : null}
       </View>
 
       <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
@@ -121,6 +179,54 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 24,
     paddingBottom: 12,
+  },
+  createSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    gap: 10,
+  },
+  createLabel: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  typeGrid: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  typeButton: {
+    borderWidth: 1,
+    borderColor: "#555",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    backgroundColor: "#111",
+  },
+  typeButtonSelected: {
+    borderColor: "#fff",
+    backgroundColor: "#1e1e1e",
+  },
+  typeButtonLabel: {
+    color: "#d1d1d1",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  typeButtonLabelSelected: {
+    color: "#fff",
+  },
+  createButton: {
+    backgroundColor: "#2d8cff",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  createButtonDisabled: {
+    opacity: 0.6,
+  },
+  createButtonLabel: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
   title: {
     color: "#fff",

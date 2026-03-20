@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { widgetsService } from "./widgets.service";
+import {
+  SUPPORTED_WIDGET_TYPES,
+  widgetsService
+} from "./widgets.service";
 import { usersService } from "../users/users.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
@@ -9,9 +12,8 @@ import { asyncHandler } from "../../core/http/async-handler";
 export const widgetsRouter = Router();
 
 const createWidgetSchema = z.object({
-  type: z.string().trim().min(1),
-  config: z.record(z.string(), z.unknown()),
-  position: z.number().int().min(0)
+  type: z.enum(SUPPORTED_WIDGET_TYPES),
+  config: z.record(z.string(), z.unknown()).optional()
 });
 
 async function getPrimaryUserId(): Promise<string> {
@@ -43,13 +45,12 @@ widgetsRouter.post(
       throw apiErrors.validation("Invalid widget payload", result.error.format());
     }
 
-    const { type, config, position } = result.data;
+    const { type, config } = result.data;
     const normalizedConfig = config as Prisma.InputJsonValue;
-    const widget = await widgetsService.createWidget({
+    const widget = await widgetsService.createWidgetAtNextPosition({
       userId,
       type,
-      config: normalizedConfig,
-      position
+      config: normalizedConfig
     });
 
     res.status(201).json(widget);

@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { selectAdminActiveWidget } from "../src/features/admin/adminHome.logic";
+import {
+  CREATABLE_WIDGET_TYPES,
+  selectAdminActiveWidget
+} from "../src/features/admin/adminHome.logic";
 
 const widgetA = {
   id: "widget-a",
@@ -32,4 +35,8 @@ test("selectAdminActiveWidget returns first active widget", () => {
 test("selectAdminActiveWidget returns null when there is no active widget", () => {
   const selected = selectAdminActiveWidget([widgetA]);
   assert.equal(selected, null);
+});
+
+test("CREATABLE_WIDGET_TYPES exposes the initial M1-2 widget set", () => {
+  assert.deepEqual(CREATABLE_WIDGET_TYPES, ["clockDate", "weather", "calendar"]);
 });
