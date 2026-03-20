@@ -8,11 +8,13 @@ import {
   globalErrorMiddleware,
   notFoundMiddleware
 } from "./core/http/error-middleware";
+import { requestLoggingMiddleware } from "./core/http/request-logging-middleware";
 
 export function createApp() {
   const app = express();
 
   app.use(cors());
+  app.use(requestLoggingMiddleware);
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
