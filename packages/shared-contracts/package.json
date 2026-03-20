@@ -1,4 +1,5 @@
 {
   "name": "@ambient/shared-contracts",
-  "private": true
+  "private": true,
+  "types": "./src/index.ts"
 }

@@ -1,14 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { widgetsRepository } from "./widgets.repository";
-
-export const SUPPORTED_WIDGET_TYPES = ["clockDate", "weather", "calendar"] as const;
-export type SupportedWidgetType = (typeof SUPPORTED_WIDGET_TYPES)[number];
-
-function getDefaultWidgetConfig(
-  _widgetType: SupportedWidgetType,
-): Prisma.InputJsonValue {
-  return {};
-}
+import {
+  getDefaultWidgetConfig,
+  normalizeWidgetConfig,
+  type SupportedWidgetType,
+} from "./widget-contracts";
 
 export const widgetsService = {
   getUserWidgets(userId: string) {
@@ -29,7 +25,10 @@ export const widgetsService = {
     return widgetsRepository.create({
       userId: data.userId,
       type: data.type,
-      config: data.config ?? getDefaultWidgetConfig(data.type),
+      config:
+        data.config === undefined
+          ? getDefaultWidgetConfig(data.type)
+          : normalizeWidgetConfig(data.type, data.config),
       position: data.position ?? 0,
       isActive: data.isActive
     });

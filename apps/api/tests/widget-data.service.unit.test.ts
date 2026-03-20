@@ -43,11 +43,12 @@ test("widgetDataService returns normalized payload for clockDate widget", async 
   assert.ok(result);
   assert.equal(result.widgetKey, "clockDate");
   assert.equal(result.state, "ready");
+  assert.ok(result.data);
   assert.equal(typeof result.data.formattedTime, "string");
   assert.equal(typeof result.data.formattedDate, "string");
 });
 
-test("widgetDataService returns error state for unsupported widget types", async () => {
+test("widgetDataService returns empty state for placeholder weather widget", async () => {
   mutableWidgetsRepository.findById = async () => {
     return {
       id: "widget-weather",
@@ -64,6 +65,7 @@ test("widgetDataService returns error state for unsupported widget types", async
   const result = await widgetDataService.getWidgetData("widget-weather");
 
   assert.ok(result);
-  assert.equal(result.state, "error");
+  assert.equal(result.widgetKey, "weather");
+  assert.equal(result.state, "empty");
   assert.equal(result.data, null);
 });

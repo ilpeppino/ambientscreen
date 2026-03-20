@@ -3,10 +3,12 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import { getWidgets, type WidgetInstance } from "../../../services/api/widgetsApi";
 import {
   getWidgetData,
-  type ClockDateWidgetData,
   type WidgetDataEnvelope,
 } from "../../../services/api/widgetDataApi";
-import { ClockDateRenderer } from "../../../widgets/clockDate/renderer";
+import type {
+  WidgetDataByKey,
+  WidgetKey,
+} from "@ambient/shared-contracts";
 import {
   disableDisplayKeepAwake,
   enableDisplayKeepAwake,
@@ -20,6 +22,7 @@ import {
   getDisplayRefreshIntervalMs,
   selectDisplayWidget,
 } from "../displayScreen.logic";
+import { renderWidgetFromEnvelope } from "../../../widgets/widget.registry";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -28,8 +31,12 @@ interface DisplayScreenProps {
 export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [selectedWidget, setSelectedWidget] = useState<WidgetInstance | null>(null);
+  type WidgetEnvelope =
+    | WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate">
+    | WidgetDataEnvelope<WidgetDataByKey["weather"], "weather">
+    | WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
   const [widgetData, setWidgetData] =
-    useState<WidgetDataEnvelope<ClockDateWidgetData> | null>(null);
+    useState<WidgetEnvelope | null>(null);
   const [loadingWidgets, setLoadingWidgets] = useState(true);
   const [loadingWidgetData, setLoadingWidgetData] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,8 +104,10 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         setLoadingWidgetData(true);
         setError(null);
 
-        const response = await getWidgetData<ClockDateWidgetData>(widgetId);
-        setWidgetData(response);
+        const response = await getWidgetData<
+          WidgetDataByKey[WidgetKey]
+        >(widgetId);
+        setWidgetData(response as WidgetEnvelope);
       } catch (err) {
         console.error(err);
         setError("Failed to load widget data");
@@ -166,8 +175,8 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       );
     }
 
-    if (selectedWidget.type === "clockDate") {
-      return <ClockDateRenderer data={widgetData?.data ?? null} />;
+    if (widgetData) {
+      return renderWidgetFromEnvelope(widgetData);
     }
 
     return (

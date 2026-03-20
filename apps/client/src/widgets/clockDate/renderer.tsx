@@ -1,13 +1,12 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import type { ClockDateWidgetData } from "../../services/api/widgetDataApi";
+import type {
+  ClockDateWidgetData,
+  WidgetRendererProps,
+} from "@ambient/shared-contracts";
 import { DisplayFrame } from "../../shared/ui/layout/DisplayFrame";
 
-interface ClockDateRendererProps {
-  data: ClockDateWidgetData | null;
-}
-
-export function ClockDateRenderer({ data }: ClockDateRendererProps) {
+export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetData>) {
   if (!data) {
     return (
       <DisplayFrame title="Clock">

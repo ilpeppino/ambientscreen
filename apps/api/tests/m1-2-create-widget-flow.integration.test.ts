@@ -258,6 +258,32 @@ test("M1-2: unsupported widget type is rejected", async () => {
   assert.equal(createResponse.statusCode, 400);
 });
 
+test("M2-1: widget config must match widget contract schema", async () => {
+  await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev" }
+  });
+
+  const invalidClockConfigResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "clockDate",
+      config: {
+        hour12: "sometimes"
+      }
+    }
+  });
+  assert.equal(invalidClockConfigResponse.statusCode, 400);
+
+  const invalidCalendarConfigResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "calendar",
+      config: {
+        lookAheadDays: 99
+      }
+    }
+  });
+  assert.equal(invalidCalendarConfigResponse.statusCode, 400);
+});
+
 test("M1-2: creating widget fails when no user exists", async () => {
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: { type: "weather" }

@@ -1,20 +1,14 @@
 import { Router } from "express";
-import { Prisma } from "@prisma/client";
-import { z } from "zod";
 import {
-  SUPPORTED_WIDGET_TYPES,
-  widgetsService
-} from "./widgets.service";
+  createWidgetSchema,
+  normalizeWidgetConfig,
+} from "./widget-contracts";
+import { widgetsService } from "./widgets.service";
 import { usersService } from "../users/users.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 
 export const widgetsRouter = Router();
-
-const createWidgetSchema = z.object({
-  type: z.enum(SUPPORTED_WIDGET_TYPES),
-  config: z.record(z.string(), z.unknown()).optional()
-});
 
 async function getPrimaryUserId(): Promise<string> {
   const users = await usersService.getAllUsers();
@@ -46,11 +40,10 @@ widgetsRouter.post(
     }
 
     const { type, config } = result.data;
-    const normalizedConfig = config as Prisma.InputJsonValue;
     const widget = await widgetsService.createWidgetAtNextPosition({
       userId,
       type,
-      config: normalizedConfig
+      config: normalizeWidgetConfig(type, config)
     });
 
     res.status(201).json(widget);

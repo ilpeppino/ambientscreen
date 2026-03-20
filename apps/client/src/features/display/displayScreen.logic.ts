@@ -1,3 +1,5 @@
+import type { WidgetKey } from "@ambient/shared-contracts";
+
 interface SelectableWidget {
   id: string;
   isActive: boolean;
@@ -23,10 +25,18 @@ export function selectDisplayWidget<TWidget extends SelectableWidget>(
 }
 
 export function getDisplayRefreshIntervalMs(
-  widgetType: string | null | undefined,
+  widgetType: WidgetKey | null | undefined,
 ): number | null {
   if (widgetType === "clockDate") {
     return 1000;
+  }
+
+  if (widgetType === "weather") {
+    return 300000;
+  }
+
+  if (widgetType === "calendar") {
+    return 60000;
   }
 
   return null;
