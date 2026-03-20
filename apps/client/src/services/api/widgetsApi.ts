@@ -1,22 +1,12 @@
 import { API_BASE_URL } from "../../core/config/api";
+import type {
+  CreateWidgetInput,
+  WidgetInstance,
+  WidgetKey,
+} from "@ambient/shared-contracts";
 
-export const WIDGET_TYPES = ["clockDate", "weather", "calendar"] as const;
-export type WidgetType = (typeof WIDGET_TYPES)[number];
-
-export interface WidgetInstance {
-  id: string;
-  userId: string;
-  type: string;
-  config: unknown;
-  position: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface CreateWidgetInput {
-  type: WidgetType;
-}
+export type { CreateWidgetInput, WidgetInstance, WidgetKey };
+export const WIDGET_TYPES: WidgetKey[] = ["clockDate", "weather", "calendar"];
 
 export async function getWidgets(): Promise<WidgetInstance[]> {
   const response = await fetch(`${API_BASE_URL}/widgets`);

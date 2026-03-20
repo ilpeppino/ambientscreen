@@ -55,8 +55,9 @@ test("selectDisplayWidget falls back to first widget when previous is gone", () 
   assert.equal(selected?.id, "widget-a");
 });
 
-test("getDisplayRefreshIntervalMs returns 1s only for clockDate", () => {
+test("getDisplayRefreshIntervalMs follows widget refresh policy rules", () => {
   assert.equal(getDisplayRefreshIntervalMs("clockDate"), 1000);
-  assert.equal(getDisplayRefreshIntervalMs("weather"), null);
+  assert.equal(getDisplayRefreshIntervalMs("weather"), 300000);
+  assert.equal(getDisplayRefreshIntervalMs("calendar"), 60000);
   assert.equal(getDisplayRefreshIntervalMs(undefined), null);
 });

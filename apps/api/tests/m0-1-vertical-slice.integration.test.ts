@@ -325,7 +325,10 @@ test("M0-1: widget-data endpoint returns clock data and handles missing/unsuppor
   const unsupportedDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: unsupportedWidgetId }
   });
-  assert.equal(unsupportedDataResponse.statusCode, 400);
+  assert.equal(unsupportedDataResponse.statusCode, 200);
+  const unsupportedData = unsupportedDataResponse.body as { state: string; data: unknown };
+  assert.equal(unsupportedData.state, "empty");
+  assert.equal(unsupportedData.data, null);
 
   const missingWidgetResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: "does-not-exist" }
