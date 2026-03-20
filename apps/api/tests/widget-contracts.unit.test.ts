@@ -51,7 +51,18 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
   assert.deepEqual(normalizedClock, {});
 
   const normalizedWeather = normalizeWidgetConfig("weather", null);
-  assert.deepEqual(normalizedWeather, {});
+  assert.deepEqual(normalizedWeather, {
+    location: "Amsterdam",
+    units: "metric",
+  });
+
+  const normalizedCalendar = normalizeWidgetConfig("calendar", {});
+  assert.deepEqual(normalizedCalendar, {
+    sourceType: "ical",
+    lookAheadDays: 7,
+    maxEvents: 10,
+    includeAllDay: true,
+  });
 });
 
 test("M2-1: widget manifests expose refresh policy rules", () => {

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test, { after, beforeEach } from "node:test";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetDataService } from "../src/modules/widgetData/widget-data.service";
+import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/calendar.resolver";
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
 
 const originalFindById = widgetsRepository.findById;
@@ -116,4 +117,104 @@ test("weather resolver returns stale payload when provider call fails", async ()
     conditionLabel: null,
   });
   assert.equal(result.meta?.errorCode, "WEATHER_PROVIDER_UNAVAILABLE");
+});
+
+test("calendar resolver returns normalized events with all-day and timed entries", async () => {
+  const result = await resolveCalendarWidgetData({
+    widgetInstanceId: "widget-calendar",
+    widgetConfig: {
+      sourceType: "ical",
+      feedUrl: "https://calendar.example.com/feed.ics",
+      lookAheadDays: 7,
+      includeAllDay: true,
+      maxEvents: 5,
+    },
+    fetchCalendarData: async () => {
+      return {
+        fetchedAtIso: "2026-03-20T12:34:56.000Z",
+        events: [
+          {
+            id: "event-1",
+            title: "All Day Planning",
+            startIso: "2026-03-21T00:00:00.000Z",
+            endIso: null,
+            allDay: true,
+            location: null,
+          },
+          {
+            id: "event-2",
+            title: "Client Sync",
+            startIso: "2026-03-21T14:00:00.000Z",
+            endIso: "2026-03-21T14:30:00.000Z",
+            allDay: false,
+            location: "Room 4A",
+          },
+        ],
+      };
+    },
+  });
+
+  assert.equal(result.widgetKey, "calendar");
+  assert.equal(result.state, "ready");
+  assert.equal(result.data?.upcomingCount, 2);
+  assert.deepEqual(result.data?.events[0], {
+    id: "event-1",
+    title: "All Day Planning",
+    startIso: "2026-03-21T00:00:00.000Z",
+    endIso: null,
+    allDay: true,
+    location: null,
+  });
+  assert.deepEqual(result.data?.events[1], {
+    id: "event-2",
+    title: "Client Sync",
+    startIso: "2026-03-21T14:00:00.000Z",
+    endIso: "2026-03-21T14:30:00.000Z",
+    allDay: false,
+    location: "Room 4A",
+  });
+  assert.equal(result.meta?.source, "ical");
+  assert.equal(result.meta?.fetchedAt, "2026-03-20T12:34:56.000Z");
+});
+
+test("calendar resolver returns empty when feed URL is missing", async () => {
+  const result = await resolveCalendarWidgetData({
+    widgetInstanceId: "widget-calendar",
+    widgetConfig: {
+      sourceType: "ical",
+      lookAheadDays: 7,
+      maxEvents: 5,
+      includeAllDay: true,
+    },
+  });
+
+  assert.equal(result.state, "empty");
+  assert.deepEqual(result.data, {
+    upcomingCount: 0,
+    events: [],
+  });
+  assert.equal(result.meta?.errorCode, "CALENDAR_FEED_NOT_CONFIGURED");
+});
+
+test("calendar resolver returns stale when provider fails", async () => {
+  const result = await resolveCalendarWidgetData({
+    widgetInstanceId: "widget-calendar",
+    widgetConfig: {
+      sourceType: "ical",
+      feedUrl: "https://calendar.example.com/feed.ics",
+      lookAheadDays: 7,
+      includeAllDay: false,
+      maxEvents: 3,
+    },
+    fetchCalendarData: async () => {
+      throw new Error("provider unavailable");
+    },
+  });
+
+  assert.equal(result.state, "stale");
+  assert.deepEqual(result.data, {
+    upcomingCount: 0,
+    events: [],
+  });
+  assert.equal(result.meta?.errorCode, "CALENDAR_PROVIDER_UNAVAILABLE");
 });

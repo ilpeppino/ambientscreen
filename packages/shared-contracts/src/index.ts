@@ -24,8 +24,11 @@ export interface WeatherWidgetConfig {
 }
 
 export interface CalendarWidgetConfig {
-  calendarId?: string;
+  sourceType?: "ical";
+  feedUrl?: string;
   lookAheadDays?: number;
+  maxEvents?: number;
+  includeAllDay?: boolean;
 }
 
 export interface WidgetConfigByKey {
@@ -80,6 +83,9 @@ export interface CalendarWidgetData {
     id: string;
     title: string;
     startIso: string;
+    endIso: string | null;
+    allDay: boolean;
+    location: string | null;
   }>;
 }
 
