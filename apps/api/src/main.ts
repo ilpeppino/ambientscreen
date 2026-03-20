@@ -1,12 +1,15 @@
 import { createApp } from "./app";
-
-const PORT = 3000;
+import { getApiPort } from "./core/config/env";
+import { loadEnvFromFile } from "./core/config/load-env";
 
 async function main() {
-  const app = createApp();
+  loadEnvFromFile();
 
-  app.listen(PORT, () => {
-    console.log(`🚀 API running on http://localhost:${PORT}`);
+  const app = createApp();
+  const port = getApiPort();
+
+  app.listen(port, () => {
+    console.log(`🚀 API running on port ${port}`);
   });
 }
 

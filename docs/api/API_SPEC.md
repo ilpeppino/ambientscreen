@@ -61,3 +61,13 @@ Each widget has a resolver:
 
 - API owns ALL business logic
 - Client must not transform data
+
+---
+
+## Environment Setup (M0-4)
+
+Create `apps/api/.env` from `apps/api/.env.example`.
+
+Supported variables:
+- `DATABASE_URL`: Postgres connection string for Prisma
+- `PORT`: API server port (default `3000`)
