@@ -27,12 +27,25 @@ const widgetB = {
   updatedAt: "2026-03-20T12:00:00.000Z",
 };
 
-test("selectDisplayWidget picks the first widget when there is no previous selection", () => {
+test("selectDisplayWidget picks the active widget when there is no previous selection", () => {
   const selected = selectDisplayWidget([widgetA, widgetB], null);
-  assert.equal(selected?.id, "widget-a");
+  assert.equal(selected?.id, "widget-b");
 });
 
-test("selectDisplayWidget keeps previous selection if it still exists", () => {
+test("selectDisplayWidget prefers active widget over previous selection", () => {
+  const selected = selectDisplayWidget([widgetA, widgetB], widgetA);
+  assert.equal(selected?.id, "widget-b");
+});
+
+test("selectDisplayWidget keeps previous selection if no active widget exists", () => {
+  const selected = selectDisplayWidget(
+    [{ ...widgetA, isActive: false }, { ...widgetB, isActive: false }],
+    widgetB,
+  );
+  assert.equal(selected?.id, "widget-b");
+});
+
+test("selectDisplayWidget keeps previous selection if it is still active", () => {
   const selected = selectDisplayWidget([widgetA, widgetB], widgetB);
   assert.equal(selected?.id, "widget-b");
 });

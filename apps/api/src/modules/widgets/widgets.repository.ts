@@ -6,6 +6,7 @@ interface CreateWidgetInput {
   type: string;
   config: Prisma.InputJsonValue;
   position: number;
+  isActive: boolean;
 }
 
 export const widgetsRepository = {
@@ -28,8 +29,23 @@ export const widgetsRepository = {
         userId: input.userId,
         type: input.type,
         config: input.config,
-        position: input.position
+        position: input.position,
+        isActive: input.isActive
       }
+    });
+  },
+
+  activateWidget(userId: string, widgetId: string) {
+    return prisma.$transaction(async (transaction) => {
+      await transaction.widgetInstance.updateMany({
+        where: { userId },
+        data: { isActive: false }
+      });
+
+      return transaction.widgetInstance.update({
+        where: { id: widgetId },
+        data: { isActive: true }
+      });
     });
   }
 };

@@ -1,11 +1,17 @@
 interface SelectableWidget {
   id: string;
+  isActive: boolean;
 }
 
 export function selectDisplayWidget<TWidget extends SelectableWidget>(
   widgets: TWidget[],
   previous: TWidget | null,
 ): TWidget | null {
+  const activeWidget = widgets.find((widget) => widget.isActive);
+  if (activeWidget) {
+    return activeWidget;
+  }
+
   if (previous) {
     const stillExists = widgets.find((widget) => widget.id === previous.id);
     if (stillExists) {

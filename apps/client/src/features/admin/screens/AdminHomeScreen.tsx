@@ -10,6 +10,7 @@ import {
 import {
   createWidget,
   getWidgets,
+  setActiveWidget,
   type WidgetInstance,
 } from "../../../services/api/widgetsApi";
 import {
@@ -28,8 +29,10 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
     useState<CreatableWidgetType>(CREATABLE_WIDGET_TYPES[0]);
   const [loading, setLoading] = useState(true);
   const [creatingWidget, setCreatingWidget] = useState(false);
+  const [settingActiveWidgetId, setSettingActiveWidgetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [activeError, setActiveError] = useState<string | null>(null);
 
   const loadWidgets = useCallback(async (signal?: { cancelled: boolean }) => {
     try {
@@ -69,6 +72,7 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
     try {
       setCreatingWidget(true);
       setCreateError(null);
+      setActiveError(null);
 
       await createWidget({ type: selectedWidgetType });
       await loadWidgets();
@@ -77,6 +81,22 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
       setCreateError("Failed to create widget");
     } finally {
       setCreatingWidget(false);
+    }
+  }
+
+  async function handleSetActiveWidget(widgetId: string) {
+    try {
+      setSettingActiveWidgetId(widgetId);
+      setActiveError(null);
+      setCreateError(null);
+
+      await setActiveWidget(widgetId);
+      await loadWidgets();
+    } catch (err) {
+      console.error(err);
+      setActiveError("Failed to set active widget");
+    } finally {
+      setSettingActiveWidgetId(null);
     }
   }
 
@@ -152,10 +172,25 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
               <Text style={styles.widgetMeta}>
                 Status: {widget.isActive ? "active" : "inactive"}
               </Text>
+              <Pressable
+                accessibilityRole="button"
+                style={[
+                  styles.setActiveButton,
+                  widget.isActive && styles.setActiveButtonDisabled,
+                  settingActiveWidgetId === widget.id && styles.setActiveButtonDisabled,
+                ]}
+                disabled={widget.isActive || settingActiveWidgetId === widget.id}
+                onPress={() => handleSetActiveWidget(widget.id)}
+              >
+                <Text style={styles.setActiveButtonLabel}>
+                  {settingActiveWidgetId === widget.id ? "Setting..." : "Set Active"}
+                </Text>
+              </Pressable>
             </View>
           ))
         )}
       </ScrollView>
+      {activeError ? <Text style={styles.error}>{activeError}</Text> : null}
 
       <View style={styles.footer}>
         <Pressable
@@ -262,6 +297,23 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: "#bbb",
     fontSize: 13,
+  },
+  setActiveButton: {
+    marginTop: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#555",
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#1a1a1a",
+  },
+  setActiveButtonDisabled: {
+    opacity: 0.6,
+  },
+  setActiveButtonLabel: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
   },
   message: {
     color: "#fff",
