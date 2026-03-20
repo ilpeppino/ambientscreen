@@ -14,6 +14,7 @@
   "include": [
     "src/features/display/displayScreen.logic.ts",
     "src/features/display/services/keepAwake.lifecycle.ts",
+    "src/features/display/services/orientation.lifecycle.ts",
     "tests/**/*.ts"
   ]
 }
