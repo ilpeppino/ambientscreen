@@ -4,35 +4,26 @@ import type {
   ClockDateWidgetData,
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
-import { DisplayFrame } from "../../shared/ui/layout/DisplayFrame";
 
 export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetData>) {
   if (!data) {
     return (
-      <DisplayFrame title="Clock">
-        <View style={styles.container}>
-          <Text style={styles.loadingText}>No clock data</Text>
-        </View>
-      </DisplayFrame>
+      <View style={styles.container}>
+        <Text style={styles.loadingText}>No clock data</Text>
+      </View>
     );
   }
 
   return (
-    <DisplayFrame
-      title="Clock"
-      subtitle={data.nowIso}
-      footer={<Text style={styles.footerText}>Ambient Screen</Text>}
-    >
-      <View style={styles.container}>
-        <Text style={styles.time}>{data.formattedTime}</Text>
-        {data.weekdayLabel ? (
-          <Text style={styles.weekday}>{data.weekdayLabel}</Text>
-        ) : null}
-        {data.formattedDate ? (
-          <Text style={styles.date}>{data.formattedDate}</Text>
-        ) : null}
-      </View>
-    </DisplayFrame>
+    <View style={styles.container}>
+      <Text style={styles.time}>{data.formattedTime}</Text>
+      {data.weekdayLabel ? (
+        <Text style={styles.weekday}>{data.weekdayLabel}</Text>
+      ) : null}
+      {data.formattedDate ? (
+        <Text style={styles.date}>{data.formattedDate}</Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -62,9 +53,5 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 20,
     color: "#fff",
-  },
-  footerText: {
-    color: "#666",
-    fontSize: 12,
   },
 });

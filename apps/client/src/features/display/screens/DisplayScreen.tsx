@@ -19,7 +19,9 @@ import {
 } from "../services/orientation";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
 import {
+  getDisplayFrameModel,
   getDisplayRefreshIntervalMs,
+  resolveDisplayUiState,
   selectDisplayWidget,
 } from "../displayScreen.logic";
 import { renderWidgetFromEnvelope } from "../../../widgets/widget.registry";
@@ -132,63 +134,63 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     };
   }, [selectedWidgetId, selectedWidget?.type]);
 
+  const uiState = resolveDisplayUiState({
+    loadingWidgets,
+    loadingWidgetData,
+    hasError: !!error,
+    hasSelectedWidget: !!selectedWidget,
+    hasWidgetData: !!widgetData,
+  });
+
+  const frameModel = getDisplayFrameModel(selectedWidget?.type);
+
   const content = useMemo(() => {
-    if (loadingWidgets) {
+    if (uiState === "loadingWidgets") {
       return (
-        <DisplayFrame title="Display Mode">
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.message}>Loading widgets...</Text>
-          </View>
-        </DisplayFrame>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.message}>Loading widgets...</Text>
+        </View>
       );
     }
 
-    if (error) {
+    if (uiState === "error") {
       return (
-        <DisplayFrame title="Display Mode">
-          <View style={styles.centered}>
-            <Text style={styles.error}>{error}</Text>
-          </View>
-        </DisplayFrame>
+        <View style={styles.centered}>
+          <Text style={styles.error}>{error}</Text>
+        </View>
       );
     }
 
-    if (!selectedWidget) {
+    if (uiState === "empty") {
       return (
-        <DisplayFrame title="Display Mode">
-          <View style={styles.centered}>
-            <Text style={styles.message}>No widgets configured yet.</Text>
-          </View>
-        </DisplayFrame>
+        <View style={styles.centered}>
+          <Text style={styles.message}>No widgets configured yet.</Text>
+        </View>
       );
     }
 
-    if (loadingWidgetData && !widgetData) {
+    if (uiState === "loadingWidgetData") {
       return (
-        <DisplayFrame title="Display Mode">
-          <View style={styles.centered}>
-            <ActivityIndicator size="large" color="#fff" />
-            <Text style={styles.message}>Loading widget data...</Text>
-          </View>
-        </DisplayFrame>
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#fff" />
+          <Text style={styles.message}>Loading widget data...</Text>
+        </View>
       );
     }
 
-    if (widgetData) {
+    if (uiState === "ready" && widgetData) {
       return renderWidgetFromEnvelope(widgetData);
     }
 
     return (
-      <DisplayFrame title="Display Mode">
-        <View style={styles.centered}>
-          <Text style={styles.message}>
-            Unsupported widget type: {selectedWidget.type}
-          </Text>
-        </View>
-      </DisplayFrame>
+      <View style={styles.centered}>
+        <Text style={styles.message}>
+          Unsupported widget type: {selectedWidget?.type}
+        </Text>
+      </View>
     );
-  }, [loadingWidgets, loadingWidgetData, error, selectedWidget, widgetData]);
+  }, [uiState, error, widgetData, selectedWidget?.type]);
 
   return (
     <View style={styles.screen}>
@@ -203,7 +205,13 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
           </Pressable>
         </View>
       ) : null}
-      {content}
+      <DisplayFrame
+        title={frameModel.title}
+        subtitle={frameModel.subtitle}
+        footer={<Text style={styles.footerText}>{frameModel.footerLabel}</Text>}
+      >
+        {content}
+      </DisplayFrame>
     </View>
   );
 }
@@ -249,5 +257,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#ff6b6b",
     textAlign: "center",
+  },
+  footerText: {
+    color: "#666",
+    fontSize: 12,
   },
 });

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getDisplayFrameModel,
   getDisplayRefreshIntervalMs,
+  resolveDisplayUiState,
   selectDisplayWidget,
 } from "../src/features/display/displayScreen.logic";
 
@@ -60,4 +62,80 @@ test("getDisplayRefreshIntervalMs follows widget refresh policy rules", () => {
   assert.equal(getDisplayRefreshIntervalMs("weather"), 300000);
   assert.equal(getDisplayRefreshIntervalMs("calendar"), 60000);
   assert.equal(getDisplayRefreshIntervalMs(undefined), null);
+});
+
+test("resolveDisplayUiState returns loadingWidgets while widgets are loading", () => {
+  const state = resolveDisplayUiState({
+    loadingWidgets: true,
+    loadingWidgetData: false,
+    hasError: false,
+    hasSelectedWidget: false,
+    hasWidgetData: false,
+  });
+
+  assert.equal(state, "loadingWidgets");
+});
+
+test("resolveDisplayUiState returns error before empty state", () => {
+  const state = resolveDisplayUiState({
+    loadingWidgets: false,
+    loadingWidgetData: false,
+    hasError: true,
+    hasSelectedWidget: false,
+    hasWidgetData: false,
+  });
+
+  assert.equal(state, "error");
+});
+
+test("resolveDisplayUiState returns loadingWidgetData while waiting for first payload", () => {
+  const state = resolveDisplayUiState({
+    loadingWidgets: false,
+    loadingWidgetData: true,
+    hasError: false,
+    hasSelectedWidget: true,
+    hasWidgetData: false,
+  });
+
+  assert.equal(state, "loadingWidgetData");
+});
+
+test("resolveDisplayUiState returns ready when widget data exists", () => {
+  const state = resolveDisplayUiState({
+    loadingWidgets: false,
+    loadingWidgetData: false,
+    hasError: false,
+    hasSelectedWidget: true,
+    hasWidgetData: true,
+  });
+
+  assert.equal(state, "ready");
+});
+
+test("resolveDisplayUiState returns unsupported for selected widget without payload", () => {
+  const state = resolveDisplayUiState({
+    loadingWidgets: false,
+    loadingWidgetData: false,
+    hasError: false,
+    hasSelectedWidget: true,
+    hasWidgetData: false,
+  });
+
+  assert.equal(state, "unsupported");
+});
+
+test("getDisplayFrameModel returns default shell when no widget is selected", () => {
+  const model = getDisplayFrameModel(undefined);
+
+  assert.equal(model.title, "Ambient Display");
+  assert.equal(model.subtitle, "Display Mode");
+  assert.equal(model.footerLabel, "Ambient Screen");
+});
+
+test("getDisplayFrameModel includes manifest title and refresh policy label", () => {
+  const model = getDisplayFrameModel("weather");
+
+  assert.equal(model.title, "Weather");
+  assert.equal(model.subtitle, "Display Mode");
+  assert.equal(model.footerLabel, "Refresh every 5m");
 });

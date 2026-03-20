@@ -4,15 +4,13 @@ import type {
   CalendarWidgetData,
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
-import { DisplayFrame } from "../../shared/ui/layout/DisplayFrame";
 
 export function CalendarRenderer({ data }: WidgetRendererProps<CalendarWidgetData>) {
   return (
-    <DisplayFrame title="Calendar" subtitle={data ? `${data.upcomingCount} events` : "Calendar"}>
-      <View style={styles.container}>
-        <Text style={styles.message}>Calendar widget coming soon.</Text>
-      </View>
-    </DisplayFrame>
+    <View style={styles.container}>
+      <Text style={styles.message}>Calendar widget coming soon.</Text>
+      {data ? <Text style={styles.count}>{data.upcomingCount} events</Text> : null}
+    </View>
   );
 }
 
@@ -27,6 +25,12 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 20,
     color: "#fff",
+    textAlign: "center",
+  },
+  count: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#aaa",
     textAlign: "center",
   },
 });
