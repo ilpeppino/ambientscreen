@@ -123,9 +123,9 @@ test("calendar resolver returns normalized events with all-day and timed entries
   const result = await resolveCalendarWidgetData({
     widgetInstanceId: "widget-calendar",
     widgetConfig: {
-      sourceType: "ical",
-      feedUrl: "https://calendar.example.com/feed.ics",
-      lookAheadDays: 7,
+      provider: "ical",
+      account: "https://calendar.example.com/feed.ics",
+      timeWindow: "next7d",
       includeAllDay: true,
       maxEvents: 5,
     },
@@ -177,12 +177,12 @@ test("calendar resolver returns normalized events with all-day and timed entries
   assert.equal(result.meta?.fetchedAt, "2026-03-20T12:34:56.000Z");
 });
 
-test("calendar resolver returns empty when feed URL is missing", async () => {
+test("calendar resolver returns empty when account is missing", async () => {
   const result = await resolveCalendarWidgetData({
     widgetInstanceId: "widget-calendar",
     widgetConfig: {
-      sourceType: "ical",
-      lookAheadDays: 7,
+      provider: "ical",
+      timeWindow: "next7d",
       maxEvents: 5,
       includeAllDay: true,
     },
@@ -200,9 +200,9 @@ test("calendar resolver returns stale when provider fails", async () => {
   const result = await resolveCalendarWidgetData({
     widgetInstanceId: "widget-calendar",
     widgetConfig: {
-      sourceType: "ical",
-      feedUrl: "https://calendar.example.com/feed.ics",
-      lookAheadDays: 7,
+      provider: "ical",
+      account: "https://calendar.example.com/feed.ics",
+      timeWindow: "next7d",
       includeAllDay: false,
       maxEvents: 3,
     },

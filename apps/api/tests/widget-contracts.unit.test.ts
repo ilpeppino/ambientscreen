@@ -21,7 +21,7 @@ test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
 
   const calendar = createWidgetSchema.safeParse({
     type: "calendar",
-    config: { lookAheadDays: 7 },
+    config: { provider: "ical", timeWindow: "next7d" },
   });
   assert.equal(calendar.success, true);
 });
@@ -41,7 +41,7 @@ test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
 
   const invalidCalendar = createWidgetSchema.safeParse({
     type: "calendar",
-    config: { lookAheadDays: 45 },
+    config: { provider: "googleCalendar" },
   });
   assert.equal(invalidCalendar.success, false);
 });
@@ -58,9 +58,26 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
 
   const normalizedCalendar = normalizeWidgetConfig("calendar", {});
   assert.deepEqual(normalizedCalendar, {
-    sourceType: "ical",
-    lookAheadDays: 7,
+    provider: "ical",
+    timeWindow: "next7d",
     maxEvents: 10,
+    includeAllDay: true,
+  });
+});
+
+test("M4-3: normalizeWidgetConfig maps legacy calendar config to V1 admin shape", () => {
+  const normalizedCalendar = normalizeWidgetConfig("calendar", {
+    sourceType: "ical",
+    feedUrl: "https://calendar.example.com/feed.ics",
+    lookAheadDays: 7,
+    maxEvents: 5,
+  });
+
+  assert.deepEqual(normalizedCalendar, {
+    provider: "ical",
+    account: "https://calendar.example.com/feed.ics",
+    timeWindow: "next7d",
+    maxEvents: 5,
     includeAllDay: true,
   });
 });

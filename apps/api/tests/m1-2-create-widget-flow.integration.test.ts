@@ -303,6 +303,61 @@ test("M3-3: weather widget creation rejects invalid units config", async () => {
   assert.equal(createResponse.statusCode, 400);
 });
 
+test("M4-3: calendar widget can be created with provider, account, and time window config", async () => {
+  await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev" }
+  });
+
+  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "calendar",
+      config: {
+        provider: "ical",
+        account: "https://calendar.example.com/work.ics",
+        timeWindow: "next24h",
+        maxEvents: 8,
+        includeAllDay: false
+      }
+    }
+  });
+  assert.equal(createResponse.statusCode, 201);
+
+  const createdWidget = createResponse.body as {
+    type: string;
+    config: {
+      provider?: string;
+      account?: string;
+      timeWindow?: string;
+      maxEvents?: number;
+      includeAllDay?: boolean;
+    };
+  };
+  assert.equal(createdWidget.type, "calendar");
+  assert.equal(createdWidget.config.provider, "ical");
+  assert.equal(createdWidget.config.account, "https://calendar.example.com/work.ics");
+  assert.equal(createdWidget.config.timeWindow, "next24h");
+  assert.equal(createdWidget.config.maxEvents, 8);
+  assert.equal(createdWidget.config.includeAllDay, false);
+});
+
+test("M4-3: calendar widget creation rejects invalid provider/time window config", async () => {
+  await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev" }
+  });
+
+  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "calendar",
+      config: {
+        provider: "googleCalendar",
+        account: "not-a-url",
+        timeWindow: "next30d"
+      }
+    }
+  });
+  assert.equal(createResponse.statusCode, 400);
+});
+
 test("M2-1: widget config must match widget contract schema", async () => {
   await invokeRoute(usersRouter, "post", "/", {
     body: { email: "owner@ambient.dev" }
@@ -322,7 +377,7 @@ test("M2-1: widget config must match widget contract schema", async () => {
     body: {
       type: "calendar",
       config: {
-        lookAheadDays: 99
+        maxEvents: 99
       }
     }
   });
