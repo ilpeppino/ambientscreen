@@ -51,8 +51,11 @@ const weatherConfigSchema: z.ZodType<WidgetConfigByKey["weather"]> = z
 
 const calendarConfigSchema: z.ZodType<WidgetConfigByKey["calendar"]> = z
   .object({
-    calendarId: z.string().min(1).optional(),
+    sourceType: z.literal("ical").optional(),
+    feedUrl: z.string().url().optional(),
     lookAheadDays: z.number().int().min(1).max(31).optional(),
+    maxEvents: z.number().int().min(1).max(20).optional(),
+    includeAllDay: z.boolean().optional(),
   })
   .strict();
 
@@ -76,7 +79,12 @@ export function getDefaultWidgetConfig(
     };
   }
 
-  return {};
+  return {
+    sourceType: "ical",
+    lookAheadDays: 7,
+    maxEvents: 10,
+    includeAllDay: true,
+  };
 }
 
 export const createWidgetSchema = z.discriminatedUnion("type", [
@@ -105,5 +113,10 @@ export function normalizeWidgetConfig(
     return getDefaultWidgetConfig(widgetType);
   }
 
-  return parseResult.data as Prisma.InputJsonValue;
+  const defaultConfig = getDefaultWidgetConfig(widgetType) as Record<string, unknown>;
+
+  return {
+    ...defaultConfig,
+    ...(parseResult.data as Record<string, unknown>),
+  } as Prisma.InputJsonValue;
 }
