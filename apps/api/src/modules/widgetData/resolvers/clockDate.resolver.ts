@@ -5,6 +5,7 @@ import type {
 
 export async function resolveClockDateWidgetData(input: {
   widgetInstanceId: string;
+  widgetConfig: unknown;
 }): Promise<WidgetDataEnvelope<ClockDateWidgetData, "clockDate">> {
   const now = new Date();
 

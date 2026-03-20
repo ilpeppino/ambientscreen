@@ -35,15 +35,17 @@ interface InvokeRouteOptions {
 const originalUsersRepository = {
   findAll: usersRepository.findAll,
   findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create
+  create: usersRepository.create,
 };
 
 const originalWidgetsRepository = {
   findAll: widgetsRepository.findAll,
   findById: widgetsRepository.findById,
   create: widgetsRepository.create,
-  activateWidget: widgetsRepository.activateWidget
+  activateWidget: widgetsRepository.activateWidget,
 };
+
+const originalFetch = globalThis.fetch;
 
 const mutableUsersRepository = usersRepository as unknown as {
   findAll: () => Promise<TestUser[]>;
@@ -80,16 +82,11 @@ beforeEach(() => {
     return usersStore.find((user) => user.email === email) ?? null;
   };
   mutableUsersRepository.create = async (email: string) => {
-    const duplicateUser = usersStore.find((user) => user.email === email);
-    if (duplicateUser) {
-      throw { code: "P2002" };
-    }
-
     userCounter += 1;
     const newUser: TestUser = {
       id: `user-${userCounter}`,
       email,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     usersStore.push(newUser);
     return newUser;
@@ -114,7 +111,7 @@ beforeEach(() => {
       position: input.position,
       isActive: input.isActive,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
     widgetsStore.push(newWidget);
     return newWidget;
@@ -133,11 +130,52 @@ beforeEach(() => {
       return {
         ...item,
         isActive: item.id === widgetId,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
     });
 
     return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
+  };
+
+  globalThis.fetch = async (input) => {
+    const requestUrl = String(input);
+
+    if (requestUrl.startsWith("https://geocoding-api.open-meteo.com/v1/search")) {
+      return new Response(
+        JSON.stringify({
+          results: [
+            {
+              name: "Amsterdam",
+              admin1: "North Holland",
+              country: "Netherlands",
+              latitude: 52.374,
+              longitude: 4.8897,
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }
+
+    if (requestUrl.startsWith("https://api.open-meteo.com/v1/forecast")) {
+      return new Response(
+        JSON.stringify({
+          current: {
+            temperature_2m: 9.24,
+            weather_code: 61,
+            time: "2026-03-20T08:15:00.000Z",
+          },
+          current_units: {
+            temperature_2m: "°C",
+          },
+        }),
+        { status: 200 },
+      );
+    }
+
+    return new Response(JSON.stringify({ message: "not mocked" }), {
+      status: 404,
+    });
   };
 });
 
@@ -157,6 +195,8 @@ after(() => {
     originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
   mutableWidgetsRepository.activateWidget =
     originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
+
+  globalThis.fetch = originalFetch;
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -165,7 +205,7 @@ function getRouteHandler(router: Router, method: RouteMethod, path: string) {
       const route = (layer as { route?: { path?: string; methods?: Record<string, boolean> } })
         .route;
       return route?.path === path && route.methods?.[method];
-    }
+    },
   ) as
     | {
         route: {
@@ -185,7 +225,7 @@ async function invokeRoute(
   router: Router,
   method: RouteMethod,
   path: string,
-  options: InvokeRouteOptions = {}
+  options: InvokeRouteOptions = {},
 ) {
   const handler = getRouteHandler(router, method, path);
 
@@ -194,12 +234,12 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
   };
 
   const response = {
     statusCode: 200,
-    body: null as unknown
+    body: null as unknown,
   };
 
   const res = {
@@ -210,7 +250,7 @@ async function invokeRoute(
     json(body: unknown) {
       response.body = body;
       return res;
-    }
+    },
   };
 
   await handler(req, res, (error: unknown) => {
@@ -222,99 +262,45 @@ async function invokeRoute(
   return response;
 }
 
-test("M0-1: users endpoints handle create/list and duplicate safely", async () => {
-  const createResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-  assert.equal(createResponse.statusCode, 201);
-  assert.equal((createResponse.body as { email: string }).email, "owner@ambient.dev");
-
-  const duplicateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-  assert.equal(duplicateResponse.statusCode, 409);
-
-  const listResponse = await invokeRoute(usersRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
-  const users = listResponse.body as Array<{ id: string }>;
-  assert.equal(users.length, 1);
-  assert.equal(users[0].id, "user-1");
-});
-
-test("M0-1: widgets endpoints create/list and validate input payload", async () => {
-  const noUserWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: {},
-      position: 0
-    }
-  });
-  assert.equal(noUserWidgetResponse.statusCode, 400);
-
+test("M3-1: weather widget data endpoint returns normalized provider payload", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev" },
   });
 
-  const invalidWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
+  const createWeatherWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
-      type: "unsupported-widget"
-    }
+      type: "weather",
+      config: {
+        location: "Amsterdam",
+        units: "metric",
+      },
+    },
   });
-  assert.equal(invalidWidgetResponse.statusCode, 400);
+  assert.equal(createWeatherWidgetResponse.statusCode, 201);
 
-  const createFirstWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: { timezone: "UTC" },
-      position: 1
-    }
-  });
-  assert.equal(createFirstWidgetResponse.statusCode, 201);
-
-  const createSecondWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: { timezone: "Europe/Amsterdam" },
-      position: 0
-    }
-  });
-  assert.equal(createSecondWidgetResponse.statusCode, 201);
-
-  const listResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
-  const widgets = listResponse.body as Array<{ position: number }>;
-  assert.equal(widgets.length, 2);
-  assert.equal(widgets[0].position, 0);
-  assert.equal(widgets[1].position, 1);
-});
-
-test("M0-1: widget-data endpoint returns clock data and handles missing widgets", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+  const weatherWidgetId = (createWeatherWidgetResponse.body as { id: string }).id;
+  const weatherDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
+    params: { id: weatherWidgetId },
   });
 
-  const clockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: {},
-      position: 0
-    }
-  });
-  const clockWidgetId = (clockWidgetResponse.body as { id: string }).id;
-
-  const clockDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: clockWidgetId }
-  });
-  assert.equal(clockDataResponse.statusCode, 200);
-  const clockData = clockDataResponse.body as {
+  assert.equal(weatherDataResponse.statusCode, 200);
+  const weatherEnvelope = weatherDataResponse.body as {
     state: string;
-    data: { formattedTime: string };
+    data: {
+      location: string | null;
+      temperatureC: number | null;
+      conditionLabel: string | null;
+    };
+    meta: {
+      source: string;
+      fetchedAt: string;
+    };
   };
-  assert.equal(clockData.state, "ready");
-  assert.equal(typeof clockData.data.formattedTime, "string");
 
-  const missingWidgetResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
-    params: { id: "does-not-exist" }
-  });
-  assert.equal(missingWidgetResponse.statusCode, 404);
+  assert.equal(weatherEnvelope.state, "ready");
+  assert.equal(weatherEnvelope.data.location, "Amsterdam, North Holland, Netherlands");
+  assert.equal(weatherEnvelope.data.temperatureC, 9.2);
+  assert.equal(weatherEnvelope.data.conditionLabel, "Rain");
+  assert.equal(weatherEnvelope.meta.source, "open-meteo");
+  assert.equal(weatherEnvelope.meta.fetchedAt, "2026-03-20T08:15:00.000Z");
 });

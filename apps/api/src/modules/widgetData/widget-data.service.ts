@@ -14,7 +14,10 @@ type WidgetDataResult =
   WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
 
 const widgetResolvers: {
-  [TKey in WidgetKey]: (input: { widgetInstanceId: string }) => Promise<
+  [TKey in WidgetKey]: (input: {
+    widgetInstanceId: string;
+    widgetConfig: unknown;
+  }) => Promise<
     WidgetDataEnvelope<WidgetDataByKey[TKey], TKey>
   >;
 } = {
@@ -45,6 +48,9 @@ export const widgetDataService = {
       } as WidgetDataResult;
     }
 
-    return resolver({ widgetInstanceId: widget.id });
+    return resolver({
+      widgetInstanceId: widget.id,
+      widgetConfig: widget.config,
+    });
   },
 };

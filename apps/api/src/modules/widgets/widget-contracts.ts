@@ -70,7 +70,10 @@ export function getDefaultWidgetConfig(
   }
 
   if (widgetType === "weather") {
-    return {};
+    return {
+      location: "Amsterdam",
+      units: "metric",
+    };
   }
 
   return {};
