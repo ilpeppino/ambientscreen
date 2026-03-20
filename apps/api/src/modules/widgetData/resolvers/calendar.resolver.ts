@@ -5,6 +5,7 @@ import type {
 
 export async function resolveCalendarWidgetData(input: {
   widgetInstanceId: string;
+  widgetConfig: unknown;
 }): Promise<WidgetDataEnvelope<CalendarWidgetData, "calendar">> {
   return {
     widgetInstanceId: input.widgetInstanceId,
