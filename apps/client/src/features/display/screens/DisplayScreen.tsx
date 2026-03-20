@@ -20,11 +20,11 @@ import {
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
 import {
   getDisplayFrameModel,
-  getDisplayRefreshIntervalMs,
   resolveDisplayUiState,
   selectDisplayWidget,
 } from "../displayScreen.logic";
 import { renderWidgetFromEnvelope } from "../../../widgets/widget.registry";
+import { createDisplayRefreshEngine } from "../displayRefresh.engine";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -42,6 +42,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [loadingWidgets, setLoadingWidgets] = useState(true);
   const [loadingWidgetData, setLoadingWidgetData] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const refreshEngine = useMemo(() => createDisplayRefreshEngine(), []);
 
   const selectedWidgetId = selectedWidget?.id ?? null;
 
@@ -95,44 +96,62 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
 
   useEffect(() => {
     if (!selectedWidgetId) {
+      refreshEngine.stop();
+      setWidgetData(null);
+      setLoadingWidgetData(false);
+      return;
+    }
+
+    if (!selectedWidget?.type) {
+      refreshEngine.stop();
       return;
     }
     const widgetId = selectedWidgetId;
-
-    let intervalId: ReturnType<typeof setInterval> | null = null;
+    const widgetType = selectedWidget.type;
+    let cancelled = false;
 
     async function loadWidgetData() {
       try {
+        if (cancelled) {
+          return;
+        }
         setLoadingWidgetData(true);
         setError(null);
 
         const response = await getWidgetData<
           WidgetDataByKey[WidgetKey]
         >(widgetId);
+        if (cancelled) {
+          return;
+        }
         setWidgetData(response as WidgetEnvelope);
       } catch (err) {
+        if (cancelled) {
+          return;
+        }
         console.error(err);
         setError("Failed to load widget data");
       } finally {
-        setLoadingWidgetData(false);
+        if (!cancelled) {
+          setLoadingWidgetData(false);
+        }
       }
     }
 
-    loadWidgetData();
-
-    const refreshIntervalMs = getDisplayRefreshIntervalMs(selectedWidget?.type);
-    if (refreshIntervalMs !== null) {
-      intervalId = setInterval(() => {
-        loadWidgetData();
-      }, refreshIntervalMs);
-    }
+    setWidgetData(null);
+    refreshEngine.start({
+      widgetInstanceId: widgetId,
+      widgetType,
+      onRefresh: () => {
+        void loadWidgetData();
+      },
+    });
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
+      cancelled = true;
+      refreshEngine.stop();
     };
-  }, [selectedWidgetId, selectedWidget?.type]);
+  }, [refreshEngine, selectedWidgetId, selectedWidget?.type]);
 
   const uiState = resolveDisplayUiState({
     loadingWidgets,
