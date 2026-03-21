@@ -17,6 +17,8 @@ export function DisplayFrame({
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+        <View pointerEvents="none" style={styles.backgroundGlowTop} />
+        <View pointerEvents="none" style={styles.backgroundGlowBottom} />
         {(title || subtitle) && (
           <View style={styles.header}>
             {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -40,28 +42,50 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
+    paddingHorizontal: 20,
+  },
+  backgroundGlowTop: {
+    position: "absolute",
+    width: 420,
+    height: 420,
+    borderRadius: 420,
+    top: -260,
+    alignSelf: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  backgroundGlowBottom: {
+    position: "absolute",
+    width: 320,
+    height: 320,
+    borderRadius: 320,
+    bottom: -220,
+    right: -80,
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
   },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
+    alignItems: "center",
+    paddingTop: 24,
+    paddingBottom: 14,
   },
   title: {
     color: "#fff",
-    fontSize: 22,
+    fontSize: 30,
     fontWeight: "700",
+    letterSpacing: 0.8,
+    textAlign: "center",
   },
   subtitle: {
-    marginTop: 4,
-    color: "#aaa",
-    fontSize: 14,
+    marginTop: 6,
+    color: "#9a9a9a",
+    fontSize: 16,
+    textAlign: "center",
   },
   content: {
     flex: 1,
   },
   footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    paddingTop: 8,
+    alignItems: "center",
+    paddingBottom: 18,
+    paddingTop: 10,
   },
 });

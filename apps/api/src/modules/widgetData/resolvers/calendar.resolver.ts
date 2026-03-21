@@ -16,6 +16,29 @@ function buildEmptyCalendarData(): CalendarWidgetData {
   };
 }
 
+function buildWindowBounds(timeWindow: "today" | "next24h" | "next7d"): {
+  windowStartIso: string;
+  windowEndIso: string;
+} {
+  const now = new Date();
+  // Anchor to start of current UTC day so all-day events for today are included
+  const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const windowEnd = new Date(windowStart);
+
+  if (timeWindow === "today") {
+    windowEnd.setUTCHours(23, 59, 59, 999);
+  } else if (timeWindow === "next24h") {
+    windowEnd.setTime(windowEnd.getTime() + 24 * 60 * 60 * 1000);
+  } else {
+    windowEnd.setUTCDate(windowEnd.getUTCDate() + 7);
+  }
+
+  return {
+    windowStartIso: windowStart.toISOString(),
+    windowEndIso: windowEnd.toISOString(),
+  };
+}
+
 export async function resolveCalendarWidgetData(input: {
   widgetInstanceId: string;
   widgetConfig: unknown;
@@ -32,36 +55,34 @@ export async function resolveCalendarWidgetData(input: {
     input.widgetConfig,
   ) as WidgetConfigByKey["calendar"];
 
-  const sourceType = normalizedConfig.sourceType ?? "ical";
-  const feedUrl = normalizedConfig.feedUrl;
-  const lookAheadDays = normalizedConfig.lookAheadDays ?? 7;
+  const provider = normalizedConfig.provider ?? "ical";
+  const account = normalizedConfig.account;
+  const timeWindow = normalizedConfig.timeWindow ?? "next7d";
   const includeAllDay = normalizedConfig.includeAllDay ?? true;
   const maxEvents = normalizedConfig.maxEvents ?? 10;
 
-  if (!feedUrl) {
+  if (!account) {
     return {
       widgetInstanceId: input.widgetInstanceId,
       widgetKey: "calendar",
       state: "empty",
       data: buildEmptyCalendarData(),
       meta: {
-        source: sourceType,
+        source: provider,
         errorCode: "CALENDAR_FEED_NOT_CONFIGURED",
-        message: "Calendar feed URL is not configured.",
+        message: "Calendar account is not configured.",
       },
     };
   }
 
   const fetchCalendarData = input.fetchCalendarData ?? fetchIcsCalendarEvents;
-  const windowStart = new Date();
-  const windowEnd = new Date(windowStart);
-  windowEnd.setUTCDate(windowEnd.getUTCDate() + lookAheadDays);
+  const { windowStartIso, windowEndIso } = buildWindowBounds(timeWindow);
 
   try {
     const providerResult = await fetchCalendarData({
-      feedUrl,
-      windowStartIso: windowStart.toISOString(),
-      windowEndIso: windowEnd.toISOString(),
+      feedUrl: account,
+      windowStartIso,
+      windowEndIso,
       includeAllDay,
       maxEvents,
     });
@@ -73,7 +94,7 @@ export async function resolveCalendarWidgetData(input: {
         state: "empty",
         data: buildEmptyCalendarData(),
         meta: {
-          source: sourceType,
+          source: provider,
           fetchedAt: providerResult.fetchedAtIso,
           message: "No upcoming events in the configured time window.",
         },
@@ -89,7 +110,7 @@ export async function resolveCalendarWidgetData(input: {
         events: providerResult.events,
       },
       meta: {
-        source: sourceType,
+        source: provider,
         fetchedAt: providerResult.fetchedAtIso,
       },
     };
@@ -100,7 +121,7 @@ export async function resolveCalendarWidgetData(input: {
       state: "stale",
       data: buildEmptyCalendarData(),
       meta: {
-        source: sourceType,
+        source: provider,
         errorCode: "CALENDAR_PROVIDER_UNAVAILABLE",
         message: "Calendar provider request failed.",
       },

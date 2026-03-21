@@ -19,6 +19,7 @@ import {
 } from "../services/orientation";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
 import {
+  getDisplayStatusModel,
   getDisplayFrameModel,
   resolveDisplayUiState,
   selectDisplayWidget,
@@ -162,54 +163,38 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   });
 
   const frameModel = getDisplayFrameModel(selectedWidget?.type);
+  const statusModel = uiState === "ready" ? null : getDisplayStatusModel(uiState, error);
 
   const content = useMemo(() => {
-    if (uiState === "loadingWidgets") {
-      return (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.message}>Loading widgets...</Text>
-        </View>
-      );
-    }
-
-    if (uiState === "error") {
-      return (
-        <View style={styles.centered}>
-          <Text style={styles.error}>{error}</Text>
-        </View>
-      );
-    }
-
-    if (uiState === "empty") {
-      return (
-        <View style={styles.centered}>
-          <Text style={styles.message}>No widgets configured yet.</Text>
-        </View>
-      );
-    }
-
-    if (uiState === "loadingWidgetData") {
-      return (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.message}>Loading widget data...</Text>
-        </View>
-      );
-    }
-
     if (uiState === "ready" && widgetData) {
       return renderWidgetFromEnvelope(widgetData);
     }
 
+    if (!statusModel) {
+      return null;
+    }
+
+    const statusBadgeStyle =
+      statusModel.tone === "error" ? styles.statusBadgeError : styles.statusBadgeNeutral;
+    const statusTitleStyle =
+      statusModel.tone === "error" ? styles.statusTitleError : styles.statusTitle;
+
     return (
       <View style={styles.centered}>
-        <Text style={styles.message}>
-          Unsupported widget type: {selectedWidget?.type}
-        </Text>
+        <View style={styles.statusCard}>
+          {statusModel.showSpinner ? (
+            <ActivityIndicator size="large" color="#fff" />
+          ) : (
+            <View style={[styles.statusBadge, statusBadgeStyle]}>
+              <Text style={styles.statusBadgeText}>!</Text>
+            </View>
+          )}
+          <Text style={statusTitleStyle}>{statusModel.title}</Text>
+          <Text style={styles.statusMessage}>{statusModel.message}</Text>
+        </View>
       </View>
     );
-  }, [uiState, error, widgetData, selectedWidget?.type]);
+  }, [statusModel, uiState, widgetData]);
 
   return (
     <View style={styles.screen}>
@@ -220,7 +205,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
             style={styles.exitButton}
             onPress={onExitDisplayMode}
           >
-            <Text style={styles.exitButtonLabel}>Back to Admin</Text>
+            <Text style={styles.exitButtonLabel}>Exit Display</Text>
           </Pressable>
         </View>
       ) : null}
@@ -242,43 +227,86 @@ const styles = StyleSheet.create({
   },
   exitButtonContainer: {
     position: "absolute",
-    top: 12,
-    right: 12,
+    top: 18,
+    right: 18,
     zIndex: 20,
   },
   exitButton: {
     borderWidth: 1,
-    borderColor: "#777",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    borderColor: "#3c3c3c",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: "rgba(0, 0, 0, 0.86)",
   },
   exitButtonLabel: {
-    color: "#fff",
-    fontSize: 13,
+    color: "#d8d8d8",
+    fontSize: 12,
+    letterSpacing: 0.4,
     fontWeight: "600",
   },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
-    backgroundColor: "#000",
+    paddingVertical: 24,
   },
-  message: {
-    marginTop: 12,
-    fontSize: 18,
+  statusCard: {
+    width: "100%",
+    maxWidth: 560,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#1f1f1f",
+    backgroundColor: "rgba(255, 255, 255, 0.04)",
+    paddingHorizontal: 24,
+    paddingVertical: 26,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusBadge: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  statusBadgeNeutral: {
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  statusBadgeError: {
+    backgroundColor: "rgba(255, 107, 107, 0.14)",
+  },
+  statusBadgeText: {
+    color: "#ff7d7d",
+    fontSize: 22,
+    fontWeight: "700",
+  },
+  statusTitle: {
+    marginTop: 16,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: "700",
     color: "#fff",
     textAlign: "center",
   },
-  error: {
+  statusTitleError: {
+    marginTop: 16,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: "700",
+    color: "#ff9b9b",
+    textAlign: "center",
+  },
+  statusMessage: {
+    marginTop: 10,
     fontSize: 18,
-    color: "#ff6b6b",
+    lineHeight: 26,
+    color: "#c8c8c8",
     textAlign: "center",
   },
   footerText: {
-    color: "#666",
-    fontSize: 12,
+    color: "#8d8d8d",
+    fontSize: 13,
+    letterSpacing: 0.4,
   },
 });

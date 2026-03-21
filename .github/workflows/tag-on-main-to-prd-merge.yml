@@ -1,0 +1,280 @@
+name: Tag on main → prd Merge
+
+# Triggers on all PR close events; the jobs gate on merged + main → prd.
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # Gate: validate this is a merged main → prd PR
+  # ────────────────────────────────────────────────────────────────────────────
+  validate-pr:
+    name: Validate PR
+    if: >-
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.base.ref == 'prd' &&
+      github.event.pull_request.head.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log PR details
+        run: |
+          echo "=== PR detected ==="
+          echo "PR number : ${{ github.event.pull_request.number }}"
+          echo "Source    : ${{ github.event.pull_request.head.ref }}"
+          echo "Target    : ${{ github.event.pull_request.base.ref }}"
+          echo "Merged    : ${{ github.event.pull_request.merged }}"
+          echo "Merge SHA : ${{ github.event.pull_request.merge_commit_sha }}"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Quality: API (typecheck + lint + test)
+  # ────────────────────────────────────────────────────────────────────────────
+  api-quality:
+    name: API Quality
+    needs: validate-pr
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ambient
+          POSTGRES_PASSWORD: ambient
+          POSTGRES_DB: ambient_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://ambient:ambient@localhost:5432/ambient_test
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - name: Checkout merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema=./prisma/schema.prisma
+
+      - name: Run migrations
+        run: npx prisma migrate deploy --schema=./prisma/schema.prisma
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Quality: Client (typecheck + lint + test)
+  # ────────────────────────────────────────────────────────────────────────────
+  client-quality:
+    name: Client Quality
+    needs: validate-pr
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/client
+
+    steps:
+      - name: Checkout merge commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # Version calculation and tag creation
+  # ────────────────────────────────────────────────────────────────────────────
+  release-tag:
+    name: Release Tag
+    needs: [api-quality, client-quality]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout prd with full history
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── Safety: confirm the merge commit is reachable from prd HEAD ──────────
+      - name: Verify merge commit is on prd
+        run: |
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          echo "=== Branch validation ==="
+          echo "prd HEAD  : $(git rev-parse HEAD)"
+          echo "Merge SHA : $MERGE_SHA"
+
+          if ! git merge-base --is-ancestor "$MERGE_SHA" HEAD; then
+            echo "ERROR: $MERGE_SHA is not reachable from prd — aborting"
+            exit 1
+          fi
+          echo "Confirmed: merge commit is on prd"
+
+      # ── Resolve baseline version ─────────────────────────────────────────────
+      - name: Resolve latest version tag
+        id: latest-tag
+        run: |
+          TAG=$(git tag --sort=-version:refname \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+                | head -1)
+
+          if [ -z "$TAG" ]; then
+            TAG="v0.0.0"
+            echo "No existing version tags — baseline: v0.0.0"
+          else
+            echo "Latest tag: $TAG"
+          fi
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      # ── Analyze commits and determine bump type ───────────────────────────────
+      - name: Analyze commits
+        id: bump
+        run: |
+          LATEST_TAG="${{ steps.latest-tag.outputs.tag }}"
+
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            SUBJECTS=$(git log --pretty=format:"%s" HEAD)
+            FULL_LOG=$(git log --pretty=format:"%B" HEAD)
+          else
+            SUBJECTS=$(git log --pretty=format:"%s" "${LATEST_TAG}..HEAD")
+            FULL_LOG=$(git log --pretty=format:"%B" "${LATEST_TAG}..HEAD")
+          fi
+
+          echo "=== Commits analyzed (since $LATEST_TAG) ==="
+          echo "$SUBJECTS"
+          echo "============================================="
+
+          # MAJOR: "!" after type (e.g. feat!) OR "BREAKING CHANGE:" in body
+          BREAKING=$(echo "$FULL_LOG" | grep -E "(^BREAKING CHANGE:|^[a-z]+(\([^)]*\))?!:)" || true)
+
+          # MINOR: any feat commit
+          FEAT=$(echo "$SUBJECTS" | grep -E "^feat(\([^)]*\))?:" || true)
+
+          # PATCH: any fix commit
+          FIX=$(echo "$SUBJECTS" | grep -E "^fix(\([^)]*\))?:" || true)
+
+          if [ -n "$BREAKING" ]; then
+            BUMP_TYPE="major"
+            echo "BREAKING CHANGE detected → MAJOR bump"
+          elif [ -n "$FEAT" ]; then
+            BUMP_TYPE="minor"
+            echo "feat commit detected → MINOR bump"
+          elif [ -n "$FIX" ]; then
+            BUMP_TYPE="patch"
+            echo "fix commit detected → PATCH bump"
+          else
+            BUMP_TYPE="none"
+            echo "No releasable commits (chore/docs/ci/test/refactor/perf only)"
+          fi
+
+          echo "bump=$BUMP_TYPE" >> "$GITHUB_OUTPUT"
+
+      # ── No releasable commits ─────────────────────────────────────────────────
+      - name: Skip — no release needed
+        if: steps.bump.outputs.bump == 'none'
+        run: |
+          echo "Bump type: none — no tag will be created."
+          echo "Only non-releasable commit types found (chore, docs, ci, test, refactor, perf)."
+
+      # ── Compute next version ──────────────────────────────────────────────────
+      - name: Compute next version
+        id: version
+        if: steps.bump.outputs.bump != 'none'
+        run: |
+          LATEST_TAG="${{ steps.latest-tag.outputs.tag }}"
+          BUMP_TYPE="${{ steps.bump.outputs.bump }}"
+
+          VERSION="${LATEST_TAG#v}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+
+          case "$BUMP_TYPE" in
+            major) NEW_VERSION="v$((MAJOR + 1)).0.0" ;;
+            minor) NEW_VERSION="v${MAJOR}.$((MINOR + 1)).0" ;;
+            patch) NEW_VERSION="v${MAJOR}.${MINOR}.$((PATCH + 1))" ;;
+          esac
+
+          echo "=== Version calculation ==="
+          echo "Previous : $LATEST_TAG"
+          echo "Bump     : $BUMP_TYPE"
+          echo "Next     : $NEW_VERSION"
+
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+      # ── Guard: no duplicate tags ──────────────────────────────────────────────
+      - name: Guard against duplicate tag
+        if: steps.bump.outputs.bump != 'none'
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+          if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
+            echo "ERROR: Tag $NEW_VERSION already exists — aborting to prevent duplicate"
+            exit 1
+          fi
+          echo "Tag $NEW_VERSION is available"
+
+      # ── Create and push tag ───────────────────────────────────────────────────
+      - name: Create and push tag
+        if: steps.bump.outputs.bump != 'none'
+        run: |
+          MERGE_SHA="${{ github.event.pull_request.merge_commit_sha }}"
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag "$NEW_VERSION" "$MERGE_SHA"
+          git push origin "$NEW_VERSION"
+
+          echo "=== Tag pushed ==="
+          echo "Tag    : $NEW_VERSION"
+          echo "Commit : $MERGE_SHA"

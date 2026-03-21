@@ -261,9 +261,9 @@ test("M4-1: calendar widget data endpoint returns normalized event list", async 
     body: {
       type: "calendar",
       config: {
-        sourceType: "ical",
-        feedUrl: "https://calendar.example.com/demo.ics",
-        lookAheadDays: 7,
+        provider: "ical",
+        account: "https://calendar.example.com/demo.ics",
+        timeWindow: "next7d",
         maxEvents: 5,
         includeAllDay: true,
       },
@@ -327,8 +327,8 @@ test("M4-1: calendar widget data endpoint returns empty when feed is not configu
     body: {
       type: "calendar",
       config: {
-        sourceType: "ical",
-        lookAheadDays: 7,
+        provider: "ical",
+        timeWindow: "next7d",
       },
     },
   });

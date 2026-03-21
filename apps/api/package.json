@@ -1,6 +1,9 @@
 {
   "name": "@ambient/api",
   "private": true,
+  "engines": {
+    "node": ">=22.0.0 <23.0.0"
+  },
   "scripts": {
     "dev": "ts-node src/main.ts",
     "build": "tsc -p tsconfig.json",

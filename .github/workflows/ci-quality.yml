@@ -1,0 +1,110 @@
+name: CI Quality
+
+# Primary quality gate: runs on every PR to main and every push to main.
+# Both jobs must pass before the release tagging workflow is ever reached.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────────
+  # API quality: typecheck → lint → test → build
+  # ──────────────────────────────────────────────────────────────────────────────
+  api-quality:
+    name: API Quality
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ambient
+          POSTGRES_PASSWORD: ambient
+          POSTGRES_DB: ambient_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    env:
+      DATABASE_URL: postgresql://ambient:ambient@localhost:5432/ambient_test
+
+    defaults:
+      run:
+        working-directory: apps/api
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Generate Prisma client
+        run: npx prisma generate --schema=./prisma/schema.prisma
+
+      - name: Run migrations
+        run: npx prisma migrate deploy --schema=./prisma/schema.prisma
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # Client quality: typecheck → lint → test → web smoke build
+  # ──────────────────────────────────────────────────────────────────────────────
+  client-quality:
+    name: Client Quality
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/client
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      - name: Web smoke build
+        run: npm run build:web

@@ -6,7 +6,8 @@
     "start": "expo start",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "test": "tsc -p tsconfig.test.json && node --test /tmp/ambient-client-test-dist/tests/**/*.test.js"
+    "test": "tsc -p tsconfig.test.json && node --test /tmp/ambient-client-test-dist/tests/*.test.js",
+    "build:web": "expo export --platform web --output-dir /tmp/expo-web-smoke"
   },
   "dependencies": {
     "expo": "~54.0.0",

@@ -49,13 +49,16 @@ const weatherConfigSchema: z.ZodType<WidgetConfigByKey["weather"]> = z
   })
   .strict();
 
-const calendarConfigSchema: z.ZodType<WidgetConfigByKey["calendar"]> = z
+const calendarConfigSchema = z
   .object({
+    provider: z.literal("ical").optional(),
+    account: z.string().url().optional(),
+    timeWindow: z.enum(["today", "next24h", "next7d"]).optional(),
+    maxEvents: z.number().int().min(1).max(20).optional(),
+    includeAllDay: z.boolean().optional(),
     sourceType: z.literal("ical").optional(),
     feedUrl: z.string().url().optional(),
     lookAheadDays: z.number().int().min(1).max(31).optional(),
-    maxEvents: z.number().int().min(1).max(20).optional(),
-    includeAllDay: z.boolean().optional(),
   })
   .strict();
 
@@ -80,8 +83,8 @@ export function getDefaultWidgetConfig(
   }
 
   return {
-    sourceType: "ical",
-    lookAheadDays: 7,
+    provider: "ical",
+    timeWindow: "next7d",
     maxEvents: 10,
     includeAllDay: true,
   };
@@ -114,9 +117,32 @@ export function normalizeWidgetConfig(
   }
 
   const defaultConfig = getDefaultWidgetConfig(widgetType) as Record<string, unknown>;
+  const parsedConfig = parseResult.data as Record<string, unknown>;
+
+  if (widgetType === "calendar") {
+    const provider = parsedConfig.provider ?? parsedConfig.sourceType ?? defaultConfig.provider;
+    const account = parsedConfig.account ?? parsedConfig.feedUrl;
+    const timeWindow =
+      parsedConfig.timeWindow ??
+      (typeof parsedConfig.lookAheadDays === "number"
+        ? parsedConfig.lookAheadDays <= 1
+          ? "today"
+          : parsedConfig.lookAheadDays <= 2
+            ? "next24h"
+            : "next7d"
+        : defaultConfig.timeWindow);
+
+    return {
+      provider,
+      ...(account ? { account } : {}),
+      timeWindow,
+      maxEvents: parsedConfig.maxEvents ?? defaultConfig.maxEvents,
+      includeAllDay: parsedConfig.includeAllDay ?? defaultConfig.includeAllDay,
+    } as Prisma.InputJsonValue;
+  }
 
   return {
     ...defaultConfig,
-    ...(parseResult.data as Record<string, unknown>),
+    ...parsedConfig,
   } as Prisma.InputJsonValue;
 }

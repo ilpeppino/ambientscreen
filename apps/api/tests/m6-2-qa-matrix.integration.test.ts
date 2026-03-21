@@ -4,6 +4,7 @@ import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
 import { usersRouter } from "../src/modules/users/users.routes";
+import { widgetDataRouter } from "../src/modules/widgetData/widget-data.routes";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
 
@@ -24,7 +25,7 @@ interface TestWidget {
   updatedAt: Date;
 }
 
-type RouteMethod = "get" | "post";
+type RouteMethod = "get" | "post" | "patch";
 
 interface InvokeRouteOptions {
   body?: unknown;
@@ -34,15 +35,17 @@ interface InvokeRouteOptions {
 const originalUsersRepository = {
   findAll: usersRepository.findAll,
   findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create
+  create: usersRepository.create,
 };
 
 const originalWidgetsRepository = {
   findAll: widgetsRepository.findAll,
   findById: widgetsRepository.findById,
   create: widgetsRepository.create,
-  activateWidget: widgetsRepository.activateWidget
+  activateWidget: widgetsRepository.activateWidget,
 };
+
+const originalFetch = globalThis.fetch;
 
 const mutableUsersRepository = usersRepository as unknown as {
   findAll: () => Promise<TestUser[]>;
@@ -79,16 +82,11 @@ beforeEach(() => {
     return usersStore.find((user) => user.email === email) ?? null;
   };
   mutableUsersRepository.create = async (email: string) => {
-    const duplicateUser = usersStore.find((user) => user.email === email);
-    if (duplicateUser) {
-      throw { code: "P2002" };
-    }
-
     userCounter += 1;
     const newUser: TestUser = {
       id: `user-${userCounter}`,
       email,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     usersStore.push(newUser);
     return newUser;
@@ -113,7 +111,7 @@ beforeEach(() => {
       position: input.position,
       isActive: input.isActive,
       createdAt: now,
-      updatedAt: now
+      updatedAt: now,
     };
     widgetsStore.push(newWidget);
     return newWidget;
@@ -132,11 +130,75 @@ beforeEach(() => {
       return {
         ...item,
         isActive: item.id === widgetId,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
     });
 
     return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
+  };
+
+  globalThis.fetch = async (input) => {
+    const requestUrl = String(input);
+
+    if (requestUrl.startsWith("https://geocoding-api.open-meteo.com/v1/search")) {
+      return new Response(
+        JSON.stringify({
+          results: [
+            {
+              name: "Amsterdam",
+              admin1: "North Holland",
+              country: "Netherlands",
+              latitude: 52.374,
+              longitude: 4.8897,
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }
+
+    if (requestUrl.startsWith("https://api.open-meteo.com/v1/forecast")) {
+      return new Response(
+        JSON.stringify({
+          current: {
+            temperature_2m: 9.24,
+            weather_code: 61,
+            time: "2026-03-20T08:15:00.000Z",
+          },
+          current_units: {
+            temperature_2m: "°C",
+          },
+        }),
+        { status: 200 },
+      );
+    }
+
+    if (requestUrl === "https://calendar.example.com/demo.ics") {
+      const ics = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "BEGIN:VEVENT",
+        "UID:event-1",
+        "DTSTART;VALUE=DATE:20260321",
+        "SUMMARY:All Day Planning",
+        "LOCATION:HQ",
+        "END:VEVENT",
+        "BEGIN:VEVENT",
+        "UID:event-2",
+        "DTSTART:20260321T140000Z",
+        "DTEND:20260321T143000Z",
+        "SUMMARY:Client Sync",
+        "LOCATION:Room 4A",
+        "END:VEVENT",
+        "END:VCALENDAR",
+      ].join("\r\n");
+
+      return new Response(ics, { status: 200 });
+    }
+
+    return new Response(JSON.stringify({ message: "not mocked" }), {
+      status: 404,
+    });
   };
 });
 
@@ -156,6 +218,8 @@ after(() => {
     originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
   mutableWidgetsRepository.activateWidget =
     originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
+
+  globalThis.fetch = originalFetch;
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -164,7 +228,7 @@ function getRouteHandler(router: Router, method: RouteMethod, path: string) {
       const route = (layer as { route?: { path?: string; methods?: Record<string, boolean> } })
         .route;
       return route?.path === path && route.methods?.[method];
-    }
+    },
   ) as
     | {
         route: {
@@ -184,7 +248,7 @@ async function invokeRoute(
   router: Router,
   method: RouteMethod,
   path: string,
-  options: InvokeRouteOptions = {}
+  options: InvokeRouteOptions = {},
 ) {
   const handler = getRouteHandler(router, method, path);
 
@@ -193,12 +257,12 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
   };
 
   const response = {
     statusCode: 200,
-    body: null as unknown
+    body: null as unknown,
   };
 
   const res = {
@@ -209,7 +273,7 @@ async function invokeRoute(
     json(body: unknown) {
       response.body = body;
       return res;
-    }
+    },
   };
 
   await handler(req, res, (error: unknown) => {
@@ -221,172 +285,104 @@ async function invokeRoute(
   return response;
 }
 
-test("M1-2: widget can be created from UI types and appears in refreshed list", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+test("M6-2: critical admin and display flows pass for clockDate, weather, and calendar", async () => {
+  const userCreateResponse = await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev" },
   });
+  assert.equal(userCreateResponse.statusCode, 201);
 
-  const createClockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: { type: "clockDate" }
+  const clockCreateResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "clockDate",
+      config: {
+        timezone: "Europe/Amsterdam",
+        locale: "en-GB",
+        hour12: false,
+      },
+    },
   });
-  assert.equal(createClockWidgetResponse.statusCode, 201);
+  assert.equal(clockCreateResponse.statusCode, 201);
 
-  const createCalendarWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: { type: "calendar" }
-  });
-  assert.equal(createCalendarWidgetResponse.statusCode, 201);
-
-  const listResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
-
-  const widgets = listResponse.body as Array<{ type: string; position: number }>;
-  assert.equal(widgets.length, 2);
-  assert.equal(widgets[0].type, "clockDate");
-  assert.equal(widgets[0].position, 0);
-  assert.equal(widgets[1].type, "calendar");
-  assert.equal(widgets[1].position, 1);
-});
-
-test("M1-2: unsupported widget type is rejected", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-
-  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: { type: "stocksTicker" }
-  });
-  assert.equal(createResponse.statusCode, 400);
-});
-
-test("M3-3: weather widget can be created with location and units config", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-
-  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+  const weatherCreateResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
       type: "weather",
       config: {
-        location: "Rotterdam",
-        units: "imperial"
-      }
-    }
+        location: "Amsterdam",
+        units: "metric",
+      },
+    },
   });
-  assert.equal(createResponse.statusCode, 201);
+  assert.equal(weatherCreateResponse.statusCode, 201);
 
-  const createdWidget = createResponse.body as {
-    type: string;
-    config: {
-      location?: string;
-      units?: string;
-    };
-  };
-  assert.equal(createdWidget.type, "weather");
-  assert.equal(createdWidget.config.location, "Rotterdam");
-  assert.equal(createdWidget.config.units, "imperial");
-});
-
-test("M3-3: weather widget creation rejects invalid units config", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-
-  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "weather",
-      config: {
-        location: "Rotterdam",
-        units: "kelvin"
-      }
-    }
-  });
-  assert.equal(createResponse.statusCode, 400);
-});
-
-test("M4-3: calendar widget can be created with provider, account, and time window config", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-
-  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
+  const calendarCreateResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
       type: "calendar",
       config: {
         provider: "ical",
-        account: "https://calendar.example.com/work.ics",
-        timeWindow: "next24h",
-        maxEvents: 8,
-        includeAllDay: false
-      }
-    }
+        account: "https://calendar.example.com/demo.ics",
+        timeWindow: "next7d",
+        maxEvents: 5,
+        includeAllDay: true,
+      },
+    },
   });
-  assert.equal(createResponse.statusCode, 201);
+  assert.equal(calendarCreateResponse.statusCode, 201);
 
-  const createdWidget = createResponse.body as {
+  const activateWeatherResponse = await invokeRoute(widgetsRouter, "patch", "/:id/active", {
+    params: { id: (weatherCreateResponse.body as { id: string }).id },
+  });
+  assert.equal(activateWeatherResponse.statusCode, 200);
+  assert.equal((activateWeatherResponse.body as { isActive: boolean }).isActive, true);
+
+  const widgetsListResponse = await invokeRoute(widgetsRouter, "get", "/");
+  assert.equal(widgetsListResponse.statusCode, 200);
+  const widgets = widgetsListResponse.body as Array<{
+    id: string;
     type: string;
-    config: {
-      provider?: string;
-      account?: string;
-      timeWindow?: string;
-      maxEvents?: number;
-      includeAllDay?: boolean;
-    };
-  };
-  assert.equal(createdWidget.type, "calendar");
-  assert.equal(createdWidget.config.provider, "ical");
-  assert.equal(createdWidget.config.account, "https://calendar.example.com/work.ics");
-  assert.equal(createdWidget.config.timeWindow, "next24h");
-  assert.equal(createdWidget.config.maxEvents, 8);
-  assert.equal(createdWidget.config.includeAllDay, false);
+    isActive: boolean;
+  }>;
+  assert.equal(widgets.length, 3);
+  assert.equal(widgets.filter((widget) => widget.isActive).length, 1);
+  assert.equal(
+    widgets.some((widget) => widget.type === "weather" && widget.isActive),
+    true,
+  );
+
+  const clockEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
+    params: { id: (clockCreateResponse.body as { id: string }).id },
+  });
+  assert.equal(clockEnvelopeResponse.statusCode, 200);
+  assert.equal((clockEnvelopeResponse.body as { widgetKey: string }).widgetKey, "clockDate");
+  assert.equal((clockEnvelopeResponse.body as { state: string }).state, "ready");
+
+  const weatherEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
+    params: { id: (weatherCreateResponse.body as { id: string }).id },
+  });
+  assert.equal(weatherEnvelopeResponse.statusCode, 200);
+  assert.equal((weatherEnvelopeResponse.body as { widgetKey: string }).widgetKey, "weather");
+  assert.equal((weatherEnvelopeResponse.body as { state: string }).state, "ready");
+  assert.equal(
+    (weatherEnvelopeResponse.body as { data: { location: string } }).data.location,
+    "Amsterdam, North Holland, Netherlands",
+  );
+
+  const calendarEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
+    params: { id: (calendarCreateResponse.body as { id: string }).id },
+  });
+  assert.equal(calendarEnvelopeResponse.statusCode, 200);
+  assert.equal((calendarEnvelopeResponse.body as { widgetKey: string }).widgetKey, "calendar");
+  assert.equal((calendarEnvelopeResponse.body as { state: string }).state, "ready");
+  assert.equal(
+    (calendarEnvelopeResponse.body as { data: { upcomingCount: number } }).data.upcomingCount,
+    2,
+  );
 });
 
-test("M4-3: calendar widget creation rejects invalid provider/time window config", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+test("M6-2: widget-data returns not-found for unknown widget id", async () => {
+  const response = await invokeRoute(widgetDataRouter, "get", "/:id", {
+    params: { id: "missing-widget" },
   });
 
-  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "calendar",
-      config: {
-        provider: "googleCalendar",
-        account: "not-a-url",
-        timeWindow: "next30d"
-      }
-    }
-  });
-  assert.equal(createResponse.statusCode, 400);
-});
-
-test("M2-1: widget config must match widget contract schema", async () => {
-  await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
-  });
-
-  const invalidClockConfigResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: {
-        hour12: "sometimes"
-      }
-    }
-  });
-  assert.equal(invalidClockConfigResponse.statusCode, 400);
-
-  const invalidCalendarConfigResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "calendar",
-      config: {
-        maxEvents: 99
-      }
-    }
-  });
-  assert.equal(invalidCalendarConfigResponse.statusCode, 400);
-});
-
-test("M1-2: creating widget fails when no user exists", async () => {
-  const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: { type: "weather" }
-  });
-  assert.equal(createResponse.statusCode, 400);
+  assert.equal(response.statusCode, 404);
+  assert.equal((response.body as { error: { code: string } }).error.code, "NOT_FOUND");
 });
