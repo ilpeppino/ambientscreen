@@ -32,6 +32,12 @@ interface UpdateWidgetLayoutInput {
   layout: WidgetLayout;
 }
 
+interface UpdateWidgetConfigInput {
+  id: string;
+  userId: string;
+  config: Prisma.InputJsonValue;
+}
+
 function mapWidgetRecord(widget: {
   id: string;
   userId: string;
@@ -145,5 +151,27 @@ export const widgetsRepository = {
     });
 
     return widgets.map(mapWidgetRecord);
+  },
+
+  async updateConfig(input: UpdateWidgetConfigInput): Promise<WidgetRecord | null> {
+    const updateResult = await prisma.widgetInstance.updateMany({
+      where: {
+        id: input.id,
+        userId: input.userId,
+      },
+      data: {
+        config: input.config,
+      },
+    });
+
+    if (updateResult.count !== 1) {
+      return null;
+    }
+
+    const widget = await prisma.widgetInstance.findUnique({
+      where: { id: input.id },
+    });
+
+    return widget ? mapWidgetRecord(widget) : null;
   },
 };

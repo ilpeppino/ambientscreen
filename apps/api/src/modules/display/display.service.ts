@@ -1,6 +1,11 @@
-import type { WidgetDataState, WidgetKey } from "@ambient/shared-contracts";
+import type { WidgetConfigSchema, WidgetDataState, WidgetKey } from "@ambient/shared-contracts";
 import { widgetsService } from "../widgets/widgets.service";
 import { widgetResolvers } from "../widgetData/widget-resolvers";
+import {
+  getWidgetConfigSchema,
+  normalizeWidgetConfig,
+  type SupportedWidgetType,
+} from "../widgets/widget-contracts";
 
 type DisplayWidgetState = "ready" | "loading" | "error" | "empty";
 
@@ -14,6 +19,8 @@ export interface DisplayLayoutWidgetEnvelope {
     h: number;
   };
   state: DisplayWidgetState;
+  config: Record<string, unknown>;
+  configSchema: WidgetConfigSchema;
   data: Record<string, unknown> | null;
   meta: {
     resolvedAt: string;
@@ -45,6 +52,11 @@ export const displayService = {
     const resolvedWidgets = await Promise.all(widgets.map(async (widget) => {
       const resolvedAt = new Date().toISOString();
       const resolver = widgetResolvers[widget.type as WidgetKey];
+      const normalizedConfig = normalizeWidgetConfig(
+        widget.type as SupportedWidgetType,
+        widget.config,
+      ) as Record<string, unknown>;
+      const configSchema = getWidgetConfigSchema(widget.type as SupportedWidgetType);
 
       if (!resolver) {
         return {
@@ -52,6 +64,8 @@ export const displayService = {
           widgetKey: widget.type as WidgetKey,
           layout: widget.layout,
           state: "error" as const,
+          config: normalizedConfig,
+          configSchema,
           data: null,
           meta: {
             resolvedAt,
@@ -72,6 +86,8 @@ export const displayService = {
           widgetKey: resolvedWidgetData.widgetKey,
           layout: widget.layout,
           state: normalizeState(resolvedWidgetData.state),
+          config: normalizedConfig,
+          configSchema,
           data: (resolvedWidgetData.data as Record<string, unknown> | null) ?? null,
           meta: {
             ...resolvedWidgetData.meta,
@@ -84,6 +100,8 @@ export const displayService = {
           widgetKey: widget.type as WidgetKey,
           layout: widget.layout,
           state: "error" as const,
+          config: normalizedConfig,
+          configSchema,
           data: null,
           meta: {
             resolvedAt,

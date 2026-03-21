@@ -13,6 +13,8 @@ export interface WidgetManifest<TKey extends WidgetKey = WidgetKey> {
 }
 
 export interface ClockDateWidgetConfig {
+  format?: "12h" | "24h";
+  showSeconds?: boolean;
   timezone?: string;
   locale?: string;
   hour12?: boolean;
@@ -27,8 +29,8 @@ export interface CalendarWidgetConfig {
   provider?: "ical";
   account?: string;
   timeWindow?: "today" | "next24h" | "next7d";
-  maxEvents?: number;
   includeAllDay?: boolean;
+  maxEvents?: number;
 }
 
 export interface WidgetConfigByKey {
@@ -38,6 +40,68 @@ export interface WidgetConfigByKey {
 }
 
 export type WidgetConfig<TKey extends WidgetKey = WidgetKey> = WidgetConfigByKey[TKey];
+
+export type WidgetConfigFieldSchema =
+  | "string"
+  | "boolean"
+  | "number"
+  | readonly [string, ...string[]];
+
+export type WidgetConfigSchema = Record<string, WidgetConfigFieldSchema>;
+
+export interface WidgetConfigDefinition<TKey extends WidgetKey = WidgetKey> {
+  key: TKey;
+  name: string;
+  defaultConfig: WidgetConfigByKey[TKey];
+  configSchema: WidgetConfigSchema;
+}
+
+export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition<TKey> } = {
+  clockDate: {
+    key: "clockDate",
+    name: "Clock & Date",
+    defaultConfig: {
+      format: "24h",
+      showSeconds: false,
+      timezone: "local",
+    },
+    configSchema: {
+      format: ["12h", "24h"],
+      showSeconds: "boolean",
+      timezone: "string",
+    },
+  },
+  weather: {
+    key: "weather",
+    name: "Weather",
+    defaultConfig: {
+      location: "Amsterdam",
+      units: "metric",
+    },
+    configSchema: {
+      location: "string",
+      units: ["metric", "imperial"],
+    },
+  },
+  calendar: {
+    key: "calendar",
+    name: "Calendar",
+    defaultConfig: {
+      provider: "ical",
+      account: "",
+      timeWindow: "next7d",
+      maxEvents: 10,
+      includeAllDay: true,
+    },
+    configSchema: {
+      provider: ["ical"],
+      account: "string",
+      timeWindow: ["today", "next24h", "next7d"],
+      maxEvents: "number",
+      includeAllDay: "boolean",
+    },
+  },
+};
 
 export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
   id: string;

@@ -1,8 +1,10 @@
 import React from "react";
-import type {
-  WidgetDataByKey,
-  WidgetDataEnvelope,
-  WidgetKey,
+import {
+  type WidgetConfigByKey,
+  type WidgetConfigSchema,
+  type WidgetDataByKey,
+  type WidgetDataEnvelope,
+  type WidgetKey,
 } from "@ambient/shared-contracts";
 import { CalendarRenderer } from "./calendar/renderer";
 import { ClockDateRenderer } from "./clockDate/renderer";
@@ -13,6 +15,60 @@ export type WidgetEnvelope =
   | WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate">
   | WidgetDataEnvelope<WidgetDataByKey["weather"], "weather">
   | WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
+
+interface WidgetRegistryEntry<TKey extends WidgetKey> {
+  key: TKey;
+  name: string;
+  defaultConfig: WidgetConfigByKey[TKey];
+  configSchema: WidgetConfigSchema;
+}
+
+export const widgetRegistry: { [TKey in WidgetKey]: WidgetRegistryEntry<TKey> } = {
+  clockDate: {
+    key: "clockDate",
+    name: "Clock & Date",
+    defaultConfig: {
+      format: "24h",
+      showSeconds: false,
+      timezone: "local",
+    },
+    configSchema: {
+      format: ["12h", "24h"],
+      showSeconds: "boolean",
+      timezone: "string",
+    },
+  },
+  weather: {
+    key: "weather",
+    name: "Weather",
+    defaultConfig: {
+      location: "Amsterdam",
+      units: "metric",
+    },
+    configSchema: {
+      location: "string",
+      units: ["metric", "imperial"],
+    },
+  },
+  calendar: {
+    key: "calendar",
+    name: "Calendar",
+    defaultConfig: {
+      provider: "ical",
+      account: "",
+      timeWindow: "next7d",
+      maxEvents: 10,
+      includeAllDay: true,
+    },
+    configSchema: {
+      provider: ["ical"],
+      account: "string",
+      timeWindow: ["today", "next24h", "next7d"],
+      maxEvents: "number",
+      includeAllDay: "boolean",
+    },
+  },
+};
 
 export function renderWidgetFromKey(
   widgetKey: WidgetKey,
