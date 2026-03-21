@@ -9,7 +9,7 @@ import {
 test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
   const clock = createWidgetSchema.safeParse({
     type: "clockDate",
-    config: { timezone: "UTC", hour12: false },
+    config: { timezone: "UTC", format: "12h", showSeconds: true },
     layout: { x: 0, y: 0, w: 1, h: 1 },
   });
   assert.equal(clock.success, true);
@@ -63,7 +63,11 @@ test("M2-1: createWidgetSchema allows missing layout for backward compatibility"
 
 test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () => {
   const normalizedClock = normalizeWidgetConfig("clockDate", { hour12: "nope" });
-  assert.deepEqual(normalizedClock, {});
+  assert.deepEqual(normalizedClock, {
+    format: "24h",
+    showSeconds: false,
+    timezone: "local",
+  });
 
   const normalizedWeather = normalizeWidgetConfig("weather", null);
   assert.deepEqual(normalizedWeather, {
@@ -74,6 +78,7 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
   const normalizedCalendar = normalizeWidgetConfig("calendar", {});
   assert.deepEqual(normalizedCalendar, {
     provider: "ical",
+    account: "",
     timeWindow: "next7d",
     maxEvents: 10,
     includeAllDay: true,

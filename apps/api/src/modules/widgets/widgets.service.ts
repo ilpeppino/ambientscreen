@@ -6,7 +6,9 @@ import {
   DISPLAY_GRID_BASE_ROWS,
   DISPLAY_GRID_COLUMNS,
   getDefaultWidgetConfig,
+  getWidgetRegistryEntry,
   normalizeWidgetConfig,
+  validateWidgetConfig,
   type SupportedWidgetType,
   widgetLayoutSchema,
 } from "./widget-contracts";
@@ -151,6 +153,40 @@ export const widgetsService = {
     } catch {
       throw apiErrors.notFound("One or more widgets were not found for this user.");
     }
+  },
+
+  async updateWidgetConfigForUser(data: {
+    userId: string;
+    widgetId: string;
+    configPatch: Record<string, unknown>;
+  }) {
+    const widget = await widgetsRepository.findById(data.widgetId);
+    if (!widget || widget.userId !== data.userId) {
+      return null;
+    }
+
+    const widgetType = widget.type as SupportedWidgetType;
+    const defaultConfig = getDefaultWidgetConfig(widgetType) as Record<string, unknown>;
+    const normalizedExistingConfig = normalizeWidgetConfig(widgetType, widget.config) as Record<string, unknown>;
+    const nextConfig = {
+      ...defaultConfig,
+      ...normalizedExistingConfig,
+      ...data.configPatch,
+    };
+
+    const validationResult = validateWidgetConfig(widgetType, nextConfig);
+    if (!validationResult.success) {
+      throw apiErrors.validation(
+        `Invalid config for widget type ${getWidgetRegistryEntry(widgetType).name}`,
+        validationResult.error.format(),
+      );
+    }
+
+    return widgetsRepository.updateConfig({
+      id: widget.id,
+      userId: data.userId,
+      config: validationResult.data as Prisma.InputJsonValue,
+    });
   },
 };
 

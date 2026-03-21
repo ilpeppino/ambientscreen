@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createWidgetSchema,
   normalizeWidgetConfig,
+  updateWidgetConfigPayloadSchema,
   updateWidgetsLayoutSchema,
 } from "./widget-contracts";
 import { widgetsService } from "./widgets.service";
@@ -70,6 +71,32 @@ widgetsRouter.patch(
     res.json({
       widgets: updatedWidgets,
     });
+  }),
+);
+
+widgetsRouter.patch(
+  "/:id/config",
+  asyncHandler(async (req, res) => {
+    const userId = await getPrimaryUserId();
+    const idParam = req.params.id;
+    const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
+    const parseResult = updateWidgetConfigPayloadSchema.safeParse(req.body);
+
+    if (!parseResult.success) {
+      throw apiErrors.validation("Invalid widget config payload", parseResult.error.format());
+    }
+
+    const updatedWidget = await widgetsService.updateWidgetConfigForUser({
+      userId,
+      widgetId,
+      configPatch: parseResult.data.config,
+    });
+
+    if (!updatedWidget) {
+      throw apiErrors.notFound("Widget not found");
+    }
+
+    res.json(updatedWidget);
   }),
 );
 
