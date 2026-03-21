@@ -48,12 +48,14 @@ model WidgetInstance {
 }
 
 model OrchestrationRule {
-  id          String   @id @default(uuid())
-  userId      String
-  type        String
-  intervalSec Int
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id                 String   @id @default(uuid())
+  userId             String
+  type               String
+  intervalSec        Int
+  isActive           Boolean  @default(true)
+  rotationProfileIds String[] @default([])
+  currentIndex       Int      @default(0)
+  createdAt          DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

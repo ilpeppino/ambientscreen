@@ -49,6 +49,8 @@ function getRule(overrides?: Partial<OrchestrationRule>): OrchestrationRule {
     type: "interval",
     intervalSec: 5,
     isActive: true,
+    rotationProfileIds: [],
+    currentIndex: 0,
     createdAt: "2026-03-21T10:00:00.000Z",
     ...overrides,
   };
@@ -156,4 +158,64 @@ test("integration: create rule then start engine executes refresh on interval", 
   timer.triggerInterval(intervalId);
 
   expect(refreshCount).toBe(1);
+});
+
+test("rotation rule switches profiles in sequence", async () => {
+  const timer = createTimerApiStub();
+  const switchedProfiles: string[] = [];
+  const engine = createOrchestrationEngine({
+    loadRules: async () => [
+      getRule({
+        id: "rotation-rule",
+        type: "rotation",
+        intervalSec: 2,
+        rotationProfileIds: ["profile-1", "profile-2", "profile-3"],
+        currentIndex: 0,
+      }),
+    ],
+    onRefresh: () => undefined,
+    onSwitchProfile: (profileId: string) => {
+      switchedProfiles.push(profileId);
+    },
+    timerApi: timer.timerApi,
+  });
+
+  await engine.start();
+
+  const intervalId = timer.getActiveIntervals()[0][0];
+  timer.triggerInterval(intervalId);
+  await new Promise((resolve) => setImmediate(resolve));
+  timer.triggerInterval(intervalId);
+  await new Promise((resolve) => setImmediate(resolve));
+  timer.triggerInterval(intervalId);
+  await new Promise((resolve) => setImmediate(resolve));
+
+  expect(switchedProfiles).toEqual(["profile-2", "profile-3", "profile-1"]);
+});
+
+test("rotation rule does not switch when fewer than two profiles are configured", async () => {
+  const timer = createTimerApiStub();
+  const switchedProfiles: string[] = [];
+  const engine = createOrchestrationEngine({
+    loadRules: async () => [
+      getRule({
+        id: "rotation-rule",
+        type: "rotation",
+        intervalSec: 2,
+        rotationProfileIds: ["profile-1"],
+        currentIndex: 0,
+      }),
+    ],
+    onRefresh: () => undefined,
+    onSwitchProfile: (profileId: string) => {
+      switchedProfiles.push(profileId);
+    },
+    timerApi: timer.timerApi,
+  });
+
+  await engine.start();
+  const intervalId = timer.getActiveIntervals()[0][0];
+  timer.triggerInterval(intervalId);
+
+  expect(switchedProfiles).toEqual([]);
 });

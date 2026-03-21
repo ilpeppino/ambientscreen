@@ -13,12 +13,16 @@ interface CreateOrchestrationRuleInput {
   type: OrchestrationRuleType;
   intervalSec: number;
   isActive?: boolean;
+  rotationProfileIds?: string[];
+  currentIndex?: number;
 }
 
 interface UpdateOrchestrationRuleInput {
   type?: OrchestrationRuleType;
   intervalSec?: number;
   isActive?: boolean;
+  rotationProfileIds?: string[];
+  currentIndex?: number;
 }
 
 async function toApiErrorMessage(response: Response): Promise<string> {

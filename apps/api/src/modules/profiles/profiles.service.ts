@@ -2,6 +2,7 @@ import { profilesRepository } from "./profiles.repository";
 import { createRealtimeEvent } from "../realtime/realtime.events";
 import { publishRealtimeEvent } from "../realtime/realtime.runtime";
 import { usersService } from "../users/users.service";
+import { orchestrationService } from "../orchestration/orchestration.service";
 
 export interface ProfileRecord {
   id: string;
@@ -128,6 +129,10 @@ export const profilesService = {
     }
 
     await profilesRepository.deleteByIdWithWidgets(profile.id);
+    await orchestrationService.removeProfileFromRotationRules({
+      userId: data.userId,
+      profileId: profile.id,
+    });
 
     if (profile.isDefault) {
       const remainingProfiles = await profilesRepository.findAllByUser(data.userId);

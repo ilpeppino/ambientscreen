@@ -1,5 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import {
   getDisplayLayout,
   type DisplayLayoutWidgetEnvelope,
@@ -43,6 +52,11 @@ import {
 import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
 import { API_BASE_URL } from "../../../core/config/api";
 import { createOrchestrationEngine } from "../services/orchestrationEngine";
+import {
+  createOrchestrationRule,
+  getOrchestrationRules,
+  updateOrchestrationRule,
+} from "../../../services/api/orchestrationRulesApi";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -64,6 +78,23 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [error, setError] = useState<string | null>(null);
   const [widgetConfigError, setWidgetConfigError] = useState<string | null>(null);
   const [profileError, setProfileError] = useState<string | null>(null);
+  const [slideshowEnabled, setSlideshowEnabled] = useState(false);
+  const [slideshowIntervalSecInput, setSlideshowIntervalSecInput] = useState("60");
+  const [slideshowProfileIds, setSlideshowProfileIds] = useState<string[]>([]);
+  const [slideshowRuleId, setSlideshowRuleId] = useState<string | null>(null);
+  const [slideshowSaveError, setSlideshowSaveError] = useState<string | null>(null);
+  const [savingSlideshow, setSavingSlideshow] = useState(false);
+  const [isAppActive, setIsAppActive] = useState(true);
+
+  const setActiveProfile = useCallback(async (profileId: string) => {
+    setActiveProfileId((current) => {
+      if (current === profileId) {
+        return current;
+      }
+      return profileId;
+    });
+    await persistActiveProfileId(profileId);
+  }, []);
 
   useEffect(() => {
     enableDisplayKeepAwake();
@@ -152,10 +183,36 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const loadDisplayLayoutRef = useRef(loadDisplayLayout);
   loadDisplayLayoutRef.current = loadDisplayLayout;
 
+  const loadSlideshowConfiguration = useCallback(async () => {
+    try {
+      setSlideshowSaveError(null);
+      const rules = await getOrchestrationRules();
+      const rotationRule = rules.find((rule) => rule.type === "rotation") ?? null;
+      if (!rotationRule) {
+        setSlideshowRuleId(null);
+        setSlideshowEnabled(false);
+        setSlideshowIntervalSecInput("60");
+        setSlideshowProfileIds([]);
+        return;
+      }
+
+      setSlideshowRuleId(rotationRule.id);
+      setSlideshowEnabled(rotationRule.isActive);
+      setSlideshowIntervalSecInput(String(rotationRule.intervalSec));
+      setSlideshowProfileIds(rotationRule.rotationProfileIds);
+    } catch (error) {
+      console.error(error);
+      setSlideshowSaveError("Failed to load slideshow settings");
+    }
+  }, []);
+
   const orchestrationEngineRef = useRef(
     createOrchestrationEngine({
       onRefresh: async () => {
         await loadDisplayLayoutRef.current(false);
+      },
+      onSwitchProfile: async (profileId: string) => {
+        await setActiveProfile(profileId);
       },
     }),
   );
@@ -184,6 +241,32 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, [loadProfiles]);
 
   useEffect(() => {
+    if (profiles.length === 0) {
+      return;
+    }
+
+    void loadSlideshowConfiguration();
+  }, [loadSlideshowConfiguration, profiles.length]);
+
+  useEffect(() => {
+    const availableProfileIds = new Set(profiles.map((profile) => profile.id));
+    setSlideshowProfileIds((current) => current.filter((profileId) => availableProfileIds.has(profileId)));
+    if (profiles.length < 2) {
+      setSlideshowEnabled(false);
+    }
+  }, [profiles]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      setIsAppActive(nextState === "active");
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function runInitialLoad() {
@@ -202,7 +285,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, [loadDisplayLayout, activeProfileId]);
 
   useEffect(() => {
-    if (editMode) {
+    if (editMode || !isAppActive) {
       return () => undefined;
     }
 
@@ -213,11 +296,11 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     return () => {
       clearInterval(intervalId);
     };
-  }, [editMode, effectivePollingIntervalMs, loadDisplayLayout]);
+  }, [editMode, effectivePollingIntervalMs, isAppActive, loadDisplayLayout]);
 
   useEffect(() => {
     const orchestrationEngine = orchestrationEngineRef.current;
-    if (!activeProfileId || editMode) {
+    if (!activeProfileId || editMode || !isAppActive) {
       orchestrationEngine.stop();
       return () => undefined;
     }
@@ -226,7 +309,79 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     return () => {
       orchestrationEngine.stop();
     };
-  }, [activeProfileId, editMode]);
+  }, [activeProfileId, editMode, isAppActive]);
+
+  const toggleSlideshowProfileId = useCallback((profileId: string) => {
+    setSlideshowProfileIds((current) => {
+      if (current.includes(profileId)) {
+        return current.filter((id) => id !== profileId);
+      }
+      return [...current, profileId];
+    });
+  }, []);
+
+  const handleSaveSlideshow = useCallback(async () => {
+    if (savingSlideshow) {
+      return;
+    }
+
+    try {
+      setSavingSlideshow(true);
+      setSlideshowSaveError(null);
+
+      if (!slideshowEnabled) {
+        if (!slideshowRuleId) {
+          return;
+        }
+
+        await updateOrchestrationRule(slideshowRuleId, {
+          isActive: false,
+        });
+      } else {
+        const parsedIntervalSec = Number.parseInt(slideshowIntervalSecInput.trim(), 10);
+        if (Number.isNaN(parsedIntervalSec) || parsedIntervalSec <= 0) {
+          setSlideshowSaveError("Slideshow interval must be a positive number");
+          return;
+        }
+
+        if (slideshowProfileIds.length < 2) {
+          setSlideshowSaveError("Select at least two profiles for slideshow mode");
+          return;
+        }
+
+        if (!slideshowRuleId) {
+          const createdRule = await createOrchestrationRule({
+            type: "rotation",
+            intervalSec: parsedIntervalSec,
+            isActive: true,
+            rotationProfileIds: slideshowProfileIds,
+          });
+          setSlideshowRuleId(createdRule.id);
+        } else {
+          await updateOrchestrationRule(slideshowRuleId, {
+            type: "rotation",
+            intervalSec: parsedIntervalSec,
+            isActive: true,
+            rotationProfileIds: slideshowProfileIds,
+            currentIndex: 0,
+          });
+        }
+      }
+
+      await orchestrationEngineRef.current.reload();
+    } catch (error) {
+      console.error(error);
+      setSlideshowSaveError(toErrorMessage(error, "Failed to save slideshow settings"));
+    } finally {
+      setSavingSlideshow(false);
+    }
+  }, [
+    savingSlideshow,
+    slideshowEnabled,
+    slideshowIntervalSecInput,
+    slideshowProfileIds,
+    slideshowRuleId,
+  ]);
 
   const layoutWidgets = useMemo<DisplayLayoutWidgetEnvelope[]>(() => {
     if (!editMode) {
@@ -426,9 +581,8 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
                 key={profile.id}
                 accessibilityRole="button"
                 style={[styles.profileTab, selected ? styles.profileTabSelected : null]}
-                onPress={async () => {
-                  setActiveProfileId(profile.id);
-                  await persistActiveProfileId(profile.id);
+                onPress={() => {
+                  void setActiveProfile(profile.id);
                 }}
               >
                 <Text style={[styles.profileTabLabel, selected ? styles.profileTabLabelSelected : null]}>
@@ -437,6 +591,55 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
               </Pressable>
             );
           })}
+        </View>
+        <View style={styles.slideshowPanel}>
+          <View style={styles.slideshowRow}>
+            <Text style={styles.slideshowLabel}>Slideshow</Text>
+            <Switch
+              value={slideshowEnabled}
+              onValueChange={setSlideshowEnabled}
+              disabled={profiles.length < 2}
+            />
+          </View>
+          <View style={styles.slideshowProfileRow}>
+            {profiles.map((profile) => {
+              const selected = slideshowProfileIds.includes(profile.id);
+              return (
+                <Pressable
+                  key={`${profile.id}-slideshow`}
+                  accessibilityRole="button"
+                  style={[styles.slideshowProfileChip, selected ? styles.slideshowProfileChipSelected : null]}
+                  onPress={() => {
+                    toggleSlideshowProfileId(profile.id);
+                  }}
+                >
+                  <Text style={[styles.slideshowProfileChipLabel, selected ? styles.slideshowProfileChipLabelSelected : null]}>
+                    {profile.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <View style={styles.slideshowRow}>
+            <Text style={styles.slideshowLabel}>Interval (s)</Text>
+            <TextInput
+              value={slideshowIntervalSecInput}
+              onChangeText={setSlideshowIntervalSecInput}
+              keyboardType="numeric"
+              style={styles.slideshowIntervalInput}
+              placeholder="60"
+              placeholderTextColor="#6b6b6b"
+            />
+            <Pressable
+              accessibilityRole="button"
+              style={[styles.slideshowSaveButton, savingSlideshow ? styles.slideshowSaveButtonDisabled : null]}
+              onPress={handleSaveSlideshow}
+              disabled={savingSlideshow}
+            >
+              <Text style={styles.slideshowSaveButtonLabel}>{savingSlideshow ? "Saving..." : "Save"}</Text>
+            </Pressable>
+          </View>
+          {slideshowSaveError ? <Text style={styles.slideshowError}>{slideshowSaveError}</Text> : null}
         </View>
         <Pressable
           accessibilityRole="button"
@@ -639,6 +842,7 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   editModeButton: {
+    marginTop: 8,
     borderWidth: 1,
     borderColor: "#356084",
     borderRadius: 999,
@@ -686,6 +890,81 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.4,
     fontWeight: "600",
+  },
+  slideshowPanel: {
+    borderWidth: 1,
+    borderColor: "#2f2f2f",
+    borderRadius: 14,
+    padding: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    minWidth: 360,
+  },
+  slideshowRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 8,
+  },
+  slideshowLabel: {
+    color: "#d1d1d1",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  slideshowProfileRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+    marginBottom: 8,
+  },
+  slideshowProfileChip: {
+    borderWidth: 1,
+    borderColor: "#3c3c3c",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  slideshowProfileChipSelected: {
+    borderColor: "#5DAEFF",
+    backgroundColor: "rgba(18, 49, 76, 0.95)",
+  },
+  slideshowProfileChipLabel: {
+    color: "#bfbfbf",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  slideshowProfileChipLabelSelected: {
+    color: "#d9ecff",
+  },
+  slideshowIntervalInput: {
+    width: 90,
+    borderWidth: 1,
+    borderColor: "#3c3c3c",
+    borderRadius: 8,
+    color: "#fff",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+    backgroundColor: "rgba(9, 9, 9, 0.9)",
+  },
+  slideshowSaveButton: {
+    borderWidth: 1,
+    borderColor: "#5DAEFF",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "rgba(18, 49, 76, 0.95)",
+  },
+  slideshowSaveButtonDisabled: {
+    opacity: 0.6,
+  },
+  slideshowSaveButtonLabel: {
+    color: "#d9ecff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  slideshowError: {
+    color: "#ff7d7d",
+    fontSize: 11,
   },
 });
 

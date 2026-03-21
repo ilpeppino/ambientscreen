@@ -6,6 +6,8 @@ export interface OrchestrationRuleRecord {
   type: string;
   intervalSec: number;
   isActive: boolean;
+  rotationProfileIds: string[];
+  currentIndex: number;
   createdAt: Date;
 }
 
@@ -14,6 +16,8 @@ interface CreateOrchestrationRuleInput {
   type: string;
   intervalSec: number;
   isActive: boolean;
+  rotationProfileIds: string[];
+  currentIndex: number;
 }
 
 interface UpdateOrchestrationRuleInput {
@@ -22,6 +26,8 @@ interface UpdateOrchestrationRuleInput {
   type?: string;
   intervalSec?: number;
   isActive?: boolean;
+  rotationProfileIds?: string[];
+  currentIndex?: number;
 }
 
 interface DeleteOrchestrationRuleInput {
@@ -37,6 +43,15 @@ export const orchestrationRepository = {
     });
   },
 
+  findByIdForUser(input: { id: string; userId: string }): Promise<OrchestrationRuleRecord | null> {
+    return prisma.orchestrationRule.findFirst({
+      where: {
+        id: input.id,
+        userId: input.userId,
+      },
+    });
+  },
+
   create(input: CreateOrchestrationRuleInput): Promise<OrchestrationRuleRecord> {
     return prisma.orchestrationRule.create({
       data: {
@@ -44,6 +59,8 @@ export const orchestrationRepository = {
         type: input.type,
         intervalSec: input.intervalSec,
         isActive: input.isActive,
+        rotationProfileIds: input.rotationProfileIds,
+        currentIndex: input.currentIndex,
       },
     });
   },
@@ -58,6 +75,8 @@ export const orchestrationRepository = {
         type: input.type,
         intervalSec: input.intervalSec,
         isActive: input.isActive,
+        rotationProfileIds: input.rotationProfileIds,
+        currentIndex: input.currentIndex,
       },
     });
 
@@ -79,5 +98,45 @@ export const orchestrationRepository = {
     });
 
     return deleteResult.count === 1;
+  },
+
+  async removeProfileFromRotationRules(input: { userId: string; profileId: string }): Promise<void> {
+    const impactedRules = await prisma.orchestrationRule.findMany({
+      where: {
+        userId: input.userId,
+        type: "rotation",
+        rotationProfileIds: {
+          has: input.profileId,
+        },
+      },
+      select: {
+        id: true,
+        rotationProfileIds: true,
+        currentIndex: true,
+        isActive: true,
+      },
+    });
+
+    if (impactedRules.length === 0) {
+      return;
+    }
+
+    await prisma.$transaction(
+      impactedRules.map((rule) => {
+        const nextRotationProfileIds = rule.rotationProfileIds.filter((profileId) => profileId !== input.profileId);
+        const nextCurrentIndex = nextRotationProfileIds.length === 0
+          ? 0
+          : Math.min(rule.currentIndex, nextRotationProfileIds.length - 1);
+
+        return prisma.orchestrationRule.update({
+          where: { id: rule.id },
+          data: {
+            rotationProfileIds: nextRotationProfileIds,
+            currentIndex: nextCurrentIndex,
+            isActive: rule.isActive && nextRotationProfileIds.length >= 2,
+          },
+        });
+      }),
+    );
   },
 };

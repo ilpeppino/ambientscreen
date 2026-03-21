@@ -1,4 +1,4 @@
-import { test, expect, afterEach, beforeEach, vi } from "vitest";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { orchestrationRouter } from "../src/modules/orchestration/orchestration.routes";
@@ -11,6 +11,8 @@ interface TestRule {
   type: string;
   intervalSec: number;
   isActive: boolean;
+  rotationProfileIds: string[];
+  currentIndex: number;
   createdAt: Date;
 }
 
@@ -33,15 +35,33 @@ beforeEach(() => {
       type: "interval",
       intervalSec: 60,
       isActive: true,
+      rotationProfileIds: [],
+      currentIndex: 0,
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
     },
   ];
 
-  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1" as never);
+  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1");
+  vi.spyOn(profilesService, "getProfilesForUser").mockImplementation(async (userId: string) => ([
+    { id: "profile-1", userId },
+    { id: "profile-2", userId },
+    { id: "profile-3", userId },
+  ]));
   vi.spyOn(orchestrationService, "getRulesForUser").mockImplementation(async (userId: string) =>
-    ruleStore.filter((rule) => rule.userId === userId) as never,
-  );
-  vi.spyOn(orchestrationService, "createRule").mockImplementation(async ({ userId, type, intervalSec, isActive }) => {
+    ruleStore.filter((rule) => rule.userId === userId));
+  vi.spyOn(orchestrationService, "getRuleByIdForUser").mockImplementation(async ({ id, userId }) => (
+    ruleStore.find((rule) => rule.id === id && rule.userId === userId) ?? null
+  ));
+  vi.spyOn(orchestrationService, "createRule").mockImplementation(async (
+    {
+      userId,
+      type,
+      intervalSec,
+      isActive,
+      rotationProfileIds,
+      currentIndex,
+    },
+  ) => {
     ruleCounter += 1;
     const rule: TestRule = {
       id: `rule-${ruleCounter + 1}`,
@@ -49,16 +69,28 @@ beforeEach(() => {
       type,
       intervalSec,
       isActive: isActive ?? true,
+      rotationProfileIds: rotationProfileIds ?? [],
+      currentIndex: currentIndex ?? 0,
       createdAt: new Date(),
     };
 
     ruleStore.push(rule);
-    return rule as never;
+    return rule;
   });
-  vi.spyOn(orchestrationService, "updateRule").mockImplementation(async ({ id, userId, type, intervalSec, isActive }) => {
+  vi.spyOn(orchestrationService, "updateRule").mockImplementation(async (
+    {
+      id,
+      userId,
+      type,
+      intervalSec,
+      isActive,
+      rotationProfileIds,
+      currentIndex,
+    },
+  ) => {
     const current = ruleStore.find((rule) => rule.id === id && rule.userId === userId);
     if (!current) {
-      return null as never;
+      return null;
     }
 
     if (type !== undefined) {
@@ -70,19 +102,23 @@ beforeEach(() => {
     if (isActive !== undefined) {
       current.isActive = isActive;
     }
+    if (rotationProfileIds !== undefined) {
+      current.rotationProfileIds = rotationProfileIds;
+    }
+    if (currentIndex !== undefined) {
+      current.currentIndex = currentIndex;
+    }
 
-    return current as never;
+    return current;
   });
   vi.spyOn(orchestrationService, "deleteRule").mockImplementation(async ({ id, userId }) => {
     const beforeCount = ruleStore.length;
     ruleStore = ruleStore.filter((rule) => !(rule.id === id && rule.userId === userId));
-    return (ruleStore.length !== beforeCount) as never;
+    return ruleStore.length !== beforeCount;
   });
 });
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
+afterEach(() => { vi.restoreAllMocks(); });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {
@@ -208,6 +244,46 @@ test("orchestration routes reject unsupported type", async () => {
     body: {
       type: "unsupported",
       intervalSec: 10,
+    },
+  });
+
+  expect(response.statusCode).toBe(400);
+});
+
+test("orchestration routes validate rotation payload and store profile IDs", async () => {
+  const createResponse = await invokeRoute(orchestrationRouter, "post", "/", {
+    body: {
+      type: "rotation",
+      intervalSec: 15,
+      rotationProfileIds: ["profile-1", "profile-2"],
+      isActive: true,
+    },
+  });
+
+  expect(createResponse.statusCode).toBe(201);
+  const createdRule = createResponse.body as TestRule;
+  expect(createdRule.type).toBe("rotation");
+  expect(createdRule.rotationProfileIds).toEqual(["profile-1", "profile-2"]);
+
+  const invalidCreateResponse = await invokeRoute(orchestrationRouter, "post", "/", {
+    body: {
+      type: "rotation",
+      intervalSec: 15,
+      rotationProfileIds: ["profile-1"],
+      isActive: true,
+    },
+  });
+
+  expect(invalidCreateResponse.statusCode).toBe(400);
+});
+
+test("orchestration routes reject non-existent rotation profiles", async () => {
+  const response = await invokeRoute(orchestrationRouter, "post", "/", {
+    body: {
+      type: "rotation",
+      intervalSec: 20,
+      rotationProfileIds: ["profile-1", "missing-profile"],
+      isActive: true,
     },
   });
 

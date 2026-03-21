@@ -139,7 +139,7 @@ export interface Profile {
   createdAt: string;
 }
 
-export type OrchestrationRuleType = "interval";
+export type OrchestrationRuleType = "interval" | "rotation";
 
 export interface OrchestrationRule {
   id: string;
@@ -147,6 +147,8 @@ export interface OrchestrationRule {
   type: OrchestrationRuleType;
   intervalSec: number;
   isActive: boolean;
+  rotationProfileIds: string[];
+  currentIndex: number;
   createdAt: string;
 }
 
