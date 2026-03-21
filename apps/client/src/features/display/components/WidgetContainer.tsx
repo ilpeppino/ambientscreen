@@ -20,6 +20,7 @@ interface WidgetContainerProps {
   containerSize?: { width: number; height: number };
   onSelectWidget?: (widgetId: string) => void;
   onWidgetLayoutChange?: (widgetId: string, layout: WidgetLayout) => void;
+  onOpenWidgetSettings?: (widgetId: string) => void;
 }
 
 function WidgetContainerBase({
@@ -30,6 +31,7 @@ function WidgetContainerBase({
   containerSize = { width: 0, height: 0 },
   onSelectWidget,
   onWidgetLayoutChange,
+  onOpenWidgetSettings,
 }: WidgetContainerProps) {
   const frame = frameStyle as ViewStyle;
   const width = typeof frame.width === "number" ? frame.width : 0;
@@ -198,6 +200,15 @@ function WidgetContainerBase({
         {content}
       </Pressable>
       {editMode ? (
+        <Pressable
+          accessibilityRole="button"
+          style={styles.settingsButton}
+          onPress={() => onOpenWidgetSettings?.(widget.widgetInstanceId)}
+        >
+          <Text style={styles.settingsButtonLabel}>Settings</Text>
+        </Pressable>
+      ) : null}
+      {editMode ? (
         <View style={styles.resizeHandle} {...resizeResponder.panHandlers}>
           <View style={styles.resizeHandleGlyph} />
         </View>
@@ -299,6 +310,22 @@ const styles = StyleSheet.create({
     borderRightWidth: 2,
     borderBottomWidth: 2,
     borderColor: "#b0d8ff",
+  },
+  settingsButton: {
+    position: "absolute",
+    top: 6,
+    left: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(93, 174, 255, 0.9)",
+    backgroundColor: "rgba(14, 28, 43, 0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  settingsButtonLabel: {
+    color: "#d7ecff",
+    fontSize: 11,
+    fontWeight: "700",
   },
 });
 

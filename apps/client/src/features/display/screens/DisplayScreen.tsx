@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import {
   getDisplayLayout,
   type DisplayLayoutWidgetEnvelope,
+  updateWidgetConfig,
   updateWidgetsLayout,
 } from "../../../services/api/displayLayoutApi";
 import {
@@ -20,12 +21,15 @@ import {
   getDisplayStatusModel,
 } from "../displayScreen.logic";
 import { LayoutGrid } from "../components/LayoutGrid";
+import { WidgetSettingsModal } from "../components/WidgetSettingsModal";
+import { applyWidgetConfigUpdate } from "../components/WidgetSettingsModal.logic";
 import {
   clampWidgetLayout,
   normalizeWidgetLayouts,
   resolveWidgetLayoutCollision,
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
+import { widgetRegistry } from "../../../widgets/widget.registry";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -38,9 +42,12 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [draftLayoutsByWidgetId, setDraftLayoutsByWidgetId] = useState<Record<string, WidgetLayout>>({});
   const [loadingLayout, setLoadingLayout] = useState(true);
   const [savingLayout, setSavingLayout] = useState(false);
+  const [savingWidgetConfig, setSavingWidgetConfig] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [widgetConfigError, setWidgetConfigError] = useState<string | null>(null);
 
   useEffect(() => {
     enableDisplayKeepAwake();
@@ -75,6 +82,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       setWidgets(normalizedWidgets);
       setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(normalizedWidgets));
       setError(null);
+      setWidgetConfigError(null);
     } catch (err) {
       console.error(err);
       setError(toErrorMessage(err, "Failed to load display layout"));
@@ -153,12 +161,14 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
 
   const handleToggleEditMode = useCallback(() => {
     setError(null);
+    setWidgetConfigError(null);
     setEditMode((current) => {
       if (!current) {
         setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
       } else {
         setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
         setSelectedWidgetId(null);
+        setSettingsWidgetId(null);
       }
 
       return !current;
@@ -184,8 +194,10 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const handleCancelLayout = useCallback(() => {
     setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(widgets));
     setSelectedWidgetId(null);
+    setSettingsWidgetId(null);
     setEditMode(false);
     setError(null);
+    setWidgetConfigError(null);
   }, [widgets]);
 
   const handleSaveLayout = useCallback(async () => {
@@ -217,6 +229,50 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     }
   }, [draftLayoutsByWidgetId, hasLayoutChanges, loadDisplayLayout, savingLayout, widgets]);
 
+  const settingsWidget = useMemo(
+    () => widgets.find((widget) => widget.widgetInstanceId === settingsWidgetId) ?? null,
+    [settingsWidgetId, widgets],
+  );
+
+  const handleOpenWidgetSettings = useCallback((widgetId: string) => {
+    setWidgetConfigError(null);
+    setSettingsWidgetId(widgetId);
+    setSelectedWidgetId(widgetId);
+  }, []);
+
+  const handleCloseWidgetSettings = useCallback(() => {
+    if (savingWidgetConfig) {
+      return;
+    }
+
+    setWidgetConfigError(null);
+    setSettingsWidgetId(null);
+  }, [savingWidgetConfig]);
+
+  const handleSaveWidgetConfig = useCallback(async (config: Record<string, unknown>) => {
+    if (!settingsWidget) {
+      return;
+    }
+
+    try {
+      setSavingWidgetConfig(true);
+      setWidgetConfigError(null);
+      await updateWidgetConfig(settingsWidget.widgetInstanceId, { config });
+
+      setWidgets((current) =>
+        applyWidgetConfigUpdate(current, settingsWidget.widgetInstanceId, config),
+      );
+
+      await loadDisplayLayout(false);
+      setSettingsWidgetId(null);
+    } catch (err) {
+      console.error(err);
+      setWidgetConfigError(toErrorMessage(err, "Failed to save widget settings"));
+    } finally {
+      setSavingWidgetConfig(false);
+    }
+  }, [loadDisplayLayout, settingsWidget]);
+
   const frameModel = getDisplayFrameModel(undefined);
   const hasWidgets = widgets.length > 0;
 
@@ -243,6 +299,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         selectedWidgetId={selectedWidgetId}
         onSelectWidget={setSelectedWidgetId}
         onWidgetLayoutChange={handleWidgetLayoutChange}
+        onOpenWidgetSettings={handleOpenWidgetSettings}
       />
     );
   }, [editMode, error, handleWidgetLayoutChange, hasWidgets, layoutWidgets, loadingLayout, selectedWidgetId]);
@@ -300,6 +357,18 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       >
         {content}
       </DisplayFrame>
+      {settingsWidget ? (
+        <WidgetSettingsModal
+          visible={Boolean(settingsWidget)}
+          widgetName={widgetRegistry[settingsWidget.widgetKey].name}
+          schema={settingsWidget.configSchema}
+          config={settingsWidget.config}
+          saving={savingWidgetConfig}
+          saveError={widgetConfigError}
+          onClose={handleCloseWidgetSettings}
+          onSave={handleSaveWidgetConfig}
+        />
+      ) : null}
     </View>
   );
 }

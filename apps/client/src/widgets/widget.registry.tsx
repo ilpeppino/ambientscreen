@@ -1,8 +1,11 @@
 import React from "react";
-import type {
-  WidgetDataByKey,
-  WidgetDataEnvelope,
-  WidgetKey,
+import {
+  type WidgetConfigByKey,
+  type WidgetConfigSchema,
+  widgetConfigRegistry,
+  type WidgetDataByKey,
+  type WidgetDataEnvelope,
+  type WidgetKey,
 } from "@ambient/shared-contracts";
 import { CalendarRenderer } from "./calendar/renderer";
 import { ClockDateRenderer } from "./clockDate/renderer";
@@ -13,6 +16,34 @@ export type WidgetEnvelope =
   | WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate">
   | WidgetDataEnvelope<WidgetDataByKey["weather"], "weather">
   | WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
+
+interface WidgetRegistryEntry<TKey extends WidgetKey> {
+  key: TKey;
+  name: string;
+  defaultConfig: WidgetConfigByKey[TKey];
+  configSchema: WidgetConfigSchema;
+}
+
+export const widgetRegistry: { [TKey in WidgetKey]: WidgetRegistryEntry<TKey> } = {
+  clockDate: {
+    key: "clockDate",
+    name: "Clock & Date",
+    defaultConfig: widgetConfigRegistry.clockDate.defaultConfig,
+    configSchema: widgetConfigRegistry.clockDate.configSchema,
+  },
+  weather: {
+    key: "weather",
+    name: "Weather",
+    defaultConfig: widgetConfigRegistry.weather.defaultConfig,
+    configSchema: widgetConfigRegistry.weather.configSchema,
+  },
+  calendar: {
+    key: "calendar",
+    name: "Calendar",
+    defaultConfig: widgetConfigRegistry.calendar.defaultConfig,
+    configSchema: widgetConfigRegistry.calendar.configSchema,
+  },
+};
 
 export function renderWidgetFromKey(
   widgetKey: WidgetKey,

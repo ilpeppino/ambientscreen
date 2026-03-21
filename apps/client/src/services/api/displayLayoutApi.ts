@@ -3,6 +3,7 @@ import type {
   CalendarWidgetData,
   ClockDateWidgetData,
   WeatherWidgetData,
+  WidgetConfigSchema,
   WidgetKey,
 } from "@ambient/shared-contracts";
 
@@ -26,6 +27,8 @@ interface DisplayLayoutWidgetBase<TKey extends WidgetKey> {
     h: number;
   };
   state: DisplayWidgetState;
+  config: Record<string, unknown>;
+  configSchema: WidgetConfigSchema;
   meta: {
     resolvedAt: string;
     errorCode?: string;
@@ -64,6 +67,10 @@ export interface UpdateWidgetLayoutInput {
 
 interface UpdateWidgetsLayoutPayload {
   widgets: UpdateWidgetLayoutInput[];
+}
+
+export interface UpdateWidgetConfigPayload {
+  config: Record<string, unknown>;
 }
 
 async function toApiErrorMessage(response: Response): Promise<string> {
@@ -133,6 +140,42 @@ export async function updateWidgetsLayout(payload: UpdateWidgetsLayoutPayload): 
     if ((error as { name?: string }).name === "AbortError") {
       throw new Error(
         `Failed to update widget layout: request timed out after ${DISPLAY_LAYOUT_TIMEOUT_MS}ms`,
+      );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+export async function updateWidgetConfig(
+  widgetId: string,
+  payload: UpdateWidgetConfigPayload,
+): Promise<void> {
+  const abortController = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    abortController.abort();
+  }, DISPLAY_LAYOUT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/widgets/${widgetId}/config`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: abortController.signal,
+    });
+
+    if (!response.ok) {
+      const message = await toApiErrorMessage(response);
+      throw new Error(`Failed to update widget config: ${message}`);
+    }
+  } catch (error) {
+    if ((error as { name?: string }).name === "AbortError") {
+      throw new Error(
+        `Failed to update widget config: request timed out after ${DISPLAY_LAYOUT_TIMEOUT_MS}ms`,
       );
     }
 

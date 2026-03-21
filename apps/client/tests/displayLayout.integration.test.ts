@@ -16,6 +16,16 @@ test("display layout widgets map into widget envelopes and frames", () => {
         widgetKey: "clockDate",
         layout: { x: 0, y: 0, w: 6, h: 3 },
         state: "ready",
+        config: {
+          format: "24h",
+          showSeconds: false,
+          timezone: "local",
+        },
+        configSchema: {
+          format: ["12h", "24h"],
+          showSeconds: "boolean",
+          timezone: "string",
+        },
         data: {
           nowIso: "2026-03-21T10:00:00.000Z",
           formattedTime: "10:00",
@@ -31,6 +41,14 @@ test("display layout widgets map into widget envelopes and frames", () => {
         widgetKey: "weather",
         layout: { x: 6, y: 0, w: 6, h: 3 },
         state: "error",
+        config: {
+          location: "Amsterdam",
+          units: "metric",
+        },
+        configSchema: {
+          location: "string",
+          units: ["metric", "imperial"],
+        },
         data: null,
         meta: {
           resolvedAt: "2026-03-21T10:00:01.000Z",
@@ -71,6 +89,16 @@ test("edit -> save -> reload keeps widget layout changes", () => {
         widgetKey: "clockDate",
         layout: { x: 0, y: 0, w: 2, h: 2 },
         state: "ready",
+        config: {
+          format: "24h",
+          showSeconds: false,
+          timezone: "local",
+        },
+        configSchema: {
+          format: ["12h", "24h"],
+          showSeconds: "boolean",
+          timezone: "string",
+        },
         data: {
           nowIso: "2026-03-21T10:00:00.000Z",
           formattedTime: "10:00",
