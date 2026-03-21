@@ -15,6 +15,7 @@ interface OrchestrationLogger {
 interface CreateOrchestrationEngineInput {
   loadRules?: () => Promise<OrchestrationRule[]>;
   onRefresh: () => void | Promise<void>;
+  onSwitchProfile?: (profileId: string) => void | Promise<void>;
   onRuleExecuted?: (rule: OrchestrationRule) => void;
   timerApi?: TimerApi;
   logger?: OrchestrationLogger;
@@ -45,8 +46,42 @@ async function defaultLoadRules(): Promise<OrchestrationRule[]> {
   return getOrchestrationRules();
 }
 
-function isIntervalRule(rule: OrchestrationRule): boolean {
-  return rule.type === "interval";
+function isSupportedRule(rule: OrchestrationRule): boolean {
+  return rule.type === "interval" || rule.type === "rotation";
+}
+
+function normalizeIndex(index: number, profileCount: number): number {
+  if (profileCount <= 0) {
+    return 0;
+  }
+
+  if (!Number.isInteger(index) || index < 0) {
+    return 0;
+  }
+
+  return index % profileCount;
+}
+
+function areRulesEquivalent(previousRule: OrchestrationRule, nextRule: OrchestrationRule): boolean {
+  if (previousRule.type !== nextRule.type || previousRule.intervalSec !== nextRule.intervalSec) {
+    return false;
+  }
+
+  if (previousRule.type !== "rotation" || nextRule.type !== "rotation") {
+    return true;
+  }
+
+  if (previousRule.currentIndex !== nextRule.currentIndex) {
+    return false;
+  }
+
+  if (previousRule.rotationProfileIds.length !== nextRule.rotationProfileIds.length) {
+    return false;
+  }
+
+  return previousRule.rotationProfileIds.every((profileId, index) => (
+    profileId === nextRule.rotationProfileIds[index]
+  ));
 }
 
 export function createOrchestrationEngine(
@@ -57,8 +92,33 @@ export function createOrchestrationEngine(
   const logger = input.logger ?? defaultLogger;
   const intervalByRuleId = new Map<string, IntervalHandle>();
   const activeRuleById = new Map<string, OrchestrationRule>();
+  const currentIndexByRuleId = new Map<string, number>();
   const runningRuleIds = new Set<string>();
   let isStarted = false;
+
+  async function executeRotationRule(rule: OrchestrationRule) {
+    const profileIds = rule.rotationProfileIds;
+    if (profileIds.length < 2) {
+      logger.info("rotation skipped due to insufficient profiles", {
+        ruleId: rule.id,
+        profileCount: profileIds.length,
+      });
+      return;
+    }
+
+    if (!input.onSwitchProfile) {
+      logger.error("rotation rule skipped because onSwitchProfile callback is missing", {
+        ruleId: rule.id,
+      });
+      return;
+    }
+
+    const currentIndex = normalizeIndex(currentIndexByRuleId.get(rule.id) ?? rule.currentIndex, profileIds.length);
+    const nextIndex = (currentIndex + 1) % profileIds.length;
+    const nextProfileId = profileIds[nextIndex];
+    currentIndexByRuleId.set(rule.id, nextIndex);
+    await Promise.resolve(input.onSwitchProfile(nextProfileId));
+  }
 
   async function executeRule(rule: OrchestrationRule) {
     if (runningRuleIds.has(rule.id)) {
@@ -67,7 +127,12 @@ export function createOrchestrationEngine(
 
     runningRuleIds.add(rule.id);
     try {
-      await Promise.resolve(input.onRefresh());
+      if (rule.type === "rotation") {
+        await executeRotationRule(rule);
+      } else {
+        await Promise.resolve(input.onRefresh());
+      }
+
       input.onRuleExecuted?.(rule);
       logger.info("rule executed", {
         ruleId: rule.id,
@@ -93,6 +158,7 @@ export function createOrchestrationEngine(
     timerApi.clearInterval(interval);
     intervalByRuleId.delete(ruleId);
     activeRuleById.delete(ruleId);
+    currentIndexByRuleId.delete(ruleId);
     runningRuleIds.delete(ruleId);
     logger.info("rule stopped", {
       ruleId,
@@ -101,12 +167,16 @@ export function createOrchestrationEngine(
 
   function startRule(rule: OrchestrationRule) {
     const existingRule = activeRuleById.get(rule.id);
-    if (existingRule && existingRule.intervalSec === rule.intervalSec) {
+    if (existingRule && areRulesEquivalent(existingRule, rule)) {
       return;
     }
 
     stopRule(rule.id);
     activeRuleById.set(rule.id, rule);
+    if (rule.type === "rotation") {
+      currentIndexByRuleId.set(rule.id, normalizeIndex(rule.currentIndex, rule.rotationProfileIds.length));
+    }
+
     const intervalMs = rule.intervalSec * 1000;
     const intervalId = timerApi.setInterval(() => {
       void executeRule(rule);
@@ -121,7 +191,7 @@ export function createOrchestrationEngine(
   }
 
   function syncRules(rules: OrchestrationRule[]) {
-    const activeRules = rules.filter((rule) => rule.isActive && isIntervalRule(rule));
+    const activeRules = rules.filter((rule) => rule.isActive && isSupportedRule(rule));
     const activeRuleIds = new Set(activeRules.map((rule) => rule.id));
 
     for (const ruleId of intervalByRuleId.keys()) {
