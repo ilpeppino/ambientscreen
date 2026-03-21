@@ -127,7 +127,7 @@ jobs:
         run: npm test
 
   # ────────────────────────────────────────────────────────────────────────────
-  # Version calculation and tag creation
+  # Version calculation, tagging, changelog, and GitHub release
   # ────────────────────────────────────────────────────────────────────────────
   release-tag:
     name: Release Tag
@@ -278,3 +278,120 @@ jobs:
           echo "=== Tag pushed ==="
           echo "Tag    : $NEW_VERSION"
           echo "Commit : $MERGE_SHA"
+
+      # ── Build release notes from commits since last tag ───────────────────────
+      - name: Generate release notes
+        id: notes
+        if: steps.bump.outputs.bump != 'none'
+        run: |
+          LATEST_TAG="${{ steps.latest-tag.outputs.tag }}"
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+          DATE=$(date -u +"%Y-%m-%d")
+          NOTES_FILE=$(mktemp)
+
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+            SUBJECTS=$(git log --pretty=format:"%s" HEAD)
+            FULL_LOG=$(git log --pretty=format:"%B" HEAD)
+          else
+            SUBJECTS=$(git log --pretty=format:"%s" "${LATEST_TAG}..HEAD")
+            FULL_LOG=$(git log --pretty=format:"%B" "${LATEST_TAG}..HEAD")
+          fi
+
+          # Categorise commit subjects
+          BREAKING=$(echo "$SUBJECTS" | grep -E "^[a-z]+(\([^)]*\))?!:" || true)
+          # Also catch BREAKING CHANGE footer in full log
+          if echo "$FULL_LOG" | grep -q "^BREAKING CHANGE:"; then
+            BREAKING_FOOTER=$(echo "$FULL_LOG" | grep "^BREAKING CHANGE:" | sed 's/^BREAKING CHANGE: *//')
+          else
+            BREAKING_FOOTER=""
+          fi
+          FEATS=$(echo "$SUBJECTS" | grep -E "^feat(\([^)]*\))?:"  || true)
+          FIXES=$(echo "$SUBJECTS" | grep -E "^fix(\([^)]*\))?:"   || true)
+          OTHERS=$(echo "$SUBJECTS" | grep -vE "^(feat|fix|[a-z]+(\([^)]*\))?!)" \
+                   | grep -E "^[a-z]" || true)
+
+          {
+            echo "## [${NEW_VERSION}] — ${DATE}"
+            echo ""
+
+            if [ -n "$BREAKING" ] || [ -n "$BREAKING_FOOTER" ]; then
+              echo "### ⚠ Breaking Changes"
+              echo ""
+              [ -n "$BREAKING" ]        && echo "$BREAKING"        | sed 's/^/- /'
+              [ -n "$BREAKING_FOOTER" ] && echo "$BREAKING_FOOTER" | sed 's/^/- /'
+              echo ""
+            fi
+
+            if [ -n "$FEATS" ]; then
+              echo "### Features"
+              echo ""
+              echo "$FEATS" | sed 's/^/- /'
+              echo ""
+            fi
+
+            if [ -n "$FIXES" ]; then
+              echo "### Bug Fixes"
+              echo ""
+              echo "$FIXES" | sed 's/^/- /'
+              echo ""
+            fi
+
+            if [ -n "$OTHERS" ]; then
+              echo "### Other"
+              echo ""
+              echo "$OTHERS" | sed 's/^/- /'
+              echo ""
+            fi
+          } > "$NOTES_FILE"
+
+          echo "=== Release notes preview ==="
+          cat "$NOTES_FILE"
+
+          echo "notes_file=$NOTES_FILE" >> "$GITHUB_OUTPUT"
+
+      # ── Prepend to CHANGELOG.md and push to prd ───────────────────────────────
+      - name: Update CHANGELOG.md
+        if: steps.bump.outputs.bump != 'none'
+        run: |
+          NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+
+          HEADER="# Changelog\n\nAll notable changes are documented here, newest first.\n\n---\n"
+
+          if [ -f CHANGELOG.md ]; then
+            # Strip the existing header (everything up to and including the first ---)
+            EXISTING=$(awk '/^---$/{found=1; next} found{print}' CHANGELOG.md)
+          else
+            EXISTING=""
+          fi
+
+          {
+            printf "%b" "$HEADER"
+            cat "$NOTES_FILE"
+            [ -n "$EXISTING" ] && printf "%s\n" "$EXISTING"
+          } > CHANGELOG.md
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add CHANGELOG.md
+          git commit -m "chore(release): update CHANGELOG for ${NEW_VERSION} [skip ci]"
+          git push origin prd
+
+          echo "CHANGELOG.md updated and pushed to prd"
+
+      # ── Create GitHub Release ─────────────────────────────────────────────────
+      - name: Create GitHub Release
+        if: steps.bump.outputs.bump != 'none'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          NEW_VERSION="${{ steps.version.outputs.version }}"
+          NOTES_FILE="${{ steps.notes.outputs.notes_file }}"
+
+          gh release create "$NEW_VERSION" \
+            --title "$NEW_VERSION" \
+            --notes-file "$NOTES_FILE" \
+            --target prd
+
+          echo "GitHub Release created: $NEW_VERSION"
