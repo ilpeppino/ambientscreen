@@ -80,7 +80,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         console.error(err);
         setWidgets([]);
         setSelectedWidget(null);
-        setError("Failed to load widgets");
+        setError(toErrorMessage(err, "Failed to load widgets"));
       } finally {
         if (!cancelled) {
           setLoadingWidgets(false);
@@ -131,7 +131,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
           return;
         }
         console.error(err);
-        setError("Failed to load widget data");
+        setError(toErrorMessage(err, "Failed to load widget data"));
       } finally {
         if (!cancelled) {
           setLoadingWidgetData(false);
@@ -310,3 +310,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
 });
+  function toErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return error.message;
+    }
+
+    return fallback;
+  }
