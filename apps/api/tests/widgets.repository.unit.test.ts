@@ -17,7 +17,7 @@ test("widgetsRepository maps db layout fields to layout object on list", async (
   prisma.widgetInstance.findMany = (async () => [
     {
       id: "widget-1",
-      userId: "user-1",
+      profileId: "user-1",
       type: "clockDate",
       config: {},
       layoutX: 2,
@@ -42,7 +42,7 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
     createArgs = args;
     return {
       id: "widget-1",
-      userId: "user-1",
+      profileId: "user-1",
       type: "clockDate",
       config: {},
       layoutX: 1,
@@ -56,7 +56,7 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
   }) as typeof prisma.widgetInstance.create;
 
   const created = await widgetsRepository.create({
-    userId: "user-1",
+    profileId: "user-1",
     type: "clockDate",
     config: {},
     layout: { x: 1, y: 2, w: 3, h: 4 },
@@ -66,7 +66,7 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
   assert.deepEqual(created.layout, { x: 1, y: 2, w: 3, h: 4 });
   assert.deepEqual(createArgs, {
     data: {
-      userId: "user-1",
+      profileId: "user-1",
       type: "clockDate",
       config: {},
       layoutX: 1,
@@ -100,7 +100,7 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
     return [
       {
         id: "widget-1",
-        userId: "user-1",
+        profileId: "user-1",
         type: "clockDate",
         config: {},
         layoutX: 3,
@@ -125,14 +125,14 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
   assert.deepEqual(updated[0].layout, { x: 3, y: 2, w: 4, h: 2 });
   assert.deepEqual(updateManyCalls, [
     {
-      where: { id: "widget-1", userId: "user-1" },
+      where: { id: "widget-1", profileId: "user-1" },
       data: { layoutX: 3, layoutY: 2, layoutW: 4, layoutH: 2 },
     },
   ]);
   assert.deepEqual(findManyArgs, {
     where: {
       id: { in: ["widget-1"] },
-      userId: "user-1",
+      profileId: "user-1",
     },
   });
 });

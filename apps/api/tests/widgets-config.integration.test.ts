@@ -14,7 +14,7 @@ interface TestUser {
 
 interface TestWidget {
   id: string;
-  userId: string;
+  profileId: string;
   type: string;
   config: Record<string, unknown>;
   layout: {
@@ -45,11 +45,11 @@ const mutableUsersRepository = usersRepository as unknown as {
 };
 
 const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (userId: string) => Promise<TestWidget[]>;
+  findAll: (profileId: string) => Promise<TestWidget[]>;
   findById: (id: string) => Promise<TestWidget | null>;
   updateConfig: (input: {
     id: string;
-    userId: string;
+    profileId: string;
     config: Record<string, unknown>;
   }) => Promise<TestWidget | null>;
 };
@@ -69,7 +69,7 @@ beforeEach(() => {
   widgetsStore = [
     {
       id: "widget-1",
-      userId: "user-1",
+      profileId: "user-1",
       type: "clockDate",
       config: {
         format: "24h",
@@ -84,14 +84,14 @@ beforeEach(() => {
   ];
 
   mutableUsersRepository.findAll = async () => usersStore;
-  mutableWidgetsRepository.findAll = async (userId: string) =>
-    widgetsStore.filter((widget) => widget.userId === userId);
+  mutableWidgetsRepository.findAll = async (profileId: string) =>
+    widgetsStore.filter((widget) => widget.profileId === profileId);
   mutableWidgetsRepository.findById = async (id: string) =>
     widgetsStore.find((widget) => widget.id === id) ?? null;
-  mutableWidgetsRepository.updateConfig = async ({ id, userId, config }) => {
+  mutableWidgetsRepository.updateConfig = async ({ id, profileId, config }) => {
     let updatedWidget: TestWidget | null = null;
     widgetsStore = widgetsStore.map((widget) => {
-      if (widget.id !== id || widget.userId !== userId) {
+      if (widget.id !== id || widget.profileId !== profileId) {
         return widget;
       }
 

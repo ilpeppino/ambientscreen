@@ -10,7 +10,7 @@ export interface WidgetLayout {
 
 export interface WidgetRecord {
   id: string;
-  userId: string;
+  profileId: string;
   type: string;
   config: Prisma.JsonValue;
   layout: WidgetLayout;
@@ -20,7 +20,7 @@ export interface WidgetRecord {
 }
 
 interface CreateWidgetInput {
-  userId: string;
+  profileId: string;
   type: string;
   config: Prisma.InputJsonValue;
   layout: WidgetLayout;
@@ -34,13 +34,13 @@ interface UpdateWidgetLayoutInput {
 
 interface UpdateWidgetConfigInput {
   id: string;
-  userId: string;
+  profileId: string;
   config: Prisma.InputJsonValue;
 }
 
 function mapWidgetRecord(widget: {
   id: string;
-  userId: string;
+  profileId: string;
   type: string;
   config: Prisma.JsonValue;
   layoutX: number;
@@ -53,7 +53,7 @@ function mapWidgetRecord(widget: {
 }): WidgetRecord {
   return {
     id: widget.id,
-    userId: widget.userId,
+    profileId: widget.profileId,
     type: widget.type,
     config: widget.config,
     layout: {
@@ -69,9 +69,9 @@ function mapWidgetRecord(widget: {
 }
 
 export const widgetsRepository = {
-  async findAll(userId: string): Promise<WidgetRecord[]> {
+  async findAll(profileId: string): Promise<WidgetRecord[]> {
     const widgets = await prisma.widgetInstance.findMany({
-      where: { userId },
+      where: { profileId },
       orderBy: [{ layoutY: "asc" }, { layoutX: "asc" }, { createdAt: "asc" }],
     });
 
@@ -89,7 +89,7 @@ export const widgetsRepository = {
   async create(input: CreateWidgetInput): Promise<WidgetRecord> {
     const widget = await prisma.widgetInstance.create({
       data: {
-        userId: input.userId,
+        profileId: input.profileId,
         type: input.type,
         config: input.config,
         layoutX: input.layout.x,
@@ -103,10 +103,10 @@ export const widgetsRepository = {
     return mapWidgetRecord(widget);
   },
 
-  async activateWidget(userId: string, widgetId: string): Promise<WidgetRecord> {
+  async activateWidget(profileId: string, widgetId: string): Promise<WidgetRecord> {
     return prisma.$transaction(async (transaction) => {
       await transaction.widgetInstance.updateMany({
-        where: { userId },
+        where: { profileId },
         data: { isActive: false },
       });
 
@@ -119,13 +119,13 @@ export const widgetsRepository = {
     });
   },
 
-  async updateLayouts(userId: string, inputs: UpdateWidgetLayoutInput[]): Promise<WidgetRecord[]> {
+  async updateLayouts(profileId: string, inputs: UpdateWidgetLayoutInput[]): Promise<WidgetRecord[]> {
     await prisma.$transaction(async (transaction) => {
       for (const input of inputs) {
         const updateResult = await transaction.widgetInstance.updateMany({
           where: {
             id: input.id,
-            userId,
+            profileId,
           },
           data: {
             layoutX: input.layout.x,
@@ -136,7 +136,7 @@ export const widgetsRepository = {
         });
 
         if (updateResult.count !== 1) {
-          throw new Error(`Widget not found for user: ${input.id}`);
+          throw new Error(`Widget not found for profile: ${input.id}`);
         }
       }
     });
@@ -146,7 +146,7 @@ export const widgetsRepository = {
         id: {
           in: inputs.map((input) => input.id),
         },
-        userId,
+        profileId,
       },
     });
 
@@ -157,7 +157,7 @@ export const widgetsRepository = {
     const updateResult = await prisma.widgetInstance.updateMany({
       where: {
         id: input.id,
-        userId: input.userId,
+        profileId: input.profileId,
       },
       data: {
         config: input.config,

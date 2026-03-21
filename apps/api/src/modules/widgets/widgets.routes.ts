@@ -6,27 +6,52 @@ import {
   updateWidgetsLayoutSchema,
 } from "./widget-contracts";
 import { widgetsService } from "./widgets.service";
-import { usersService } from "../users/users.service";
+import { profilesService } from "../profiles/profiles.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 
 export const widgetsRouter = Router();
 
-async function getPrimaryUserId(): Promise<string> {
-  const users = await usersService.getAllUsers();
-
-  if (users.length === 0) {
-    throw apiErrors.badRequest("No users exist yet. Create a user first.");
+function getQueryProfileId(queryValue: unknown): string | undefined {
+  if (typeof queryValue === "string" && queryValue.trim().length > 0) {
+    return queryValue;
   }
 
-  return users[0].id;
+  if (Array.isArray(queryValue) && typeof queryValue[0] === "string" && queryValue[0].trim().length > 0) {
+    return queryValue[0];
+  }
+
+  return undefined;
+}
+
+async function resolveRequestProfileId(explicitProfileId?: string | null): Promise<string> {
+  let userId: string;
+  try {
+    userId = await profilesService.getPrimaryUserId();
+  } catch (error) {
+    if ((error as Error).message === "No users exist yet. Create a user first.") {
+      throw apiErrors.badRequest((error as Error).message);
+    }
+    throw error;
+  }
+
+  const profile = await profilesService.resolveProfileForUser({
+    userId,
+    profileId: explicitProfileId,
+  });
+
+  if (!profile) {
+    throw apiErrors.notFound("Profile not found");
+  }
+
+  return profile.id;
 }
 
 widgetsRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const userId = await getPrimaryUserId();
-    const widgets = await widgetsService.getUserWidgets(userId);
+  asyncHandler(async (req, res) => {
+    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
+    const widgets = await widgetsService.getProfileWidgets(profileId);
     res.json(widgets);
   })
 );
@@ -34,16 +59,20 @@ widgetsRouter.get(
 widgetsRouter.post(
   "/",
   asyncHandler(async (req, res) => {
-    const userId = await getPrimaryUserId();
     const result = createWidgetSchema.safeParse(req.body);
 
     if (!result.success) {
       throw apiErrors.validation("Invalid widget payload", result.error.format());
     }
 
+    const bodyProfileId = result.data.profileId;
+    const profileId = await resolveRequestProfileId(
+      bodyProfileId ?? getQueryProfileId(req.query?.profileId),
+    );
+
     const { type, config, layout } = result.data;
     const widget = await widgetsService.createWidgetAtNextPosition({
-      userId,
+      profileId,
       type,
       config: normalizeWidgetConfig(type, config),
       layout,
@@ -56,15 +85,15 @@ widgetsRouter.post(
 widgetsRouter.patch(
   "/layout",
   asyncHandler(async (req, res) => {
-    const userId = await getPrimaryUserId();
+    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
     const parseResult = updateWidgetsLayoutSchema.safeParse(req.body);
 
     if (!parseResult.success) {
       throw apiErrors.validation("Invalid widgets layout payload", parseResult.error.format());
     }
 
-    const updatedWidgets = await widgetsService.updateWidgetsLayoutForUser({
-      userId,
+    const updatedWidgets = await widgetsService.updateWidgetsLayoutForProfile({
+      profileId,
       widgets: parseResult.data.widgets,
     });
 
@@ -77,7 +106,7 @@ widgetsRouter.patch(
 widgetsRouter.patch(
   "/:id/config",
   asyncHandler(async (req, res) => {
-    const userId = await getPrimaryUserId();
+    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
     const idParam = req.params.id;
     const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
     const parseResult = updateWidgetConfigPayloadSchema.safeParse(req.body);
@@ -86,8 +115,8 @@ widgetsRouter.patch(
       throw apiErrors.validation("Invalid widget config payload", parseResult.error.format());
     }
 
-    const updatedWidget = await widgetsService.updateWidgetConfigForUser({
-      userId,
+    const updatedWidget = await widgetsService.updateWidgetConfigForProfile({
+      profileId,
       widgetId,
       configPatch: parseResult.data.config,
     });
@@ -103,11 +132,11 @@ widgetsRouter.patch(
 widgetsRouter.patch(
   "/:id/active",
   asyncHandler(async (req, res) => {
-    const userId = await getPrimaryUserId();
+    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
     const idParam = req.params.id;
     const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
-    const activatedWidget = await widgetsService.activateWidgetForUser({
-      userId,
+    const activatedWidget = await widgetsService.activateWidgetForProfile({
+      profileId,
       widgetId
     });
 
