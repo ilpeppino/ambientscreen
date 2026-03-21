@@ -24,8 +24,8 @@ export const widgetsService = {
     return widgetsRepository.findById(id);
   },
 
-  getWidgetByIdForUser(id: string, _userId: string) {
-    return widgetsRepository.findById(id);
+  getWidgetByIdForUser(id: string, userId: string) {
+    return widgetsRepository.findByIdForUser(id, userId);
   },
 
   async createWidget(data: {

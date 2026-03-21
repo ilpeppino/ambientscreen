@@ -139,7 +139,7 @@ test("widgetsService emits widget.deleted and display.refreshRequested on widget
 });
 
 test("profilesService emits profile.updated and display.refreshRequested on rename", async () => {
-  vi.spyOn(profilesRepository, "findById").mockImplementation(async () => ({
+  vi.spyOn(profilesRepository, "findByIdForUser").mockImplementation(async () => ({
     id: "profile-1",
     userId: "user-1",
     name: "Before",

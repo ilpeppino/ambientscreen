@@ -8,14 +8,18 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
+  id           String    @id @default(uuid())
+  email        String    @unique
   passwordHash String
-  createdAt DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  activeProfileId String?
 
   profiles           Profile[]
   orchestrationRules OrchestrationRule[]
   sharedSessions     SharedScreenSession[]
+  activeProfile      Profile?            @relation("UserActiveProfile", fields: [activeProfileId], references: [id], onDelete: SetNull)
+
+  @@index([activeProfileId])
 }
 
 model Profile {
@@ -27,6 +31,7 @@ model Profile {
 
   user    User             @relation(fields: [userId], references: [id])
   widgets WidgetInstance[]
+  activeForUsers User[]    @relation("UserActiveProfile")
 
   @@index([userId])
 }

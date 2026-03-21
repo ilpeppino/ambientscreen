@@ -18,9 +18,6 @@ import {
   updateWidgetsLayout,
 } from "../../../services/api/displayLayoutApi";
 import {
-  getProfiles as getProfilesApi,
-} from "../../../services/api/profilesApi";
-import {
   disableDisplayKeepAwake,
   enableDisplayKeepAwake,
 } from "../services/keepAwake";
@@ -45,12 +42,7 @@ import {
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
 import { widgetRegistry } from "../../../widgets/widget.registry";
-import type { Profile } from "@ambient/shared-contracts";
-import { resolveActiveProfileId } from "../../profiles/profiles.logic";
-import {
-  loadPersistedActiveProfileId,
-  persistActiveProfileId,
-} from "../../profiles/profileStorage";
+import { useCloudProfiles } from "../../profiles/useCloudProfiles";
 import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
 import { useSharedScreenSession } from "../hooks/useSharedScreenSession";
 import { API_BASE_URL } from "../../../core/config/api";
@@ -75,8 +67,12 @@ const DISPLAY_TRANSITION_TYPE: TransitionType = "fade";
 const WIDGET_TRANSITION_LIBRARY = "react-native Animated API";
 
 export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const {
+    profiles,
+    activeProfileId,
+    profilesError,
+    activateProfile,
+  } = useCloudProfiles();
   const [widgets, setWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
   const [draftLayoutsByWidgetId, setDraftLayoutsByWidgetId] = useState<Record<string, WidgetLayout>>({});
   const [loadingLayout, setLoadingLayout] = useState(true);
@@ -87,7 +83,6 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [widgetConfigError, setWidgetConfigError] = useState<string | null>(null);
-  const [profileError, setProfileError] = useState<string | null>(null);
   const [slideshowEnabled, setSlideshowEnabled] = useState(false);
   const [slideshowIntervalSecInput, setSlideshowIntervalSecInput] = useState("60");
   const [slideshowProfileIds, setSlideshowProfileIds] = useState<string[]>([]);
@@ -131,15 +126,13 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const effectiveActiveProfileId = isSharedMode ? sharedSession.activeProfileId : activeProfileId;
 
   const setActiveProfile = useCallback(async (profileId: string) => {
-    setActiveProfileId((current) => {
-      if (current === profileId) {
-        return current;
-      }
-      transitionPendingRef.current = true;
-      return profileId;
-    });
-    await persistActiveProfileId(profileId);
-  }, []);
+    if (activeProfileId === profileId) {
+      return;
+    }
+
+    transitionPendingRef.current = true;
+    await activateProfile(profileId);
+  }, [activeProfileId, activateProfile]);
 
   useEffect(() => {
     enableDisplayKeepAwake();
@@ -162,36 +155,6 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
 
     return Math.min(...intervals);
   }, [widgets]);
-
-  const loadProfiles = useCallback(async (signal?: { cancelled: boolean }) => {
-    try {
-      setProfileError(null);
-      const [responseProfiles, persistedProfileId] = await Promise.all([
-        getProfilesApi(),
-        loadPersistedActiveProfileId(),
-      ]);
-
-      if (signal?.cancelled) {
-        return;
-      }
-
-      setProfiles(responseProfiles);
-      const nextActiveProfileId = resolveActiveProfileId(responseProfiles, persistedProfileId);
-      setActiveProfileId(nextActiveProfileId);
-      if (nextActiveProfileId) {
-        await persistActiveProfileId(nextActiveProfileId);
-      }
-    } catch (err) {
-      if (signal?.cancelled) {
-        return;
-      }
-
-      console.error(err);
-      setProfiles([]);
-      setActiveProfileId(null);
-      setProfileError("Failed to load profiles");
-    }
-  }, []);
 
   const loadDisplayLayout = useCallback(async (showInitialLoading: boolean) => {
     if (!effectiveActiveProfileId) {
@@ -279,15 +242,6 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     () => getEffectivePollingIntervalMs(refreshIntervalMs, realtimeConnectionState),
     [refreshIntervalMs, realtimeConnectionState],
   );
-
-  useEffect(() => {
-    const signal = { cancelled: false };
-    void loadProfiles(signal);
-
-    return () => {
-      signal.cancelled = true;
-    };
-  }, [loadProfiles]);
 
   useEffect(() => {
     if (profiles.length === 0 || isSharedMode) {
@@ -998,8 +952,8 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       >
         {content}
       </DisplayFrame>
-      {profileError || sharedSessionError ? (
-        <Text style={styles.profileError}>{profileError ?? sharedSessionError}</Text>
+      {profilesError || sharedSessionError ? (
+        <Text style={styles.profileError}>{profilesError ?? sharedSessionError}</Text>
       ) : null}
       {settingsWidget ? (
         <WidgetSettingsModal

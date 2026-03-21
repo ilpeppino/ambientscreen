@@ -5,6 +5,7 @@ import { usersRepository } from "../src/modules/users/users.repository";
 import { usersRouter } from "../src/modules/users/users.routes";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
+import { profilesService } from "../src/modules/profiles/profiles.service";
 
 interface TestUser {
   id: string;
@@ -46,6 +47,14 @@ beforeEach(() => {
   userCounter = 0;
   widgetCounter = 0;
 
+  vi.spyOn(profilesService, "resolveProfileForUser").mockImplementation(async ({ userId }) => ({
+    id: userId,
+    userId,
+    name: "Default",
+    isDefault: true,
+    createdAt: new Date(),
+  }) as never);
+
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
@@ -72,6 +81,9 @@ beforeEach(() => {
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) as never;
   });
   vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) => {
+    return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
+  });
+  vi.spyOn(widgetsRepository, "findByIdForUser").mockImplementation(async (id: string) => {
     return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
   });
   vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => {

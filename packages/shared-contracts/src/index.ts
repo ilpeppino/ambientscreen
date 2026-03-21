@@ -139,6 +139,11 @@ export interface Profile {
   createdAt: string;
 }
 
+export interface ProfilesListResponse {
+  profiles: Profile[];
+  activeProfileId: string | null;
+}
+
 export type OrchestrationRuleType = "interval" | "rotation";
 
 export interface OrchestrationRule {

@@ -22,6 +22,15 @@ export const profilesRepository = {
     });
   },
 
+  findByIdForUser(input: { id: string; userId: string }) {
+    return prisma.profile.findFirst({
+      where: {
+        id: input.id,
+        userId: input.userId,
+      },
+    });
+  },
+
   findDefaultByUser(userId: string) {
     return prisma.profile.findFirst({
       where: { userId, isDefault: true },
@@ -71,6 +80,21 @@ export const profilesRepository = {
         where: { id: profileId },
         data: { isDefault: true },
       });
+    });
+  },
+
+  getUserActiveProfileId(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: { activeProfileId: true },
+    });
+  },
+
+  setUserActiveProfileId(userId: string, profileId: string | null) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { activeProfileId: profileId },
+      select: { activeProfileId: true },
     });
   },
 };
