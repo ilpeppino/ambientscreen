@@ -20,7 +20,10 @@ model WidgetInstance {
   userId    String
   type      String
   config    Json
-  position  Int
+  layoutX   Int      @default(0)
+  layoutY   Int      @default(0)
+  layoutW   Int      @default(1)
+  layoutH   Int      @default(1)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

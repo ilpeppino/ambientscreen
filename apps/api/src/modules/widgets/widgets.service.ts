@@ -1,9 +1,12 @@
 import { Prisma } from "@prisma/client";
+import { apiErrors } from "../../core/http/api-error";
 import { widgetsRepository } from "./widgets.repository";
 import {
+  defaultWidgetLayout,
   getDefaultWidgetConfig,
   normalizeWidgetConfig,
   type SupportedWidgetType,
+  widgetLayoutSchema,
 } from "./widget-contracts";
 
 export const widgetsService = {
@@ -19,9 +22,20 @@ export const widgetsService = {
     userId: string;
     type: SupportedWidgetType;
     config?: Prisma.InputJsonValue;
-    position?: number;
+    layout?: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    };
     isActive: boolean;
   }) {
+    const parsedLayout = widgetLayoutSchema.safeParse(data.layout ?? defaultWidgetLayout);
+
+    if (!parsedLayout.success) {
+      throw apiErrors.validation("Invalid widget layout", parsedLayout.error.format());
+    }
+
     return widgetsRepository.create({
       userId: data.userId,
       type: data.type,
@@ -29,8 +43,8 @@ export const widgetsService = {
         data.config === undefined
           ? getDefaultWidgetConfig(data.type)
           : normalizeWidgetConfig(data.type, data.config),
-      position: data.position ?? 0,
-      isActive: data.isActive
+      layout: parsedLayout.data,
+      isActive: data.isActive,
     });
   },
 
@@ -38,17 +52,22 @@ export const widgetsService = {
     userId: string;
     type: SupportedWidgetType;
     config?: Prisma.InputJsonValue;
+    layout?: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    };
   }) {
     const widgets = await widgetsRepository.findAll(data.userId);
-    const nextPosition = widgets.length === 0 ? 0 : widgets[widgets.length - 1].position + 1;
     const hasActiveWidget = widgets.some((widget) => widget.isActive);
 
     return this.createWidget({
       userId: data.userId,
       type: data.type,
       config: data.config,
-      position: nextPosition,
-      isActive: !hasActiveWidget
+      layout: data.layout ?? defaultWidgetLayout,
+      isActive: !hasActiveWidget,
     });
   },
 
@@ -60,5 +79,5 @@ export const widgetsService = {
     }
 
     return widgetsRepository.activateWidget(data.userId, data.widgetId);
-  }
+  },
 };

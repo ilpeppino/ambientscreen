@@ -10,6 +10,7 @@ test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
   const clock = createWidgetSchema.safeParse({
     type: "clockDate",
     config: { timezone: "UTC", hour12: false },
+    layout: { x: 0, y: 0, w: 1, h: 1 },
   });
   assert.equal(clock.success, true);
 
@@ -44,6 +45,20 @@ test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
     config: { provider: "googleCalendar" },
   });
   assert.equal(invalidCalendar.success, false);
+
+  const invalidLayout = createWidgetSchema.safeParse({
+    type: "clockDate",
+    layout: { x: -1, y: 0, w: 1, h: 1 },
+  });
+  assert.equal(invalidLayout.success, false);
+});
+
+test("M2-1: createWidgetSchema allows missing layout for backward compatibility", () => {
+  const clock = createWidgetSchema.safeParse({
+    type: "clockDate",
+    config: { timezone: "UTC" },
+  });
+  assert.equal(clock.success, true);
 });
 
 test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () => {

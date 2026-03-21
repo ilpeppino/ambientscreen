@@ -19,7 +19,12 @@ interface TestWidget {
   userId: string;
   type: string;
   config: Record<string, unknown>;
-  position: number;
+  layout: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -58,7 +63,12 @@ const mutableWidgetsRepository = widgetsRepository as unknown as {
     userId: string;
     type: string;
     config: unknown;
-    position: number;
+    layout: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    };
     isActive: boolean;
   }) => Promise<TestWidget>;
   activateWidget: (userId: string, widgetId: string) => Promise<TestWidget>;
@@ -98,7 +108,7 @@ beforeEach(() => {
   mutableWidgetsRepository.findAll = async (userId: string) => {
     return widgetsStore
       .filter((widget) => widget.userId === userId)
-      .sort((a, b) => a.position - b.position);
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   };
   mutableWidgetsRepository.findById = async (id: string) => {
     return widgetsStore.find((widget) => widget.id === id) ?? null;
@@ -111,7 +121,7 @@ beforeEach(() => {
       userId: input.userId,
       type: input.type,
       config: input.config as Record<string, unknown>,
-      position: input.position,
+      layout: input.layout,
       isActive: input.isActive,
       createdAt: now,
       updatedAt: now
@@ -282,10 +292,12 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
 
   const listResponse = await invokeRoute(widgetsRouter, "get", "/");
   assert.equal(listResponse.statusCode, 200);
-  const widgets = listResponse.body as Array<{ position: number }>;
+  const widgets = listResponse.body as Array<{
+    layout: { x: number; y: number; w: number; h: number };
+  }>;
   assert.equal(widgets.length, 2);
-  assert.equal(widgets[0].position, 0);
-  assert.equal(widgets[1].position, 1);
+  assert.deepEqual(widgets[0].layout, { x: 0, y: 0, w: 1, h: 1 });
+  assert.deepEqual(widgets[1].layout, { x: 0, y: 0, w: 1, h: 1 });
 });
 
 test("M0-1: widget-data endpoint returns clock data and handles missing widgets", async () => {

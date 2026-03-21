@@ -44,7 +44,12 @@ export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
   userId: string;
   type: TKey;
   config: WidgetConfigByKey[TKey];
-  position: number;
+  layout: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +58,12 @@ export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
 export type CreateWidgetInput<TKey extends WidgetKey = WidgetKey> = {
   type: TKey;
   config?: WidgetConfigByKey[TKey];
+  layout?: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
 };
 
 export interface WidgetDataMeta {
