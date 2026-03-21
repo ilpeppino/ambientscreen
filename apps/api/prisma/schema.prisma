@@ -16,10 +16,27 @@ model User {
 
   profiles           Profile[]
   orchestrationRules OrchestrationRule[]
+  devices            Device[]
   sharedSessions     SharedScreenSession[]
   activeProfile      Profile?            @relation("UserActiveProfile", fields: [activeProfileId], references: [id], onDelete: SetNull)
 
   @@index([activeProfileId])
+}
+
+model Device {
+  id         String   @id @default(uuid())
+  userId     String
+  name       String
+  platform   String
+  deviceType String
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, lastSeenAt])
 }
 
 model Profile {
