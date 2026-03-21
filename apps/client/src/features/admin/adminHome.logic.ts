@@ -22,9 +22,13 @@ export function buildCreateWidgetInput(input: {
   widgetType: CreatableWidgetType;
   weatherConfig: WeatherWidgetConfig;
   calendarConfig: CalendarWidgetConfig;
+  profileId?: string;
 }): CreateWidgetInput {
+  const profileContext = input.profileId ? { profileId: input.profileId } : {};
+
   if (input.widgetType === "weather") {
     return {
+      ...profileContext,
       type: "weather",
       config: input.weatherConfig,
     };
@@ -32,12 +36,14 @@ export function buildCreateWidgetInput(input: {
 
   if (input.widgetType === "calendar") {
     return {
+      ...profileContext,
       type: "calendar",
       config: input.calendarConfig,
     };
   }
 
   return {
+    ...profileContext,
     type: input.widgetType,
   };
 }

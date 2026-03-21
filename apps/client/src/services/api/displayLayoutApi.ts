@@ -86,14 +86,24 @@ async function toApiErrorMessage(response: Response): Promise<string> {
   return `Request failed with status ${response.status}`;
 }
 
-export async function getDisplayLayout(): Promise<DisplayLayoutResponse> {
+function withProfileQuery(path: string, profileId?: string) {
+  if (!profileId) {
+    return path;
+  }
+
+  const searchParams = new URLSearchParams();
+  searchParams.set("profileId", profileId);
+  return `${path}?${searchParams.toString()}`;
+}
+
+export async function getDisplayLayout(profileId?: string): Promise<DisplayLayoutResponse> {
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => {
     abortController.abort();
   }, DISPLAY_LAYOUT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/display-layout`, {
+    const response = await fetch(withProfileQuery(`${API_BASE_URL}/display-layout`, profileId), {
       signal: abortController.signal,
     });
 
@@ -116,14 +126,14 @@ export async function getDisplayLayout(): Promise<DisplayLayoutResponse> {
   }
 }
 
-export async function updateWidgetsLayout(payload: UpdateWidgetsLayoutPayload): Promise<void> {
+export async function updateWidgetsLayout(payload: UpdateWidgetsLayoutPayload, profileId?: string): Promise<void> {
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => {
     abortController.abort();
   }, DISPLAY_LAYOUT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/widgets/layout`, {
+    const response = await fetch(withProfileQuery(`${API_BASE_URL}/widgets/layout`, profileId), {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -152,6 +162,7 @@ export async function updateWidgetsLayout(payload: UpdateWidgetsLayoutPayload): 
 export async function updateWidgetConfig(
   widgetId: string,
   payload: UpdateWidgetConfigPayload,
+  profileId?: string,
 ): Promise<void> {
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => {
@@ -159,14 +170,17 @@ export async function updateWidgetConfig(
   }, DISPLAY_LAYOUT_TIMEOUT_MS);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/widgets/${widgetId}/config`, {
+    const response = await fetch(
+      withProfileQuery(`${API_BASE_URL}/widgets/${widgetId}/config`, profileId),
+      {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
       signal: abortController.signal,
-    });
+      },
+    );
 
     if (!response.ok) {
       const message = await toApiErrorMessage(response);

@@ -50,8 +50,14 @@ async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): P
   }
 }
 
-export async function getWidgets(): Promise<WidgetInstance[]> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets`);
+export async function getWidgets(profileId?: string): Promise<WidgetInstance[]> {
+  const searchParams = new URLSearchParams();
+  if (profileId) {
+    searchParams.set("profileId", profileId);
+  }
+
+  const url = `${API_BASE_URL}/widgets${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`;
+  const response = await fetchWithTimeout(url);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -61,13 +67,17 @@ export async function getWidgets(): Promise<WidgetInstance[]> {
   return response.json();
 }
 
-export async function createWidget(input: CreateWidgetInput): Promise<WidgetInstance> {
+export async function createWidget(input: CreateWidgetInput, profileId?: string): Promise<WidgetInstance> {
+  const payload: CreateWidgetInput = profileId
+    ? { ...input, profileId }
+    : input;
+
   const response = await fetchWithTimeout(`${API_BASE_URL}/widgets`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(input)
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
@@ -78,8 +88,13 @@ export async function createWidget(input: CreateWidgetInput): Promise<WidgetInst
   return response.json();
 }
 
-export async function setActiveWidget(widgetId: string): Promise<WidgetInstance> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets/${widgetId}/active`, {
+export async function setActiveWidget(widgetId: string, profileId?: string): Promise<WidgetInstance> {
+  const searchParams = new URLSearchParams();
+  if (profileId) {
+    searchParams.set("profileId", profileId);
+  }
+  const url = `${API_BASE_URL}/widgets/${widgetId}/active${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`;
+  const response = await fetchWithTimeout(url, {
     method: "PATCH"
   });
 

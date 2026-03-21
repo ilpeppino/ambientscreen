@@ -7,6 +7,9 @@ import {
   updateWidgetsLayout,
 } from "../../../services/api/displayLayoutApi";
 import {
+  getProfiles as getProfilesApi,
+} from "../../../services/api/profilesApi";
+import {
   disableDisplayKeepAwake,
   enableDisplayKeepAwake,
 } from "../services/keepAwake";
@@ -30,6 +33,12 @@ import {
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
 import { widgetRegistry } from "../../../widgets/widget.registry";
+import type { Profile } from "@ambient/shared-contracts";
+import { resolveActiveProfileId } from "../../profiles/profiles.logic";
+import {
+  loadPersistedActiveProfileId,
+  persistActiveProfileId,
+} from "../../profiles/profileStorage";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -38,6 +47,8 @@ interface DisplayScreenProps {
 const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 
 export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [widgets, setWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
   const [draftLayoutsByWidgetId, setDraftLayoutsByWidgetId] = useState<Record<string, WidgetLayout>>({});
   const [loadingLayout, setLoadingLayout] = useState(true);
@@ -48,6 +59,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [widgetConfigError, setWidgetConfigError] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   useEffect(() => {
     enableDisplayKeepAwake();
@@ -71,13 +83,50 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     return Math.min(...intervals);
   }, [widgets]);
 
+  const loadProfiles = useCallback(async (signal?: { cancelled: boolean }) => {
+    try {
+      setProfileError(null);
+      const [responseProfiles, persistedProfileId] = await Promise.all([
+        getProfilesApi(),
+        loadPersistedActiveProfileId(),
+      ]);
+
+      if (signal?.cancelled) {
+        return;
+      }
+
+      setProfiles(responseProfiles);
+      const nextActiveProfileId = resolveActiveProfileId(responseProfiles, persistedProfileId);
+      setActiveProfileId(nextActiveProfileId);
+      if (nextActiveProfileId) {
+        await persistActiveProfileId(nextActiveProfileId);
+      }
+    } catch (err) {
+      if (signal?.cancelled) {
+        return;
+      }
+
+      console.error(err);
+      setProfiles([]);
+      setActiveProfileId(null);
+      setProfileError("Failed to load profiles");
+    }
+  }, []);
+
   const loadDisplayLayout = useCallback(async (showInitialLoading: boolean) => {
+    if (!activeProfileId) {
+      setWidgets([]);
+      setDraftLayoutsByWidgetId({});
+      setLoadingLayout(false);
+      return;
+    }
+
     try {
       if (showInitialLoading) {
         setLoadingLayout(true);
       }
 
-      const response = await getDisplayLayout();
+      const response = await getDisplayLayout(activeProfileId);
       const normalizedWidgets = withNormalizedLayouts(response.widgets);
       setWidgets(normalizedWidgets);
       setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(normalizedWidgets));
@@ -94,7 +143,16 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         setLoadingLayout(false);
       }
     }
-  }, []);
+  }, [activeProfileId]);
+
+  useEffect(() => {
+    const signal = { cancelled: false };
+    void loadProfiles(signal);
+
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [loadProfiles]);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,7 +170,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, [loadDisplayLayout]);
+  }, [loadDisplayLayout, activeProfileId]);
 
   useEffect(() => {
     if (editMode) {
@@ -216,7 +274,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
             layout: draftLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
           }),
         })),
-      });
+      }, activeProfileId ?? undefined);
 
       await loadDisplayLayout(false);
       setEditMode(false);
@@ -257,7 +315,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     try {
       setSavingWidgetConfig(true);
       setWidgetConfigError(null);
-      await updateWidgetConfig(settingsWidget.widgetInstanceId, { config });
+      await updateWidgetConfig(settingsWidget.widgetInstanceId, { config }, activeProfileId ?? undefined);
 
       setWidgets((current) =>
         applyWidgetConfigUpdate(current, settingsWidget.widgetInstanceId, config),
@@ -318,6 +376,26 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         </View>
       ) : null}
       <View style={styles.editModeButtonContainer}>
+        <View style={styles.profileTabsRow}>
+          {profiles.map((profile) => {
+            const selected = profile.id === activeProfileId;
+            return (
+              <Pressable
+                key={profile.id}
+                accessibilityRole="button"
+                style={[styles.profileTab, selected ? styles.profileTabSelected : null]}
+                onPress={async () => {
+                  setActiveProfileId(profile.id);
+                  await persistActiveProfileId(profile.id);
+                }}
+              >
+                <Text style={[styles.profileTabLabel, selected ? styles.profileTabLabelSelected : null]}>
+                  {profile.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
         <Pressable
           accessibilityRole="button"
           style={[styles.editModeButton, editMode ? styles.editModeButtonActive : null]}
@@ -357,6 +435,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       >
         {content}
       </DisplayFrame>
+      {profileError ? <Text style={styles.profileError}>{profileError}</Text> : null}
       {settingsWidget ? (
         <WidgetSettingsModal
           visible={Boolean(settingsWidget)}
@@ -474,6 +553,42 @@ const styles = StyleSheet.create({
     color: "#8d8d8d",
     fontSize: 13,
     letterSpacing: 0.4,
+  },
+  profileTabsRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 10,
+    justifyContent: "flex-end",
+    flexWrap: "wrap",
+  },
+  profileTab: {
+    borderWidth: 1,
+    borderColor: "#3c3c3c",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "rgba(0, 0, 0, 0.82)",
+  },
+  profileTabSelected: {
+    borderColor: "#fff",
+    backgroundColor: "rgba(30, 30, 30, 0.95)",
+  },
+  profileTabLabel: {
+    color: "#bfbfbf",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  profileTabLabelSelected: {
+    color: "#fff",
+  },
+  profileError: {
+    position: "absolute",
+    bottom: 10,
+    left: 18,
+    right: 18,
+    color: "#ff7d7d",
+    fontSize: 12,
+    textAlign: "center",
   },
   editModeButtonContainer: {
     position: "absolute",
