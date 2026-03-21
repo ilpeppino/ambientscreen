@@ -52,6 +52,7 @@ import {
   persistActiveProfileId,
 } from "../../profiles/profileStorage";
 import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
+import { useSharedScreenSession } from "../hooks/useSharedScreenSession";
 import { API_BASE_URL } from "../../../core/config/api";
 import { createOrchestrationEngine } from "../services/orchestrationEngine";
 import {
@@ -93,6 +94,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [slideshowRuleId, setSlideshowRuleId] = useState<string | null>(null);
   const [slideshowSaveError, setSlideshowSaveError] = useState<string | null>(null);
   const [savingSlideshow, setSavingSlideshow] = useState(false);
+  const [newSharedSessionName, setNewSharedSessionName] = useState("Main shared session");
   const [isAppActive, setIsAppActive] = useState(true);
   const [dashboardTransitionType] = useState<TransitionType>(DISPLAY_TRANSITION_TYPE);
   const [renderedWidgets, setRenderedWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
@@ -106,6 +108,27 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const dashboardIncomingOpacity = useRef(new Animated.Value(1)).current;
   const dashboardOutgoingOpacity = useRef(new Animated.Value(0)).current;
   const dashboardIncomingSlide = useRef(new Animated.Value(0)).current;
+  const deviceIdRef = useRef(`display-${Math.random().toString(36).slice(2, 10)}`);
+
+  const {
+    availableSessions,
+    sharedSession,
+    connectionState: sharedSessionConnectionState,
+    loadingSessions: loadingSharedSessions,
+    loadingSessionState: loadingSharedSessionState,
+    error: sharedSessionError,
+    refreshSessions: refreshSharedSessions,
+    createAndJoinSession,
+    joinSessionById,
+    leaveCurrentSession,
+    patchCurrentSession,
+  } = useSharedScreenSession({
+    apiBaseUrl: API_BASE_URL,
+    deviceId: deviceIdRef.current,
+    displayName: "Display device",
+  });
+  const isSharedMode = sharedSession !== null;
+  const effectiveActiveProfileId = isSharedMode ? sharedSession.activeProfileId : activeProfileId;
 
   const setActiveProfile = useCallback(async (profileId: string) => {
     setActiveProfileId((current) => {
@@ -171,7 +194,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, []);
 
   const loadDisplayLayout = useCallback(async (showInitialLoading: boolean) => {
-    if (!activeProfileId) {
+    if (!effectiveActiveProfileId) {
       setWidgets([]);
       setDraftLayoutsByWidgetId({});
       setLoadingLayout(false);
@@ -183,7 +206,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         setLoadingLayout(true);
       }
 
-      const response = await getDisplayLayout(activeProfileId);
+      const response = await getDisplayLayout(effectiveActiveProfileId);
       const normalizedWidgets = withNormalizedLayouts(response.widgets);
       setWidgets(normalizedWidgets);
       setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(normalizedWidgets));
@@ -200,12 +223,16 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         setLoadingLayout(false);
       }
     }
-  }, [activeProfileId]);
+  }, [effectiveActiveProfileId]);
 
   const loadDisplayLayoutRef = useRef(loadDisplayLayout);
   loadDisplayLayoutRef.current = loadDisplayLayout;
 
   const loadSlideshowConfiguration = useCallback(async () => {
+    if (isSharedMode) {
+      return;
+    }
+
     try {
       setSlideshowSaveError(null);
       const rules = await getOrchestrationRules();
@@ -226,7 +253,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       console.error(error);
       setSlideshowSaveError("Failed to load slideshow settings");
     }
-  }, []);
+  }, [isSharedMode]);
 
   const orchestrationEngineRef = useRef(
     createOrchestrationEngine({
@@ -241,7 +268,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
 
   const realtimeConnectionState = useRealtimeDisplaySync({
     apiBaseUrl: API_BASE_URL,
-    activeProfileId,
+    activeProfileId: effectiveActiveProfileId,
     enabled: !editMode,
     onRefreshRequested: () => {
       void loadDisplayLayout(false);
@@ -263,12 +290,22 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, [loadProfiles]);
 
   useEffect(() => {
-    if (profiles.length === 0) {
+    if (profiles.length === 0 || isSharedMode) {
       return;
     }
 
     void loadSlideshowConfiguration();
-  }, [loadSlideshowConfiguration, profiles.length]);
+  }, [isSharedMode, loadSlideshowConfiguration, profiles.length]);
+
+  useEffect(() => {
+    if (!sharedSession) {
+      return;
+    }
+
+    setSlideshowEnabled(sharedSession.slideshowEnabled);
+    setSlideshowIntervalSecInput(String(sharedSession.slideshowIntervalSec));
+    setSlideshowProfileIds(sharedSession.rotationProfileIds);
+  }, [sharedSession]);
 
   useEffect(() => {
     const availableProfileIds = new Set(profiles.map((profile) => profile.id));
@@ -291,6 +328,15 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   useEffect(() => {
     transitionManagerRef.current.setTransitionType(dashboardTransitionType);
   }, [dashboardTransitionType]);
+
+  const previousEffectiveProfileIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const previousProfileId = previousEffectiveProfileIdRef.current;
+    if (previousProfileId && effectiveActiveProfileId && previousProfileId !== effectiveActiveProfileId) {
+      transitionPendingRef.current = true;
+    }
+    previousEffectiveProfileIdRef.current = effectiveActiveProfileId;
+  }, [effectiveActiveProfileId]);
 
   useEffect(() => {
     if (isAppActive) {
@@ -327,7 +373,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     return () => {
       cancelled = true;
     };
-  }, [loadDisplayLayout, activeProfileId]);
+  }, [effectiveActiveProfileId, loadDisplayLayout]);
 
   useEffect(() => {
     if (editMode || !isAppActive) {
@@ -345,7 +391,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
 
   useEffect(() => {
     const orchestrationEngine = orchestrationEngineRef.current;
-    if (!activeProfileId || editMode || !isAppActive) {
+    if (!activeProfileId || isSharedMode || editMode || !isAppActive) {
       orchestrationEngine.stop();
       return () => undefined;
     }
@@ -354,7 +400,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     return () => {
       orchestrationEngine.stop();
     };
-  }, [activeProfileId, editMode, isAppActive]);
+  }, [activeProfileId, editMode, isAppActive, isSharedMode]);
 
   const toggleSlideshowProfileId = useCallback((profileId: string) => {
     setSlideshowProfileIds((current) => {
@@ -373,6 +419,31 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     try {
       setSavingSlideshow(true);
       setSlideshowSaveError(null);
+
+      if (isSharedMode) {
+        const parsedIntervalSec = Number.parseInt(slideshowIntervalSecInput.trim(), 10);
+        if (Number.isNaN(parsedIntervalSec) || parsedIntervalSec <= 0) {
+          setSlideshowSaveError("Slideshow interval must be a positive number");
+          return;
+        }
+
+        const normalizedProfileIds = slideshowEnabled ? slideshowProfileIds : [];
+        if (slideshowEnabled && normalizedProfileIds.length < 2) {
+          setSlideshowSaveError("Select at least two profiles for slideshow mode");
+          return;
+        }
+
+        await patchCurrentSession({
+          slideshowEnabled,
+          slideshowIntervalSec: parsedIntervalSec,
+          rotationProfileIds: normalizedProfileIds,
+          currentIndex: 0,
+          activeProfileId: normalizedProfileIds.length > 0
+            ? normalizedProfileIds[0]
+            : effectiveActiveProfileId,
+        });
+        return;
+      }
 
       if (!slideshowEnabled) {
         if (!slideshowRuleId) {
@@ -421,6 +492,9 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       setSavingSlideshow(false);
     }
   }, [
+    effectiveActiveProfileId,
+    isSharedMode,
+    patchCurrentSession,
     savingSlideshow,
     slideshowEnabled,
     slideshowIntervalSecInput,
@@ -597,7 +671,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
             layout: draftLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
           }),
         })),
-      }, activeProfileId ?? undefined);
+      }, effectiveActiveProfileId ?? undefined);
 
       await loadDisplayLayout(false);
       setEditMode(false);
@@ -638,7 +712,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     try {
       setSavingWidgetConfig(true);
       setWidgetConfigError(null);
-      await updateWidgetConfig(settingsWidget.widgetInstanceId, { config }, activeProfileId ?? undefined);
+      await updateWidgetConfig(settingsWidget.widgetInstanceId, { config }, effectiveActiveProfileId ?? undefined);
 
       setWidgets((current) =>
         applyWidgetConfigUpdate(current, settingsWidget.widgetInstanceId, config),
@@ -738,15 +812,94 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
         </View>
       ) : null}
       <View style={styles.editModeButtonContainer}>
+        <View style={styles.sharedSessionPanel}>
+          <View style={styles.sharedSessionRow}>
+            <Text style={styles.sharedSessionLabel}>
+              {isSharedMode
+                ? `Shared: ${sharedSession.name}`
+                : "Shared session: off"}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.sharedSessionRefreshButton}
+              onPress={() => {
+                void refreshSharedSessions();
+              }}
+            >
+              <Text style={styles.sharedSessionRefreshLabel}>Refresh</Text>
+            </Pressable>
+            {isSharedMode ? (
+              <Pressable
+                accessibilityRole="button"
+                style={styles.sharedSessionLeaveButton}
+                onPress={() => {
+                  void leaveCurrentSession();
+                }}
+              >
+                <Text style={styles.sharedSessionLeaveLabel}>Leave</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          {!isSharedMode ? (
+            <View style={styles.sharedSessionRow}>
+              <TextInput
+                value={newSharedSessionName}
+                onChangeText={setNewSharedSessionName}
+                style={styles.sharedSessionNameInput}
+                placeholder="Session name"
+                placeholderTextColor="#6b6b6b"
+              />
+              <Pressable
+                accessibilityRole="button"
+                style={styles.sharedSessionCreateButton}
+                onPress={() => {
+                  void createAndJoinSession(newSharedSessionName);
+                }}
+              >
+                <Text style={styles.sharedSessionCreateLabel}>Create & Join</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          <View style={styles.sharedSessionSessionsRow}>
+            {availableSessions.map((session) => {
+              const selected = session.id === sharedSession?.id;
+              return (
+                <Pressable
+                  key={session.id}
+                  accessibilityRole="button"
+                  style={[styles.sharedSessionChip, selected ? styles.sharedSessionChipActive : null]}
+                  onPress={() => {
+                    void joinSessionById(session.id);
+                  }}
+                >
+                  <Text style={styles.sharedSessionChipLabel}>
+                    {session.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={styles.sharedSessionMeta}>
+            Connection: {sharedSessionConnectionState}
+            {loadingSharedSessions || loadingSharedSessionState ? " • syncing..." : ""}
+          </Text>
+        </View>
         <View style={styles.profileTabsRow}>
           {profiles.map((profile) => {
-            const selected = profile.id === activeProfileId;
+            const selected = profile.id === effectiveActiveProfileId;
             return (
               <Pressable
                 key={profile.id}
                 accessibilityRole="button"
                 style={[styles.profileTab, selected ? styles.profileTabSelected : null]}
                 onPress={() => {
+                  if (isSharedMode) {
+                    void patchCurrentSession({
+                      activeProfileId: profile.id,
+                    });
+                    return;
+                  }
+
                   void setActiveProfile(profile.id);
                 }}
               >
@@ -845,7 +998,9 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       >
         {content}
       </DisplayFrame>
-      {profileError ? <Text style={styles.profileError}>{profileError}</Text> : null}
+      {profileError || sharedSessionError ? (
+        <Text style={styles.profileError}>{profileError ?? sharedSessionError}</Text>
+      ) : null}
       {settingsWidget ? (
         <WidgetSettingsModal
           visible={Boolean(settingsWidget)}
@@ -1012,6 +1167,101 @@ const styles = StyleSheet.create({
     top: 18,
     right: 130,
     zIndex: 20,
+  },
+  sharedSessionPanel: {
+    borderWidth: 1,
+    borderColor: "#2f2f2f",
+    borderRadius: 14,
+    padding: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.82)",
+    minWidth: 360,
+    marginBottom: 8,
+    gap: 8,
+  },
+  sharedSessionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  sharedSessionLabel: {
+    color: "#d8d8d8",
+    fontSize: 12,
+    fontWeight: "600",
+    flex: 1,
+  },
+  sharedSessionRefreshButton: {
+    borderWidth: 1,
+    borderColor: "#3c3c3c",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  sharedSessionRefreshLabel: {
+    color: "#c6c6c6",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  sharedSessionLeaveButton: {
+    borderWidth: 1,
+    borderColor: "#8f4f4f",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: "rgba(57, 16, 16, 0.92)",
+  },
+  sharedSessionLeaveLabel: {
+    color: "#ffd2d2",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  sharedSessionNameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#3c3c3c",
+    borderRadius: 8,
+    color: "#fff",
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+    backgroundColor: "rgba(9, 9, 9, 0.9)",
+  },
+  sharedSessionCreateButton: {
+    borderWidth: 1,
+    borderColor: "#4f8cc0",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    backgroundColor: "rgba(12, 42, 66, 0.92)",
+  },
+  sharedSessionCreateLabel: {
+    color: "#cae8ff",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  sharedSessionSessionsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  sharedSessionChip: {
+    borderWidth: 1,
+    borderColor: "#3c3c3c",
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  sharedSessionChipActive: {
+    borderColor: "#5DAEFF",
+    backgroundColor: "rgba(18, 49, 76, 0.95)",
+  },
+  sharedSessionChipLabel: {
+    color: "#bfbfbf",
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  sharedSessionMeta: {
+    color: "#979797",
+    fontSize: 11,
   },
   editModeButton: {
     marginTop: 8,
