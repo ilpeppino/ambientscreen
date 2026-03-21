@@ -5,7 +5,7 @@
     "node": ">=22.0.0 <23.0.0"
   },
   "scripts": {
-    "dev": "ts-node src/main.ts",
+    "dev": "ts-node --files src/main.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
