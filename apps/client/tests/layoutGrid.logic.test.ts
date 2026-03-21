@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  applyDragDelta,
+  applyResizeDelta,
+  clampWidgetLayout,
   computeLayoutFrame,
   resolveWidgetLayouts,
 } from "../src/features/display/components/LayoutGrid.logic";
@@ -65,4 +68,40 @@ test("resolveWidgetLayouts auto-flows overlapping layouts", () => {
     { x: 4, y: 0, w: 4, h: 2 },
     { x: 8, y: 0, w: 4, h: 2 },
   ]);
+});
+
+test("clampWidgetLayout enforces grid boundaries", () => {
+  const clamped = clampWidgetLayout({
+    layout: { x: -4, y: -2, w: 14, h: 9 },
+  });
+
+  assert.deepEqual(clamped, { x: 0, y: 0, w: 12, h: 6 });
+});
+
+test("clampWidgetLayout keeps x + w within 12 columns", () => {
+  const clamped = clampWidgetLayout({
+    layout: { x: 11, y: 2, w: 4, h: 2 },
+  });
+
+  assert.deepEqual(clamped, { x: 8, y: 2, w: 4, h: 2 });
+});
+
+test("applyDragDelta updates layout position and clamps", () => {
+  const dragged = applyDragDelta({
+    layout: { x: 9, y: 4, w: 3, h: 2 },
+    deltaX: 3,
+    deltaY: 2,
+  });
+
+  assert.deepEqual(dragged, { x: 9, y: 4, w: 3, h: 2 });
+});
+
+test("applyResizeDelta updates layout dimensions and clamps", () => {
+  const resized = applyResizeDelta({
+    layout: { x: 2, y: 1, w: 2, h: 2 },
+    deltaX: 20,
+    deltaY: 10,
+  });
+
+  assert.deepEqual(resized, { x: 0, y: 0, w: 12, h: 6 });
 });

@@ -8,11 +8,65 @@ export interface WidgetLayout {
   h: number;
 }
 
+interface ClampWidgetLayoutInput {
+  layout: WidgetLayout;
+  columns?: number;
+  rows?: number;
+}
+
+interface ApplyLayoutDeltaInput {
+  layout: WidgetLayout;
+  deltaX: number;
+  deltaY: number;
+  columns?: number;
+  rows?: number;
+}
+
 export interface LayoutFrame {
   left: number;
   top: number;
   width: number;
   height: number;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function clampWidgetLayout(input: ClampWidgetLayoutInput): WidgetLayout {
+  const columns = input.columns ?? DISPLAY_GRID_COLUMNS;
+  const rows = input.rows ?? DISPLAY_GRID_BASE_ROWS;
+
+  const w = clamp(Math.round(input.layout.w), 1, columns);
+  const h = clamp(Math.round(input.layout.h), 1, rows);
+  const x = clamp(Math.round(input.layout.x), 0, columns - w);
+  const y = clamp(Math.round(input.layout.y), 0, rows - h);
+
+  return { x, y, w, h };
+}
+
+export function applyDragDelta(input: ApplyLayoutDeltaInput): WidgetLayout {
+  return clampWidgetLayout({
+    layout: {
+      ...input.layout,
+      x: input.layout.x + input.deltaX,
+      y: input.layout.y + input.deltaY,
+    },
+    columns: input.columns,
+    rows: input.rows,
+  });
+}
+
+export function applyResizeDelta(input: ApplyLayoutDeltaInput): WidgetLayout {
+  return clampWidgetLayout({
+    layout: {
+      ...input.layout,
+      w: input.layout.w + input.deltaX,
+      h: input.layout.h + input.deltaY,
+    },
+    columns: input.columns,
+    rows: input.rows,
+  });
 }
 
 interface ComputeLayoutFrameInput {
