@@ -9,6 +9,8 @@ import { z } from "zod";
 
 export const SUPPORTED_WIDGET_TYPES = ["clockDate", "weather", "calendar"] as const;
 export type SupportedWidgetType = (typeof SUPPORTED_WIDGET_TYPES)[number];
+export const DISPLAY_GRID_COLUMNS = 12;
+export const DISPLAY_GRID_BASE_ROWS = 6;
 
 export const defaultWidgetLayout = {
   x: 0,
@@ -24,7 +26,22 @@ export const widgetLayoutSchema = z
     w: z.number().int().min(1),
     h: z.number().int().min(1),
   })
-  .strict();
+  .strict()
+  .refine((layout) => layout.x + layout.w <= DISPLAY_GRID_COLUMNS, {
+    message: `layout.x + layout.w must be <= ${DISPLAY_GRID_COLUMNS}`,
+    path: ["x"],
+  })
+  .refine((layout) => layout.h <= DISPLAY_GRID_BASE_ROWS, {
+    message: `layout.h must be <= ${DISPLAY_GRID_BASE_ROWS}`,
+    path: ["h"],
+  });
+
+export const updateWidgetsLayoutSchema = z.object({
+  widgets: z.array(z.object({
+    id: z.string().min(1),
+    layout: widgetLayoutSchema,
+  }).strict()).min(1),
+}).strict();
 
 const refreshPolicyByWidget: { [TKey in WidgetKey]: WidgetRefreshPolicy } = {
   clockDate: { intervalMs: 1000 },

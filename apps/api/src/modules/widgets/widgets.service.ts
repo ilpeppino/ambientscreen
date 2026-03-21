@@ -3,6 +3,7 @@ import { apiErrors } from "../../core/http/api-error";
 import { widgetsRepository } from "./widgets.repository";
 import {
   defaultWidgetLayout,
+  DISPLAY_GRID_COLUMNS,
   getDefaultWidgetConfig,
   normalizeWidgetConfig,
   type SupportedWidgetType,
@@ -79,5 +80,46 @@ export const widgetsService = {
     }
 
     return widgetsRepository.activateWidget(data.userId, data.widgetId);
+  },
+
+  async updateWidgetsLayoutForUser(data: {
+    userId: string;
+    widgets: Array<{
+      id: string;
+      layout: {
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+      };
+    }>;
+  }) {
+    const seenIds = new Set<string>();
+    const parsedWidgets = data.widgets.map((widget) => {
+      if (seenIds.has(widget.id)) {
+        throw apiErrors.validation("Duplicate widget id in layout payload");
+      }
+      seenIds.add(widget.id);
+
+      const parsedLayout = widgetLayoutSchema.safeParse(widget.layout);
+      if (!parsedLayout.success) {
+        throw apiErrors.validation("Invalid widget layout", parsedLayout.error.format());
+      }
+
+      if (parsedLayout.data.x + parsedLayout.data.w > DISPLAY_GRID_COLUMNS) {
+        throw apiErrors.validation(`Widget layout exceeds ${DISPLAY_GRID_COLUMNS} columns`);
+      }
+
+      return {
+        id: widget.id,
+        layout: parsedLayout.data,
+      };
+    });
+
+    try {
+      return await widgetsRepository.updateLayouts(data.userId, parsedWidgets);
+    } catch {
+      throw apiErrors.notFound("One or more widgets were not found for this user.");
+    }
   },
 };

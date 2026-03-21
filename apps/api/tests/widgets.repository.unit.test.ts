@@ -5,10 +5,12 @@ import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 
 const originalFindMany = prisma.widgetInstance.findMany;
 const originalCreate = prisma.widgetInstance.create;
+const originalTransaction = prisma.$transaction;
 
 afterEach(() => {
   prisma.widgetInstance.findMany = originalFindMany;
   prisma.widgetInstance.create = originalCreate;
+  prisma.$transaction = originalTransaction;
 });
 
 test("widgetsRepository maps db layout fields to layout object on list", async () => {
@@ -72,6 +74,65 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
       layoutW: 3,
       layoutH: 4,
       isActive: true,
+    },
+  });
+});
+
+test("widgetsRepository updateLayouts maps payload to layout db fields", async () => {
+  const updateManyCalls: unknown[] = [];
+  let findManyArgs: unknown;
+
+  const mockTransaction = {
+    widgetInstance: {
+      updateMany: (async (args) => {
+        updateManyCalls.push(args);
+        return { count: 1 };
+      }) as typeof prisma.widgetInstance.updateMany,
+    },
+  };
+
+  prisma.$transaction = (async (callback: (transaction: unknown) => unknown) => {
+    return callback(mockTransaction as never);
+  }) as typeof prisma.$transaction;
+
+  prisma.widgetInstance.findMany = (async (args) => {
+    findManyArgs = args;
+    return [
+      {
+        id: "widget-1",
+        userId: "user-1",
+        type: "clockDate",
+        config: {},
+        layoutX: 3,
+        layoutY: 2,
+        layoutW: 4,
+        layoutH: 2,
+        isActive: true,
+        createdAt: new Date("2026-03-21T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-21T10:00:00.000Z"),
+      },
+    ];
+  }) as typeof prisma.widgetInstance.findMany;
+
+  const updated = await widgetsRepository.updateLayouts("user-1", [
+    {
+      id: "widget-1",
+      layout: { x: 3, y: 2, w: 4, h: 2 },
+    },
+  ]);
+
+  assert.equal(updated.length, 1);
+  assert.deepEqual(updated[0].layout, { x: 3, y: 2, w: 4, h: 2 });
+  assert.deepEqual(updateManyCalls, [
+    {
+      where: { id: "widget-1", userId: "user-1" },
+      data: { layoutX: 3, layoutY: 2, layoutW: 4, layoutH: 2 },
+    },
+  ]);
+  assert.deepEqual(findManyArgs, {
+    where: {
+      id: { in: ["widget-1"] },
+      userId: "user-1",
     },
   });
 });
