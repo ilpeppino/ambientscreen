@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { orchestrationRouter } from "../src/modules/orchestration/orchestration.routes";
@@ -22,34 +21,6 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-const originalProfilesGetPrimaryUserId = profilesService.getPrimaryUserId;
-const originalOrchestrationGetRulesForUser = orchestrationService.getRulesForUser;
-const originalOrchestrationCreateRule = orchestrationService.createRule;
-const originalOrchestrationUpdateRule = orchestrationService.updateRule;
-const originalOrchestrationDeleteRule = orchestrationService.deleteRule;
-
-const mutableProfilesService = profilesService as unknown as {
-  getPrimaryUserId: () => Promise<string>;
-};
-
-const mutableOrchestrationService = orchestrationService as unknown as {
-  getRulesForUser: (userId: string) => Promise<TestRule[]>;
-  createRule: (data: {
-    userId: string;
-    type: string;
-    intervalSec: number;
-    isActive?: boolean;
-  }) => Promise<TestRule>;
-  updateRule: (data: {
-    id: string;
-    userId: string;
-    type?: string;
-    intervalSec?: number;
-    isActive?: boolean;
-  }) => Promise<TestRule | null>;
-  deleteRule: (data: { id: string; userId: string }) => Promise<boolean>;
-};
-
 let ruleCounter = 0;
 let ruleStore: TestRule[] = [];
 
@@ -66,10 +37,11 @@ beforeEach(() => {
     },
   ];
 
-  mutableProfilesService.getPrimaryUserId = async () => "user-1";
-  mutableOrchestrationService.getRulesForUser = async (userId: string) =>
-    ruleStore.filter((rule) => rule.userId === userId);
-  mutableOrchestrationService.createRule = async ({ userId, type, intervalSec, isActive }) => {
+  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1" as never);
+  vi.spyOn(orchestrationService, "getRulesForUser").mockImplementation(async (userId: string) =>
+    ruleStore.filter((rule) => rule.userId === userId) as never,
+  );
+  vi.spyOn(orchestrationService, "createRule").mockImplementation(async ({ userId, type, intervalSec, isActive }) => {
     ruleCounter += 1;
     const rule: TestRule = {
       id: `rule-${ruleCounter + 1}`,
@@ -81,12 +53,12 @@ beforeEach(() => {
     };
 
     ruleStore.push(rule);
-    return rule;
-  };
-  mutableOrchestrationService.updateRule = async ({ id, userId, type, intervalSec, isActive }) => {
+    return rule as never;
+  });
+  vi.spyOn(orchestrationService, "updateRule").mockImplementation(async ({ id, userId, type, intervalSec, isActive }) => {
     const current = ruleStore.find((rule) => rule.id === id && rule.userId === userId);
     if (!current) {
-      return null;
+      return null as never;
     }
 
     if (type !== undefined) {
@@ -99,25 +71,17 @@ beforeEach(() => {
       current.isActive = isActive;
     }
 
-    return current;
-  };
-  mutableOrchestrationService.deleteRule = async ({ id, userId }) => {
+    return current as never;
+  });
+  vi.spyOn(orchestrationService, "deleteRule").mockImplementation(async ({ id, userId }) => {
     const beforeCount = ruleStore.length;
     ruleStore = ruleStore.filter((rule) => !(rule.id === id && rule.userId === userId));
-    return ruleStore.length !== beforeCount;
-  };
+    return (ruleStore.length !== beforeCount) as never;
+  });
 });
 
-after(() => {
-  mutableProfilesService.getPrimaryUserId = originalProfilesGetPrimaryUserId;
-  mutableOrchestrationService.getRulesForUser =
-    originalOrchestrationGetRulesForUser as typeof mutableOrchestrationService.getRulesForUser;
-  mutableOrchestrationService.createRule =
-    originalOrchestrationCreateRule as typeof mutableOrchestrationService.createRule;
-  mutableOrchestrationService.updateRule =
-    originalOrchestrationUpdateRule as typeof mutableOrchestrationService.updateRule;
-  mutableOrchestrationService.deleteRule =
-    originalOrchestrationDeleteRule as typeof mutableOrchestrationService.deleteRule;
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -191,11 +155,11 @@ test("orchestration rule CRUD routes create, update, list, and delete", async ()
     },
   });
 
-  assert.equal(createResponse.statusCode, 201);
+  expect(createResponse.statusCode).toBe(201);
 
   const createdRule = createResponse.body as TestRule;
-  assert.equal(createdRule.type, "interval");
-  assert.equal(createdRule.intervalSec, 30);
+  expect(createdRule.type).toBe("interval");
+  expect(createdRule.intervalSec).toBe(30);
 
   const updateResponse = await invokeRoute(orchestrationRouter, "patch", "/:id", {
     params: { id: createdRule.id },
@@ -205,18 +169,18 @@ test("orchestration rule CRUD routes create, update, list, and delete", async ()
     },
   });
 
-  assert.equal(updateResponse.statusCode, 200);
-  assert.equal((updateResponse.body as TestRule).intervalSec, 45);
-  assert.equal((updateResponse.body as TestRule).isActive, false);
+  expect(updateResponse.statusCode).toBe(200);
+  expect((updateResponse.body as TestRule).intervalSec).toBe(45);
+  expect((updateResponse.body as TestRule).isActive).toBe(false);
 
   const listResponse = await invokeRoute(orchestrationRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
-  assert.equal((listResponse.body as TestRule[]).length, 2);
+  expect(listResponse.statusCode).toBe(200);
+  expect((listResponse.body as TestRule[]).length).toBe(2);
 
   const deleteResponse = await invokeRoute(orchestrationRouter, "delete", "/:id", {
     params: { id: createdRule.id },
   });
-  assert.equal(deleteResponse.statusCode, 204);
+  expect(deleteResponse.statusCode).toBe(204);
 });
 
 test("orchestration routes validate intervalSec", async () => {
@@ -227,7 +191,7 @@ test("orchestration routes validate intervalSec", async () => {
     },
   });
 
-  assert.equal(createResponse.statusCode, 400);
+  expect(createResponse.statusCode).toBe(400);
 
   const updateResponse = await invokeRoute(orchestrationRouter, "patch", "/:id", {
     params: { id: "rule-1" },
@@ -236,7 +200,7 @@ test("orchestration routes validate intervalSec", async () => {
     },
   });
 
-  assert.equal(updateResponse.statusCode, 400);
+  expect(updateResponse.statusCode).toBe(400);
 });
 
 test("orchestration routes reject unsupported type", async () => {
@@ -247,5 +211,5 @@ test("orchestration routes reject unsupported type", async () => {
     },
   });
 
-  assert.equal(response.statusCode, 400);
+  expect(response.statusCode).toBe(400);
 });

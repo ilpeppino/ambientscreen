@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import {
   enterDisplayMode,
   exitDisplayMode,
@@ -7,13 +6,13 @@ import {
 } from "../src/features/navigation/appMode.logic";
 
 test("navigation starts in admin mode", () => {
-  assert.equal(getInitialAppMode(), "admin");
+  expect(getInitialAppMode()).toBe("admin");
 });
 
 test("navigation enters display mode from admin", () => {
-  assert.equal(enterDisplayMode(), "display");
+  expect(enterDisplayMode()).toBe("display");
 });
 
 test("navigation exits display mode back to admin", () => {
-  assert.equal(exitDisplayMode(), "admin");
+  expect(exitDisplayMode()).toBe("admin");
 });

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { resolveActiveProfileId } from "../src/features/profiles/profiles.logic";
 
 test("resolveActiveProfileId uses persisted id when it still exists", () => {
@@ -23,7 +22,7 @@ test("resolveActiveProfileId uses persisted id when it still exists", () => {
     "profile-work",
   );
 
-  assert.equal(result, "profile-work");
+  expect(result).toBe("profile-work");
 });
 
 test("resolveActiveProfileId falls back to default profile when persisted id is missing", () => {
@@ -47,10 +46,10 @@ test("resolveActiveProfileId falls back to default profile when persisted id is 
     "profile-unknown",
   );
 
-  assert.equal(result, "profile-home");
+  expect(result).toBe("profile-home");
 });
 
 test("resolveActiveProfileId returns null for empty profile list", () => {
   const result = resolveActiveProfileId([], "profile-home");
-  assert.equal(result, null);
+  expect(result).toBe(null);
 });

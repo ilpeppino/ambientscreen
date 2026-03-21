@@ -1,15 +1,14 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { resolveWidgetRendererKind } from "../src/widgets/widgetRendererMap.logic";
 
 test("resolveWidgetRendererKind maps clockDate", () => {
-  assert.equal(resolveWidgetRendererKind("clockDate"), "clockDate");
+  expect(resolveWidgetRendererKind("clockDate")).toBe("clockDate");
 });
 
 test("resolveWidgetRendererKind maps weather", () => {
-  assert.equal(resolveWidgetRendererKind("weather"), "weather");
+  expect(resolveWidgetRendererKind("weather")).toBe("weather");
 });
 
 test("resolveWidgetRendererKind maps calendar", () => {
-  assert.equal(resolveWidgetRendererKind("calendar"), "calendar");
+  expect(resolveWidgetRendererKind("calendar")).toBe("calendar");
 });

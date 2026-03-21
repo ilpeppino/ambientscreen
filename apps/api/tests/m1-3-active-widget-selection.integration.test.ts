@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -36,43 +35,6 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-const originalUsersRepository = {
-  findAll: usersRepository.findAll,
-  findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create
-};
-
-const originalWidgetsRepository = {
-  findAll: widgetsRepository.findAll,
-  findById: widgetsRepository.findById,
-  create: widgetsRepository.create,
-  activateWidget: widgetsRepository.activateWidget
-};
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-  findByEmail: (email: string) => Promise<TestUser | null>;
-  create: (email: string) => Promise<TestUser>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (profileId: string) => Promise<TestWidget[]>;
-  findById: (id: string) => Promise<TestWidget | null>;
-  create: (input: {
-    profileId: string;
-    type: string;
-    config: unknown;
-    layout: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-    };
-    isActive: boolean;
-  }) => Promise<TestWidget>;
-  activateWidget: (profileId: string, widgetId: string) => Promise<TestWidget>;
-};
-
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
 let userCounter = 0;
@@ -84,11 +46,11 @@ beforeEach(() => {
   userCounter = 0;
   widgetCounter = 0;
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableUsersRepository.findByEmail = async (email: string) => {
-    return usersStore.find((user) => user.email === email) ?? null;
-  };
-  mutableUsersRepository.create = async (email: string) => {
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
+    return (usersStore.find((user) => user.email === email) ?? null) as never;
+  });
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
     if (duplicateUser) {
       throw { code: "P2002" };
@@ -101,18 +63,18 @@ beforeEach(() => {
       createdAt: new Date()
     };
     usersStore.push(newUser);
-    return newUser;
-  };
+    return newUser as never;
+  });
 
-  mutableWidgetsRepository.findAll = async (profileId: string) => {
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore
       .filter((widget) => widget.profileId === profileId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  };
-  mutableWidgetsRepository.findById = async (id: string) => {
-    return widgetsStore.find((widget) => widget.id === id) ?? null;
-  };
-  mutableWidgetsRepository.create = async (input) => {
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) as never;
+  });
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) => {
+    return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
+  });
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => {
     widgetCounter += 1;
     const now = new Date();
     const newWidget: TestWidget = {
@@ -126,9 +88,9 @@ beforeEach(() => {
       updatedAt: now
     };
     widgetsStore.push(newWidget);
-    return newWidget;
-  };
-  mutableWidgetsRepository.activateWidget = async (profileId: string, widgetId: string) => {
+    return newWidget as never;
+  });
+  vi.spyOn(widgetsRepository, "activateWidget").mockImplementation(async (profileId: string, widgetId: string) => {
     const widget = widgetsStore.find((item) => item.id === widgetId && item.profileId === profileId);
     if (!widget) {
       throw new Error("Widget not found");
@@ -146,26 +108,12 @@ beforeEach(() => {
       };
     });
 
-    return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
-  };
+    return widgetsStore.find((item) => item.id === widgetId) as never;
+  });
 });
 
-after(() => {
-  mutableUsersRepository.findAll =
-    originalUsersRepository.findAll as typeof mutableUsersRepository.findAll;
-  mutableUsersRepository.findByEmail =
-    originalUsersRepository.findByEmail as typeof mutableUsersRepository.findByEmail;
-  mutableUsersRepository.create =
-    originalUsersRepository.create as typeof mutableUsersRepository.create;
-
-  mutableWidgetsRepository.findAll =
-    originalWidgetsRepository.findAll as typeof mutableWidgetsRepository.findAll;
-  mutableWidgetsRepository.findById =
-    originalWidgetsRepository.findById as typeof mutableWidgetsRepository.findById;
-  mutableWidgetsRepository.create =
-    originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
-  mutableWidgetsRepository.activateWidget =
-    originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -249,17 +197,17 @@ test("M1-3: activating a widget makes it the only active widget", async () => {
   const activateResponse = await invokeRoute(widgetsRouter, "patch", "/:id/active", {
     params: { id: secondWidget.id }
   });
-  assert.equal(activateResponse.statusCode, 200);
-  assert.equal((activateResponse.body as { id: string; isActive: boolean }).id, secondWidget.id);
-  assert.equal((activateResponse.body as { isActive: boolean }).isActive, true);
+  expect(activateResponse.statusCode).toBe(200);
+  expect((activateResponse.body as { id: string; isActive: boolean }).id).toBe(secondWidget.id);
+  expect((activateResponse.body as { isActive: boolean }).isActive).toBe(true);
 
   const listResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
+  expect(listResponse.statusCode).toBe(200);
   const widgets = listResponse.body as Array<{ id: string; isActive: boolean }>;
-  assert.equal(widgets.length, 2);
-  assert.equal(widgets.find((widget) => widget.id === firstWidget.id)?.isActive, false);
-  assert.equal(widgets.find((widget) => widget.id === secondWidget.id)?.isActive, true);
-  assert.equal(widgets.filter((widget) => widget.isActive).length, 1);
+  expect(widgets.length).toBe(2);
+  expect(widgets.find((widget) => widget.id === firstWidget.id)?.isActive).toBe(false);
+  expect(widgets.find((widget) => widget.id === secondWidget.id)?.isActive).toBe(true);
+  expect(widgets.filter((widget) => widget.isActive).length).toBe(1);
 });
 
 test("M1-3: first created widget is active and next widgets are inactive by default", async () => {
@@ -275,11 +223,11 @@ test("M1-3: first created widget is active and next widgets are inactive by defa
   });
 
   const listResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
+  expect(listResponse.statusCode).toBe(200);
   const widgets = listResponse.body as Array<{ id: string; isActive: boolean }>;
-  assert.equal(widgets.length, 2);
-  assert.equal(widgets[0].isActive, true);
-  assert.equal(widgets[1].isActive, false);
+  expect(widgets.length).toBe(2);
+  expect(widgets[0].isActive).toBe(true);
+  expect(widgets[1].isActive).toBe(false);
 });
 
 test("M1-3: activating unknown widget returns not found", async () => {
@@ -290,5 +238,5 @@ test("M1-3: activating unknown widget returns not found", async () => {
   const activateResponse = await invokeRoute(widgetsRouter, "patch", "/:id/active", {
     params: { id: "missing-widget-id" }
   });
-  assert.equal(activateResponse.statusCode, 404);
+  expect(activateResponse.statusCode).toBe(404);
 });

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import {
   createDisplayKeepAwakeLifecycle,
   type KeepAwakeApi,
@@ -79,9 +78,9 @@ test("enable/disable toggles keep-awake tag", async () => {
   await flushMicrotaskQueue();
   fixture.lifecycle.disable();
 
-  assert.deepEqual(fixture.activateCalls, ["display-mode"]);
-  assert.deepEqual(fixture.deactivateCalls, ["display-mode"]);
-  assert.deepEqual(fixture.warnings, []);
+  expect(fixture.activateCalls).toEqual(["display-mode"]);
+  expect(fixture.deactivateCalls).toEqual(["display-mode"]);
+  expect(fixture.warnings).toEqual([]);
 });
 
 test("disable is idempotent and does not over-release", async () => {
@@ -93,8 +92,8 @@ test("disable is idempotent and does not over-release", async () => {
   fixture.lifecycle.disable();
   fixture.lifecycle.disable();
 
-  assert.deepEqual(fixture.activateCalls, ["display-mode"]);
-  assert.deepEqual(fixture.deactivateCalls, ["display-mode"]);
+  expect(fixture.activateCalls).toEqual(["display-mode"]);
+  expect(fixture.deactivateCalls).toEqual(["display-mode"]);
 });
 
 test("late activation after disable is compensated to prevent leaks", async () => {
@@ -103,12 +102,12 @@ test("late activation after disable is compensated to prevent leaks", async () =
   fixture.lifecycle.enable();
   fixture.lifecycle.disable();
 
-  assert.deepEqual(fixture.deactivateCalls, ["display-mode"]);
+  expect(fixture.deactivateCalls).toEqual(["display-mode"]);
 
   fixture.pendingActivations[0].resolve();
   await flushMicrotaskQueue();
 
-  assert.deepEqual(fixture.deactivateCalls, ["display-mode", "display-mode"]);
+  expect(fixture.deactivateCalls).toEqual(["display-mode", "display-mode"]);
 });
 
 test("stale activation does not disable active keep-awake after re-entering display mode", async () => {
@@ -121,14 +120,14 @@ test("stale activation does not disable active keep-awake after re-entering disp
   fixture.pendingActivations[0].resolve();
   await flushMicrotaskQueue();
 
-  assert.deepEqual(fixture.deactivateCalls, ["display-mode"]);
+  expect(fixture.deactivateCalls).toEqual(["display-mode"]);
 
   fixture.pendingActivations[1].resolve();
   await flushMicrotaskQueue();
   fixture.lifecycle.disable();
 
-  assert.deepEqual(fixture.activateCalls, ["display-mode", "display-mode"]);
-  assert.deepEqual(fixture.deactivateCalls, ["display-mode", "display-mode"]);
+  expect(fixture.activateCalls).toEqual(["display-mode", "display-mode"]);
+  expect(fixture.deactivateCalls).toEqual(["display-mode", "display-mode"]);
 });
 
 test("activation failures are logged and do not crash lifecycle", async () => {
@@ -138,5 +137,5 @@ test("activation failures are logged and do not crash lifecycle", async () => {
   fixture.pendingActivations[0].reject(new Error("activation failed"));
   await flushMicrotaskQueue();
 
-  assert.deepEqual(fixture.warnings, ["Failed to enable keep awake"]);
+  expect(fixture.warnings).toEqual(["Failed to enable keep awake"]);
 });

@@ -1,6 +1,5 @@
-import assert from "node:assert/strict"
 import { EventEmitter } from "node:events"
-import test, { afterEach, beforeEach } from "node:test"
+import { test, expect, afterEach, beforeEach } from "vitest"
 import { requestLoggingMiddleware } from "../src/core/http/request-logging-middleware"
 
 let capturedLogs: string[] = []
@@ -37,10 +36,10 @@ test("M0-3: successful requests log method, path, status, and duration", () => {
 
   res.emit("finish")
 
-  assert.equal(nextCalled, true)
-  assert.equal(capturedLogs.length, 1)
-  assert.match(capturedLogs[0], /^\[API\] GET \/health -> 200 /)
-  assert.match(capturedLogs[0], /ms$/)
+  expect(nextCalled).toBe(true)
+  expect(capturedLogs.length).toBe(1)
+  expect(capturedLogs[0]).toMatch(/^\[API\] GET \/health -> 200 /)
+  expect(capturedLogs[0]).toMatch(/ms$/)
 })
 
 test("M0-3: failed requests are traceable via status and duration logging", () => {
@@ -53,7 +52,7 @@ test("M0-3: failed requests are traceable via status and duration logging", () =
   requestLoggingMiddleware(req as never, res as never, () => undefined)
   res.emit("finish")
 
-  assert.equal(capturedLogs.length, 1)
-  assert.match(capturedLogs[0], /^\[API\] POST \/users -> 500 /)
-  assert.match(capturedLogs[0], /ms$/)
+  expect(capturedLogs.length).toBe(1)
+  expect(capturedLogs[0]).toMatch(/^\[API\] POST \/users -> 500 /)
+  expect(capturedLogs[0]).toMatch(/ms$/)
 })
