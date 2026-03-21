@@ -105,7 +105,7 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
 
 export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
   id: string;
-  userId: string;
+  profileId: string;
   type: TKey;
   config: WidgetConfigByKey[TKey];
   layout: {
@@ -120,6 +120,7 @@ export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
 }
 
 export type CreateWidgetInput<TKey extends WidgetKey = WidgetKey> = {
+  profileId?: string;
   type: TKey;
   config?: WidgetConfigByKey[TKey];
   layout?: {
@@ -129,6 +130,14 @@ export type CreateWidgetInput<TKey extends WidgetKey = WidgetKey> = {
     h: number;
   };
 };
+
+export interface Profile {
+  id: string;
+  userId: string;
+  name: string;
+  isDefault: boolean;
+  createdAt: string;
+}
 
 export interface WidgetDataMeta {
   fetchedAt?: string;

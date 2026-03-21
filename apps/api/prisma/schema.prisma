@@ -8,16 +8,29 @@ datasource db {
 }
 
 model User {
+  id        String    @id @default(uuid())
+  email     String?   @unique
+  createdAt DateTime  @default(now())
+
+  profiles  Profile[]
+}
+
+model Profile {
   id        String           @id @default(uuid())
-  email     String?          @unique
+  userId    String
+  name      String
+  isDefault Boolean          @default(false)
   createdAt DateTime         @default(now())
 
-  widgets   WidgetInstance[]
+  user    User             @relation(fields: [userId], references: [id])
+  widgets WidgetInstance[]
+
+  @@index([userId])
 }
 
 model WidgetInstance {
   id        String   @id @default(uuid())
-  userId    String
+  profileId String
   type      String
   config    Json
   layoutX   Int      @default(0)
@@ -28,5 +41,7 @@ model WidgetInstance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  profile Profile @relation(fields: [profileId], references: [id])
+
+  @@index([profileId])
 }
