@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { profilesRouter } from "../src/modules/profiles/profiles.routes";
@@ -35,8 +35,8 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1");
-  vi.spyOn(profilesService, "getProfilesForPrimaryUser").mockImplementation(async () => profileStore);
+  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1" as never);
+  vi.spyOn(profilesService, "getProfilesForPrimaryUser").mockImplementation(async () => profileStore as never);
   vi.spyOn(profilesService, "createProfileForUser").mockImplementation(async ({ userId, name }) => {
     profileCounter += 1;
     const profile: TestProfile = {
@@ -47,33 +47,35 @@ beforeEach(() => {
       createdAt: new Date(),
     };
     profileStore.push(profile);
-    return profile;
+    return profile as never;
   });
   vi.spyOn(profilesService, "renameProfileForUser").mockImplementation(async ({ userId, profileId, name }) => {
     const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
     if (!profile) {
-      return null;
+      return null as never;
     }
 
     profile.name = name;
-    return profile;
+    return profile as never;
   });
   vi.spyOn(profilesService, "deleteProfileForUser").mockImplementation(async ({ userId, profileId }) => {
     const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
     if (!profile) {
-      return { deleted: false, reason: "notFound" };
+      return { deleted: false, reason: "notFound" } as never;
     }
 
     if (profileStore.length <= 1) {
-      return { deleted: false, reason: "lastProfile" };
+      return { deleted: false, reason: "lastProfile" } as never;
     }
 
     profileStore = profileStore.filter((item) => item.id !== profileId);
-    return { deleted: true };
+    return { deleted: true } as never;
   });
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {

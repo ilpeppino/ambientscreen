@@ -1,10 +1,8 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetDataService } from "../src/modules/widgetData/widget-data.service";
 import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/calendar.resolver";
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
-
-afterEach(() => { vi.restoreAllMocks(); });
 
 beforeEach(() => {
   vi.spyOn(widgetsRepository, "findById").mockImplementation(async () => {
@@ -17,19 +15,23 @@ beforeEach(() => {
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
-    };
+    } as never;
   });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 test("widgetDataService returns normalized payload for clockDate widget", async () => {
   const result = await widgetDataService.getWidgetData("widget-clock");
 
   expect(result).toBeTruthy();
-  expect(result.widgetKey).toBe("clockDate");
-  expect(result.state).toBe("ready");
-  expect(result.data).toBeTruthy();
-  expect(typeof result.data.formattedTime).toBe("string");
-  expect(typeof result.data.formattedDate).toBe("string");
+  expect(result!.widgetKey).toBe("clockDate");
+  expect(result!.state).toBe("ready");
+  expect(result!.data).toBeTruthy();
+  expect(typeof result!.data!.formattedTime).toBe("string");
+  expect(typeof result!.data!.formattedDate).toBe("string");
 });
 
 test("weather resolver returns normalized ready payload from provider data", async () => {

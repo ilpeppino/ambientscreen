@@ -1,18 +1,19 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import { EventEmitter } from "node:events"
+import { test, expect, afterEach, beforeEach } from "vitest"
 import { requestLoggingMiddleware } from "../src/core/http/request-logging-middleware"
 
 let capturedLogs: string[] = []
+const originalConsoleInfo = console.info
 
 beforeEach(() => {
   capturedLogs = []
-  vi.spyOn(console, "info").mockImplementation((...args: unknown[]) => {
+  console.info = ((...args: unknown[]) => {
     capturedLogs.push(args.map((value) => String(value)).join(" "))
-  })
+  }) as typeof console.info
 })
 
 afterEach(() => {
-  vi.restoreAllMocks()
+  console.info = originalConsoleInfo
 })
 
 function createStubResponse(statusCode: number) {

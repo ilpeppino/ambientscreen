@@ -80,9 +80,9 @@ test("createRealtimeClient tracks connection lifecycle and sends profile subscri
   createdSockets[0].emitOpen();
   expect(states[1]).toBe("connected");
 
-  expect(
-    createdSockets[0].sentPayloads,
-  ).toEqual([JSON.stringify({ type: "subscribe", profileId: "profile-1" })]);
+  expect(createdSockets[0].sentPayloads).toEqual(
+    [JSON.stringify({ type: "subscribe", profileId: "profile-1" })],
+  );
 
   client.disconnect();
   expect(states[states.length - 1]).toBe("disconnected");

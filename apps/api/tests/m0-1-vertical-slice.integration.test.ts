@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -47,9 +47,9 @@ beforeEach(() => {
   userCounter = 0;
   widgetCounter = 0;
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
-    return usersStore.find((user) => user.email === email) ?? null;
+    return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
   vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
@@ -64,16 +64,16 @@ beforeEach(() => {
       createdAt: new Date()
     };
     usersStore.push(newUser);
-    return newUser;
+    return newUser as never;
   });
 
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore
       .filter((widget) => widget.profileId === profileId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) as never;
   });
   vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) => {
-    return widgetsStore.find((widget) => widget.id === id) ?? null;
+    return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
   });
   vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => {
     widgetCounter += 1;
@@ -89,7 +89,7 @@ beforeEach(() => {
       updatedAt: now
     };
     widgetsStore.push(newWidget);
-    return newWidget;
+    return newWidget as never;
   });
   vi.spyOn(widgetsRepository, "activateWidget").mockImplementation(async (profileId: string, widgetId: string) => {
     const widget = widgetsStore.find((item) => item.id === widgetId && item.profileId === profileId);
@@ -109,11 +109,13 @@ beforeEach(() => {
       };
     });
 
-    return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
+    return widgetsStore.find((item) => item.id === widgetId) as never;
   });
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find(

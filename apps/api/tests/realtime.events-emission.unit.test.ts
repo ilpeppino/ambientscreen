@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import { profilesRepository } from "../src/modules/profiles/profiles.repository";
 import { profilesService } from "../src/modules/profiles/profiles.service";
 import { configureRealtimeServer, resetRealtimeServerForTests } from "../src/modules/realtime/realtime.runtime";
@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 test("widgetsService emits widget.created and display.refreshRequested on create", async () => {
-  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => []);
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => [] as never);
 
   vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => ({
     id: "widget-1",
@@ -35,14 +35,16 @@ test("widgetsService emits widget.created and display.refreshRequested on create
     isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  }));
+  }) as never);
 
   await widgetsService.createWidgetAtNextPosition({
     profileId: "profile-1",
     type: "clockDate",
   });
 
-  expect(emittedEvents.map((event) => event.type)).toEqual(["widget.created", "display.refreshRequested"]);
+  expect(
+    emittedEvents.map((event) => event.type),
+  ).toEqual(["widget.created", "display.refreshRequested"]);
   expect(emittedEvents[0].profileId).toBe("profile-1");
   expect(emittedEvents[0].widgetId).toBe("widget-1");
 });
@@ -57,7 +59,7 @@ test("widgetsService emits widget.updated and display.refreshRequested on config
     isActive: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  }));
+  }) as never);
 
   vi.spyOn(widgetsRepository, "updateConfig").mockImplementation(async () => ({
     id: "widget-1",
@@ -68,7 +70,7 @@ test("widgetsService emits widget.updated and display.refreshRequested on config
     isActive: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:05:00.000Z"),
-  }));
+  }) as never);
 
   await widgetsService.updateWidgetConfigForProfile({
     profileId: "profile-1",
@@ -76,7 +78,9 @@ test("widgetsService emits widget.updated and display.refreshRequested on config
     configPatch: { location: "Rotterdam" },
   });
 
-  expect(emittedEvents.map((event) => event.type)).toEqual(["widget.updated", "display.refreshRequested"]);
+  expect(
+    emittedEvents.map((event) => event.type),
+  ).toEqual(["widget.updated", "display.refreshRequested"]);
   expect(emittedEvents[0].widgetId).toBe("widget-1");
 });
 
@@ -93,7 +97,7 @@ test("widgetsService emits layout.updated and display.refreshRequested on layout
     isActive: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:05:00.000Z"),
-  })));
+  })) as never);
 
   await widgetsService.updateWidgetsLayoutForProfile({
     profileId: "profile-1",
@@ -105,7 +109,9 @@ test("widgetsService emits layout.updated and display.refreshRequested on layout
     ],
   });
 
-  expect(emittedEvents.map((event) => event.type)).toEqual(["layout.updated", "display.refreshRequested"]);
+  expect(
+    emittedEvents.map((event) => event.type),
+  ).toEqual(["layout.updated", "display.refreshRequested"]);
   expect(emittedEvents[0].profileId).toBe("profile-1");
 });
 
@@ -119,14 +125,16 @@ test("widgetsService emits widget.deleted and display.refreshRequested on widget
     isActive: false,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  }));
+  }) as never);
 
   await widgetsService.deleteWidgetForProfile({
     profileId: "profile-1",
     widgetId: "widget-1",
   });
 
-  expect(emittedEvents.map((event) => event.type)).toEqual(["widget.deleted", "display.refreshRequested"]);
+  expect(
+    emittedEvents.map((event) => event.type),
+  ).toEqual(["widget.deleted", "display.refreshRequested"]);
   expect(emittedEvents[0].widgetId).toBe("widget-1");
 });
 
@@ -137,7 +145,7 @@ test("profilesService emits profile.updated and display.refreshRequested on rena
     name: "Before",
     isDefault: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
-  }));
+  }) as never);
 
   vi.spyOn(profilesRepository, "updateName").mockImplementation(async () => ({
     id: "profile-1",
@@ -145,7 +153,7 @@ test("profilesService emits profile.updated and display.refreshRequested on rena
     name: "After",
     isDefault: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
-  }));
+  }) as never);
 
   await profilesService.renameProfileForUser({
     userId: "user-1",
@@ -153,6 +161,8 @@ test("profilesService emits profile.updated and display.refreshRequested on rena
     name: "After",
   });
 
-  expect(emittedEvents.map((event) => event.type)).toEqual(["profile.updated", "display.refreshRequested"]);
+  expect(
+    emittedEvents.map((event) => event.type),
+  ).toEqual(["profile.updated", "display.refreshRequested"]);
   expect(emittedEvents[0].profileId).toBe("profile-1");
 });

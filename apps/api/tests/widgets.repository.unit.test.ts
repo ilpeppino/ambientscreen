@@ -7,7 +7,7 @@ afterEach(() => {
 });
 
 test("widgetsRepository maps db layout fields to layout object on list", async () => {
-  vi.spyOn(prisma.widgetInstance, "findMany").mockImplementation(async () => [
+  vi.spyOn(prisma.widgetInstance, "findMany").mockImplementation((async () => [
     {
       id: "widget-1",
       profileId: "user-1",
@@ -21,7 +21,7 @@ test("widgetsRepository maps db layout fields to layout object on list", async (
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
     },
-  ] as never);
+  ]) as never);
 
   const widgets = await widgetsRepository.findAll("user-1");
   expect(widgets.length).toBe(1);
@@ -31,7 +31,7 @@ test("widgetsRepository maps db layout fields to layout object on list", async (
 test("widgetsRepository maps layout input to db layout fields on create", async () => {
   let createArgs: unknown;
 
-  vi.spyOn(prisma.widgetInstance, "create").mockImplementation(async (args) => {
+  vi.spyOn(prisma.widgetInstance, "create").mockImplementation((async (args: unknown) => {
     createArgs = args;
     return {
       id: "widget-1",
@@ -45,8 +45,8 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
       isActive: true,
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-    } as never;
-  });
+    };
+  }) as never);
 
   const created = await widgetsRepository.create({
     profileId: "user-1",
@@ -77,7 +77,7 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
 
   const mockTransaction = {
     widgetInstance: {
-      updateMany: (async (args) => {
+      updateMany: (async (args: unknown) => {
         updateManyCalls.push(args);
         return { count: 1 };
       }) as typeof prisma.widgetInstance.updateMany,
@@ -90,7 +90,7 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
     }) as never,
   );
 
-  vi.spyOn(prisma.widgetInstance, "findMany").mockImplementation(async (args) => {
+  vi.spyOn(prisma.widgetInstance, "findMany").mockImplementation((async (args: unknown) => {
     findManyArgs = args;
     return [
       {
@@ -106,8 +106,8 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
         createdAt: new Date("2026-03-21T10:00:00.000Z"),
         updatedAt: new Date("2026-03-21T10:00:00.000Z"),
       },
-    ] as never;
-  });
+    ];
+  }) as never);
 
   const updated = await widgetsRepository.updateLayouts("user-1", [
     {

@@ -1,5 +1,5 @@
-import { test, expect } from "vitest";
 import { createServer } from "node:http";
+import { test, expect } from "vitest";
 import WebSocket from "ws";
 import { createRealtimeEvent } from "../src/modules/realtime/realtime.events";
 import { createRealtimeServer } from "../src/modules/realtime/realtime.server";
@@ -183,7 +183,6 @@ test("realtime server scopes event delivery by profile", async (t) => {
   profileOneClient.send(JSON.stringify({ type: "subscribe", profileId: "profile-1" }));
   profileTwoClient.send(JSON.stringify({ type: "subscribe", profileId: "profile-2" }));
 
-  // Allow the server to process subscribe messages before publishing
   await new Promise((resolve) => setTimeout(resolve, 50));
 
   const profileOneMessagePromise = waitForMessage(profileOneClient);

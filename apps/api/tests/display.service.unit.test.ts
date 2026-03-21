@@ -1,9 +1,7 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import { displayService } from "../src/modules/display/display.service";
 import { widgetResolvers } from "../src/modules/widgetData/widget-resolvers";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
-
-afterEach(() => { vi.restoreAllMocks(); });
 
 beforeEach(() => {
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => {
@@ -28,7 +26,7 @@ beforeEach(() => {
         createdAt: new Date(),
         updatedAt: new Date(),
       },
-    ];
+    ] as never;
   });
 
   vi.spyOn(widgetResolvers, "clockDate").mockImplementation(async ({ widgetInstanceId }) => {
@@ -46,7 +44,7 @@ beforeEach(() => {
         source: "system",
         fetchedAt: "2026-03-21T10:00:00.000Z",
       },
-    };
+    } as never;
   });
 
   vi.spyOn(widgetResolvers, "weather").mockImplementation(async ({ widgetInstanceId }) => {
@@ -63,8 +61,12 @@ beforeEach(() => {
         source: "open-meteo",
         fetchedAt: "2026-03-21T10:01:00.000Z",
       },
-    };
+    } as never;
   });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 test("displayService resolves all widgets and attaches layout", async () => {
@@ -96,9 +98,9 @@ test("displayService continues when one resolver throws", async () => {
   const weatherWidget = result.widgets.find((widget) => widget.widgetKey === "weather");
 
   expect(clockWidget).toBeTruthy();
-  expect(clockWidget.state).toBe("ready");
+  expect(clockWidget!.state).toBe("ready");
 
   expect(weatherWidget).toBeTruthy();
-  expect(weatherWidget.state).toBe("error");
-  expect(weatherWidget.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
+  expect(weatherWidget!.state).toBe("error");
+  expect(weatherWidget!.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
 });

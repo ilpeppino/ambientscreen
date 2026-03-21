@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { displayRouter } from "../src/modules/display/display.routes";
@@ -31,8 +31,6 @@ interface TestWidget {
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
 
-afterEach(() => { vi.restoreAllMocks(); });
-
 beforeEach(() => {
   usersStore = [
     {
@@ -64,9 +62,9 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
-    return widgetsStore.filter((widget) => widget.profileId === profileId);
+    return widgetsStore.filter((widget) => widget.profileId === profileId) as never;
   });
 
   vi.spyOn(widgetResolvers, "clockDate").mockImplementation(async ({ widgetInstanceId }) => {
@@ -83,7 +81,7 @@ beforeEach(() => {
       meta: {
         source: "system",
       },
-    };
+    } as never;
   });
   vi.spyOn(widgetResolvers, "weather").mockImplementation(async ({ widgetInstanceId }) => {
     return {
@@ -98,8 +96,12 @@ beforeEach(() => {
       meta: {
         source: "open-meteo",
       },
-    };
+    } as never;
   });
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function getRouteHandler(router: Router, path: string) {
@@ -206,8 +208,8 @@ test("GET /display-layout continues when one resolver fails", async () => {
   const weatherWidget = body.widgets.find((widget) => widget.widgetKey === "weather");
 
   expect(clockWidget).toBeTruthy();
-  expect(clockWidget.state).toBe("ready");
+  expect(clockWidget!.state).toBe("ready");
   expect(weatherWidget).toBeTruthy();
-  expect(weatherWidget.state).toBe("error");
-  expect(weatherWidget.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
+  expect(weatherWidget!.state).toBe("error");
+  expect(weatherWidget!.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
 });

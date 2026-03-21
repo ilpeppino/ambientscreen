@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import {
   globalErrorMiddleware,
@@ -27,9 +27,9 @@ beforeEach(() => {
   usersStore = [];
   userCounter = 0;
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
-    return usersStore.find((user) => user.email === email) ?? null;
+    return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
   vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
@@ -44,11 +44,13 @@ beforeEach(() => {
       createdAt: new Date()
     };
     usersStore.push(newUser);
-    return newUser;
+    return newUser as never;
   });
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find(
@@ -152,7 +154,7 @@ test("M0-2: duplicate, validation, and internal errors are distinguishable with 
     }
   });
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   const aliveResponse = await invokeRoute(usersRouter, "get", "/");
   expect(aliveResponse.statusCode).toBe(200);
 });

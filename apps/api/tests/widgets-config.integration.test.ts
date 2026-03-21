@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -63,11 +63,13 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) =>
-    widgetsStore.filter((widget) => widget.profileId === profileId));
+    widgetsStore.filter((widget) => widget.profileId === profileId) as never,
+  );
   vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) =>
-    widgetsStore.find((widget) => widget.id === id) ?? null);
+    (widgetsStore.find((widget) => widget.id === id) ?? null) as never,
+  );
   vi.spyOn(widgetsRepository, "updateConfig").mockImplementation(async ({ id, profileId, config }) => {
     let updatedWidget: TestWidget | null = null;
     widgetsStore = widgetsStore.map((widget) => {
@@ -84,11 +86,13 @@ beforeEach(() => {
       return updatedWidget;
     });
 
-    return updatedWidget;
+    return updatedWidget as never;
   });
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {

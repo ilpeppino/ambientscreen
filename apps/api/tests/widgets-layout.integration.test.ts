@@ -1,4 +1,4 @@
-import { test, expect, beforeEach, afterEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -69,9 +69,10 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) =>
-    widgetsStore.filter((widget) => widget.profileId === profileId));
+    widgetsStore.filter((widget) => widget.profileId === profileId) as never,
+  );
   vi.spyOn(widgetsRepository, "updateLayouts").mockImplementation(async (profileId, widgets) => {
     widgetsStore = widgetsStore.map((widget) => {
       if (widget.profileId !== profileId) {
@@ -90,11 +91,13 @@ beforeEach(() => {
       };
     });
 
-    return widgetsStore.filter((widget) => widgets.some((item) => item.id === widget.id));
+    return widgetsStore.filter((widget) => widgets.some((item) => item.id === widget.id)) as never;
   });
 });
 
-afterEach(() => { vi.restoreAllMocks(); });
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {
@@ -181,8 +184,8 @@ test("PATCH /widgets/layout persists layout changes and GET /widgets returns upd
 
   expect(widgetOne).toBeTruthy();
   expect(widgetTwo).toBeTruthy();
-  expect(widgetOne.layout).toEqual({ x: 4, y: 1, w: 3, h: 2 });
-  expect(widgetTwo.layout).toEqual({ x: 7, y: 1, w: 5, h: 2 });
+  expect(widgetOne!.layout).toEqual({ x: 4, y: 1, w: 3, h: 2 });
+  expect(widgetTwo!.layout).toEqual({ x: 7, y: 1, w: 5, h: 2 });
 });
 
 test("PATCH /widgets/layout rejects invalid payload", async () => {
