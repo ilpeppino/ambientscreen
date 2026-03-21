@@ -7,6 +7,7 @@ import type { RealtimeEvent, RealtimeServer } from "./realtime.types";
 
 interface ClientSubscription {
   profileId: string | null;
+  sessionId: string | null;
 }
 
 interface SubscribeMessage {
@@ -14,7 +15,12 @@ interface SubscribeMessage {
   profileId: string;
 }
 
-type ClientMessage = SubscribeMessage;
+interface SubscribeSessionMessage {
+  type: "subscribeSession";
+  sessionId: string;
+}
+
+type ClientMessage = SubscribeMessage | SubscribeSessionMessage;
 
 function toMessageString(data: RawData): string | null {
   if (typeof data === "string") {
@@ -32,23 +38,33 @@ function toMessageString(data: RawData): string | null {
   return Buffer.from(new Uint8Array(data)).toString("utf8");
 }
 
-function parseProfileIdFromRequest(request: IncomingMessage): string | null {
+function parseIdFromRequest(request: IncomingMessage, key: "profileId" | "sessionId"): string | null {
   const host = request.headers.host;
   if (!host || !request.url) {
     return null;
   }
 
   const url = new URL(request.url, `http://${host}`);
-  const profileId = url.searchParams.get("profileId");
-
-  return profileId && profileId.trim().length > 0 ? profileId : null;
+  const id = url.searchParams.get(key);
+  return id && id.trim().length > 0 ? id : null;
 }
 
 function parseMessage(rawMessage: string): ClientMessage | null {
   try {
     const parsed = JSON.parse(rawMessage) as Partial<ClientMessage>;
     if (parsed.type !== "subscribe") {
-      return null;
+      if (parsed.type !== "subscribeSession") {
+        return null;
+      }
+
+      if (typeof parsed.sessionId !== "string" || parsed.sessionId.trim().length === 0) {
+        return null;
+      }
+
+      return {
+        type: "subscribeSession",
+        sessionId: parsed.sessionId,
+      };
     }
 
     if (typeof parsed.profileId !== "string" || parsed.profileId.trim().length === 0) {
@@ -68,6 +84,7 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
   const websocketServer = new WebSocketServer({ noServer: true });
   const subscriptionByClient = new Map<WebSocket, ClientSubscription>();
   const clientsByProfile = new Map<string, Set<WebSocket>>();
+  const clientsBySession = new Map<string, Set<WebSocket>>();
 
   function removeClientFromProfile(client: WebSocket, profileId: string | null) {
     if (!profileId) {
@@ -89,7 +106,10 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
     const previousSubscription = subscriptionByClient.get(client);
     removeClientFromProfile(client, previousSubscription?.profileId ?? null);
 
-    const nextSubscription: ClientSubscription = { profileId };
+    const nextSubscription: ClientSubscription = {
+      profileId,
+      sessionId: previousSubscription?.sessionId ?? null,
+    };
     subscriptionByClient.set(client, nextSubscription);
 
     const profileClients = clientsByProfile.get(profileId) ?? new Set<WebSocket>();
@@ -97,14 +117,50 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
     clientsByProfile.set(profileId, profileClients);
   }
 
+  function removeClientFromSession(client: WebSocket, sessionId: string | null) {
+    if (!sessionId) {
+      return;
+    }
+
+    const sessionClients = clientsBySession.get(sessionId);
+    if (!sessionClients) {
+      return;
+    }
+
+    sessionClients.delete(client);
+    if (sessionClients.size === 0) {
+      clientsBySession.delete(sessionId);
+    }
+  }
+
+  function subscribeClientToSession(client: WebSocket, sessionId: string) {
+    const previousSubscription = subscriptionByClient.get(client);
+    removeClientFromSession(client, previousSubscription?.sessionId ?? null);
+
+    const nextSubscription: ClientSubscription = {
+      profileId: previousSubscription?.profileId ?? null,
+      sessionId,
+    };
+    subscriptionByClient.set(client, nextSubscription);
+
+    const sessionClients = clientsBySession.get(sessionId) ?? new Set<WebSocket>();
+    sessionClients.add(client);
+    clientsBySession.set(sessionId, sessionClients);
+  }
+
   websocketServer.on("connection", (client, request) => {
     subscriptionByClient.set(client, {
       profileId: null,
+      sessionId: null,
     });
 
-    const initialProfileId = parseProfileIdFromRequest(request);
+    const initialProfileId = parseIdFromRequest(request, "profileId");
     if (initialProfileId) {
       subscribeClientToProfile(client, initialProfileId);
+    }
+    const initialSessionId = parseIdFromRequest(request, "sessionId");
+    if (initialSessionId) {
+      subscribeClientToSession(client, initialSessionId);
     }
 
     client.on("message", (data) => {
@@ -119,12 +175,18 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
 
       if (message.type === "subscribe") {
         subscribeClientToProfile(client, message.profileId);
+        return;
+      }
+
+      if (message.type === "subscribeSession") {
+        subscribeClientToSession(client, message.sessionId);
       }
     });
 
     client.on("close", () => {
       const currentSubscription = subscriptionByClient.get(client);
       removeClientFromProfile(client, currentSubscription?.profileId ?? null);
+      removeClientFromSession(client, currentSubscription?.sessionId ?? null);
       subscriptionByClient.delete(client);
     });
   });
@@ -149,7 +211,9 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
 
   return {
     publish(event: RealtimeEvent) {
-      const clients = clientsByProfile.get(event.profileId);
+      const clients = event.scope === "sharedSession"
+        ? clientsBySession.get(event.sessionId)
+        : clientsByProfile.get(event.profileId);
       if (!clients || clients.size === 0) {
         return;
       }
