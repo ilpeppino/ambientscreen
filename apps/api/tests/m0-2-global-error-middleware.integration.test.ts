@@ -28,10 +28,10 @@ beforeEach(() => {
   userCounter = 0;
 
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
-  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
-  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
     if (duplicateUser) {
       throw { code: "P2002" };
@@ -87,7 +87,11 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -117,11 +121,11 @@ async function invokeRoute(
 
 test("M0-2: duplicate, validation, and internal errors are distinguishable with normalized JSON", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const duplicateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
   expect(duplicateResponse.statusCode).toBe(409);
   expect(duplicateResponse.body).toEqual({
@@ -132,7 +136,7 @@ test("M0-2: duplicate, validation, and internal errors are distinguishable with 
   });
 
   const validationResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "not-an-email" }
+    body: { email: "not-an-email", password: "password123" }
   });
   expect(validationResponse.statusCode).toBe(400);
   const validationBody = validationResponse.body as {

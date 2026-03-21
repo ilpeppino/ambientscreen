@@ -1,7 +1,6 @@
 import { profilesRepository } from "./profiles.repository";
 import { createRealtimeEvent } from "../realtime/realtime.events";
 import { publishRealtimeEvent } from "../realtime/realtime.runtime";
-import { usersService } from "../users/users.service";
 import { orchestrationService } from "../orchestration/orchestration.service";
 
 export interface ProfileRecord {
@@ -13,22 +12,7 @@ export interface ProfileRecord {
 }
 
 export const profilesService = {
-  async getPrimaryUserId(): Promise<string> {
-    const users = await usersService.getAllUsers();
-    if (users.length === 0) {
-      throw new Error("No users exist yet. Create a user first.");
-    }
-
-    return users[0].id;
-  },
-
   getProfilesForUser(userId: string) {
-    return profilesRepository.findAllByUser(userId);
-  },
-
-  async getProfilesForPrimaryUser() {
-    const userId = await this.getPrimaryUserId();
-    await this.getOrCreateDefaultProfileForUser(userId);
     return profilesRepository.findAllByUser(userId);
   },
 

@@ -14,13 +14,20 @@ export const usersRepository = {
     });
   },
 
-  create(email: string) {
+  findById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+    });
+  },
+
+  create(email: string, passwordHash: string) {
     const userId = randomUUID();
 
     return prisma.user.create({
       data: {
         id: userId,
         email,
+        passwordHash,
         profiles: {
           create: {
             id: userId,

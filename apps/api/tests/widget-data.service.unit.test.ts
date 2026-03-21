@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 test("widgetDataService returns normalized payload for clockDate widget", async () => {
-  const result = await widgetDataService.getWidgetData("widget-clock");
+  const result = await widgetDataService.getWidgetDataForUser("widget-clock", "user-1");
 
   expect(result).toBeTruthy();
   expect(result!.widgetKey).toBe("clockDate");

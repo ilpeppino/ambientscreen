@@ -1,13 +1,8 @@
 import { API_BASE_URL } from "../../core/config/api";
+import { apiFetchWithTimeout, toApiErrorMessage } from "./apiClient";
 import type { SharedScreenSession } from "@ambient/shared-contracts";
 
 const SHARED_SESSIONS_TIMEOUT_MS = 8000;
-
-interface ApiErrorResponse {
-  error?: {
-    message?: string;
-  };
-}
 
 interface CreateSharedSessionPayload {
   name: string;
@@ -37,43 +32,12 @@ interface LeaveSharedSessionPayload {
   deviceId: string;
 }
 
-async function toApiErrorMessage(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as ApiErrorResponse;
-    if (body.error?.message) {
-      return body.error.message;
-    }
-  } catch {
-    // Fallback to status-based message when response is not JSON.
-  }
-
-  return `Request failed with status ${response.status}`;
-}
-
-async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const abortController = new AbortController();
-  const timeoutHandle = setTimeout(() => {
-    abortController.abort();
-  }, SHARED_SESSIONS_TIMEOUT_MS);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: abortController.signal,
-    });
-  } catch (error) {
-    if ((error as { name?: string }).name === "AbortError") {
-      throw new Error(`Request timed out after ${SHARED_SESSIONS_TIMEOUT_MS}ms`);
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-}
-
 export async function getSharedSessions(): Promise<SharedScreenSession[]> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/shared-sessions`);
+  const response = await apiFetchWithTimeout(
+    `${API_BASE_URL}/shared-sessions`,
+    undefined,
+    SHARED_SESSIONS_TIMEOUT_MS,
+  );
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
     throw new Error(`Failed to fetch shared sessions: ${message}`);
@@ -83,13 +47,13 @@ export async function getSharedSessions(): Promise<SharedScreenSession[]> {
 }
 
 export async function createSharedSession(payload: CreateSharedSessionPayload): Promise<SharedScreenSession> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/shared-sessions`, {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/shared-sessions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
+  }, SHARED_SESSIONS_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -100,7 +64,11 @@ export async function createSharedSession(payload: CreateSharedSessionPayload): 
 }
 
 export async function getSharedSessionById(sessionId: string): Promise<SharedScreenSession> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/shared-sessions/${sessionId}`);
+  const response = await apiFetchWithTimeout(
+    `${API_BASE_URL}/shared-sessions/${sessionId}`,
+    undefined,
+    SHARED_SESSIONS_TIMEOUT_MS,
+  );
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
     throw new Error(`Failed to fetch shared session: ${message}`);
@@ -113,13 +81,13 @@ export async function updateSharedSession(
   sessionId: string,
   payload: UpdateSharedSessionPayload,
 ): Promise<SharedScreenSession> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/shared-sessions/${sessionId}`, {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/shared-sessions/${sessionId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
+  }, SHARED_SESSIONS_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -133,13 +101,13 @@ export async function joinSharedSession(
   sessionId: string,
   payload: JoinSharedSessionPayload,
 ): Promise<SharedScreenSession> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/shared-sessions/${sessionId}/join`, {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/shared-sessions/${sessionId}/join`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
+  }, SHARED_SESSIONS_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -153,13 +121,13 @@ export async function leaveSharedSession(
   sessionId: string,
   payload: LeaveSharedSessionPayload,
 ): Promise<SharedScreenSession> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/shared-sessions/${sessionId}/leave`, {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/shared-sessions/${sessionId}/leave`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
+  }, SHARED_SESSIONS_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);

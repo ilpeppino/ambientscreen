@@ -3,11 +3,13 @@ import { z } from "zod";
 import { usersService } from "./users.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
+import { authService } from "../auth/auth.service";
 
 export const usersRouter = Router();
 
 const createUserSchema = z.object({
-  email: z.string().email()
+  email: z.string().trim().email(),
+  password: z.string().min(8).max(128),
 });
 
 usersRouter.get(
@@ -33,7 +35,8 @@ usersRouter.post(
       throw apiErrors.duplicate("A user with this email already exists");
     }
 
-    const user = await usersService.createUser(result.data.email);
+    const passwordHash = await authService.hashPassword(result.data.password);
+    const user = await usersService.createUser(result.data.email, passwordHash);
     res.status(201).json(user);
   })
 );

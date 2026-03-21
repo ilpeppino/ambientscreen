@@ -47,10 +47,10 @@ beforeEach(() => {
   widgetCounter = 0;
 
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
-  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
-  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
     if (duplicateUser) {
       throw { code: "P2002" };
@@ -151,7 +151,11 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -181,7 +185,7 @@ async function invokeRoute(
 
 test("M1-2: widget can be created from UI types and appears in refreshed list", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const createClockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -210,7 +214,7 @@ test("M1-2: widget can be created from UI types and appears in refreshed list", 
 
 test("M1-2: unsupported widget type is rejected", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -221,7 +225,7 @@ test("M1-2: unsupported widget type is rejected", async () => {
 
 test("M3-3: weather widget can be created with location and units config", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -249,7 +253,7 @@ test("M3-3: weather widget can be created with location and units config", async
 
 test("M2-1: widget can be created with explicit layout and is returned with layout", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -273,7 +277,7 @@ test("M2-1: widget can be created with explicit layout and is returned with layo
 
 test("M2-4: explicit overlapping layout is rejected", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const firstCreate = await invokeRoute(widgetsRouter, "post", "/", {
@@ -295,7 +299,7 @@ test("M2-4: explicit overlapping layout is rejected", async () => {
 
 test("M3-3: weather widget creation rejects invalid units config", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -312,7 +316,7 @@ test("M3-3: weather widget creation rejects invalid units config", async () => {
 
 test("M4-3: calendar widget can be created with provider, account, and time window config", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -349,7 +353,7 @@ test("M4-3: calendar widget can be created with provider, account, and time wind
 
 test("M4-3: calendar widget creation rejects invalid provider/time window config", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -367,7 +371,7 @@ test("M4-3: calendar widget creation rejects invalid provider/time window config
 
 test("M2-1: widget config must match widget contract schema", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const invalidClockConfigResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -391,9 +395,9 @@ test("M2-1: widget config must match widget contract schema", async () => {
   expect(invalidCalendarConfigResponse.statusCode).toBe(400);
 });
 
-test("M1-2: creating widget fails when no user exists", async () => {
+test("M1-2: creating widget succeeds for authenticated requests", async () => {
   const createResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: { type: "weather" }
   });
-  expect(createResponse.statusCode).toBe(400);
+  expect(createResponse.statusCode).toBe(201);
 });

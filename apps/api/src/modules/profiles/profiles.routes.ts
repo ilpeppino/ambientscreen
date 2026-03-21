@@ -3,6 +3,7 @@ import { z } from "zod";
 import { profilesService } from "./profiles.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
+import { getRequestUserId } from "../auth/auth.middleware";
 
 export const profilesRouter = Router();
 
@@ -16,16 +17,11 @@ const updateProfileSchema = z.object({
 
 profilesRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    try {
-      const profiles = await profilesService.getProfilesForPrimaryUser();
-      res.json(profiles);
-    } catch (error) {
-      if ((error as Error).message === "No users exist yet. Create a user first.") {
-        throw apiErrors.badRequest((error as Error).message);
-      }
-      throw error;
-    }
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
+    await profilesService.getOrCreateDefaultProfileForUser(userId);
+    const profiles = await profilesService.getProfilesForUser(userId);
+    res.json(profiles);
   }),
 );
 
@@ -37,15 +33,7 @@ profilesRouter.post(
       throw apiErrors.validation("Invalid profile payload", parseResult.error.format());
     }
 
-    let userId: string;
-    try {
-      userId = await profilesService.getPrimaryUserId();
-    } catch (error) {
-      if ((error as Error).message === "No users exist yet. Create a user first.") {
-        throw apiErrors.badRequest((error as Error).message);
-      }
-      throw error;
-    }
+    const userId = getRequestUserId(req);
 
     const profile = await profilesService.createProfileForUser({
       userId,
@@ -67,15 +55,7 @@ profilesRouter.patch(
     const idParam = req.params.id;
     const profileId = Array.isArray(idParam) ? idParam[0] : idParam;
 
-    let userId: string;
-    try {
-      userId = await profilesService.getPrimaryUserId();
-    } catch (error) {
-      if ((error as Error).message === "No users exist yet. Create a user first.") {
-        throw apiErrors.badRequest((error as Error).message);
-      }
-      throw error;
-    }
+    const userId = getRequestUserId(req);
 
     const profile = await profilesService.renameProfileForUser({
       userId,
@@ -97,15 +77,7 @@ profilesRouter.delete(
     const idParam = req.params.id;
     const profileId = Array.isArray(idParam) ? idParam[0] : idParam;
 
-    let userId: string;
-    try {
-      userId = await profilesService.getPrimaryUserId();
-    } catch (error) {
-      if ((error as Error).message === "No users exist yet. Create a user first.") {
-        throw apiErrors.badRequest((error as Error).message);
-      }
-      throw error;
-    }
+    const userId = getRequestUserId(req);
 
     const result = await profilesService.deleteProfileForUser({ userId, profileId });
     if (!result.deleted && result.reason === "notFound") {

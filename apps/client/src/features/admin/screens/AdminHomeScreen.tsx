@@ -40,9 +40,10 @@ import {
 
 interface AdminHomeScreenProps {
   onEnterDisplayMode: () => void;
+  onLogout: () => void;
 }
 
-export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
+export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScreenProps) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [newProfileName, setNewProfileName] = useState("");
@@ -495,6 +496,13 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
         >
           <Text style={styles.displayButtonLabel}>Enter Display Mode</Text>
         </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          style={styles.logoutButton}
+          onPress={onLogout}
+        >
+          <Text style={styles.logoutButtonLabel}>Logout</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -728,6 +736,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 24,
     paddingTop: 8,
+    gap: 10,
   },
   displayButton: {
     backgroundColor: "#fff",
@@ -739,5 +748,16 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "700",
     fontSize: 16,
+  },
+  logoutButton: {
+    backgroundColor: "#2d2d2d",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  logoutButtonLabel: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 14,
   },
 });

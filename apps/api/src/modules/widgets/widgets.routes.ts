@@ -9,6 +9,7 @@ import { widgetsService } from "./widgets.service";
 import { profilesService } from "../profiles/profiles.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
+import { getRequestUserId } from "../auth/auth.middleware";
 
 export const widgetsRouter = Router();
 
@@ -24,17 +25,7 @@ function getQueryProfileId(queryValue: unknown): string | undefined {
   return undefined;
 }
 
-async function resolveRequestProfileId(explicitProfileId?: string | null): Promise<string> {
-  let userId: string;
-  try {
-    userId = await profilesService.getPrimaryUserId();
-  } catch (error) {
-    if ((error as Error).message === "No users exist yet. Create a user first.") {
-      throw apiErrors.badRequest((error as Error).message);
-    }
-    throw error;
-  }
-
+async function resolveRequestProfileId(userId: string, explicitProfileId?: string | null): Promise<string> {
   const profile = await profilesService.resolveProfileForUser({
     userId,
     profileId: explicitProfileId,
@@ -50,7 +41,8 @@ async function resolveRequestProfileId(explicitProfileId?: string | null): Promi
 widgetsRouter.get(
   "/",
   asyncHandler(async (req, res) => {
-    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
     const widgets = await widgetsService.getProfileWidgets(profileId);
     res.json(widgets);
   })
@@ -59,6 +51,7 @@ widgetsRouter.get(
 widgetsRouter.post(
   "/",
   asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
     const result = createWidgetSchema.safeParse(req.body);
 
     if (!result.success) {
@@ -67,6 +60,7 @@ widgetsRouter.post(
 
     const bodyProfileId = result.data.profileId;
     const profileId = await resolveRequestProfileId(
+      userId,
       bodyProfileId ?? getQueryProfileId(req.query?.profileId),
     );
 
@@ -85,7 +79,8 @@ widgetsRouter.post(
 widgetsRouter.patch(
   "/layout",
   asyncHandler(async (req, res) => {
-    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
     const parseResult = updateWidgetsLayoutSchema.safeParse(req.body);
 
     if (!parseResult.success) {
@@ -106,7 +101,8 @@ widgetsRouter.patch(
 widgetsRouter.patch(
   "/:id/config",
   asyncHandler(async (req, res) => {
-    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
     const idParam = req.params.id;
     const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
     const parseResult = updateWidgetConfigPayloadSchema.safeParse(req.body);
@@ -132,7 +128,8 @@ widgetsRouter.patch(
 widgetsRouter.patch(
   "/:id/active",
   asyncHandler(async (req, res) => {
-    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
     const idParam = req.params.id;
     const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
     const activatedWidget = await widgetsService.activateWidgetForProfile({
@@ -151,7 +148,8 @@ widgetsRouter.patch(
 widgetsRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {
-    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
     const idParam = req.params.id;
     const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
 

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
-import { profilesService } from "../profiles/profiles.service";
+import { getRequestUserId } from "../auth/auth.middleware";
 import { sharedSessionsService } from "./sharedSessions.service";
 
 export const sharedSessionsRouter = Router();
@@ -47,17 +47,6 @@ const leaveSharedSessionSchema = z.object({
   deviceId: z.string().trim().min(1).max(120),
 });
 
-async function getPrimaryUserIdOrThrow(): Promise<string> {
-  try {
-    return await profilesService.getPrimaryUserId();
-  } catch (error) {
-    if ((error as Error).message === "No users exist yet. Create a user first.") {
-      throw apiErrors.badRequest((error as Error).message);
-    }
-    throw error;
-  }
-}
-
 function getParamId(value: unknown): string {
   if (typeof value === "string") {
     return value;
@@ -72,8 +61,8 @@ function getParamId(value: unknown): string {
 
 sharedSessionsRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const userId = await getPrimaryUserIdOrThrow();
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
     const sessions = await sharedSessionsService.getSessionsForUser(userId);
     res.json(sessions);
   }),
@@ -87,7 +76,7 @@ sharedSessionsRouter.post(
       throw apiErrors.validation("Invalid shared session payload", parseResult.error.format());
     }
 
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
     const session = await sharedSessionsService.createSession({
       userId,
       name: parseResult.data.name,
@@ -105,7 +94,7 @@ sharedSessionsRouter.post(
 sharedSessionsRouter.get(
   "/:id",
   asyncHandler(async (req, res) => {
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
     const id = getParamId(req.params.id);
     const session = await sharedSessionsService.getSessionByIdForUser({ id, userId });
 
@@ -125,7 +114,7 @@ sharedSessionsRouter.patch(
       throw apiErrors.validation("Invalid shared session payload", parseResult.error.format());
     }
 
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
     const id = getParamId(req.params.id);
     const updated = await sharedSessionsService.updateSession({
       id,
@@ -149,7 +138,7 @@ sharedSessionsRouter.post(
       throw apiErrors.validation("Invalid join payload", parseResult.error.format());
     }
 
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
     const id = getParamId(req.params.id);
     const session = await sharedSessionsService.joinSession({
       id,
@@ -174,7 +163,7 @@ sharedSessionsRouter.post(
       throw apiErrors.validation("Invalid leave payload", parseResult.error.format());
     }
 
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
     const id = getParamId(req.params.id);
     const session = await sharedSessionsService.leaveSession({
       id,

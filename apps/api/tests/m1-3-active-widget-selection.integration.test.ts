@@ -47,10 +47,10 @@ beforeEach(() => {
   widgetCounter = 0;
 
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
-  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
-  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
     if (duplicateUser) {
       throw { code: "P2002" };
@@ -151,7 +151,11 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -181,7 +185,7 @@ async function invokeRoute(
 
 test("M1-3: activating a widget makes it the only active widget", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const firstWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -212,7 +216,7 @@ test("M1-3: activating a widget makes it the only active widget", async () => {
 
 test("M1-3: first created widget is active and next widgets are inactive by default", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   await invokeRoute(widgetsRouter, "post", "/", {
@@ -232,7 +236,7 @@ test("M1-3: first created widget is active and next widgets are inactive by defa
 
 test("M1-3: activating unknown widget returns not found", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const activateResponse = await invokeRoute(widgetsRouter, "patch", "/:id/active", {
