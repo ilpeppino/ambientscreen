@@ -38,3 +38,70 @@ export function computeLayoutFrame(input: ComputeLayoutFrameInput): LayoutFrame 
     height: input.layout.h * rowHeight,
   };
 }
+
+interface ResolveWidgetLayoutsInput {
+  layouts: WidgetLayout[];
+  columns?: number;
+}
+
+function overlaps(a: WidgetLayout, b: WidgetLayout): boolean {
+  const xOverlap = a.x < b.x + b.w && b.x < a.x + a.w;
+  const yOverlap = a.y < b.y + b.h && b.y < a.y + a.h;
+
+  return xOverlap && yOverlap;
+}
+
+function hasAnyOverlap(layouts: WidgetLayout[]): boolean {
+  for (let index = 0; index < layouts.length; index += 1) {
+    for (let candidateIndex = index + 1; candidateIndex < layouts.length; candidateIndex += 1) {
+      if (overlaps(layouts[index], layouts[candidateIndex])) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function shouldAutoFlow(layouts: WidgetLayout[]): boolean {
+  if (layouts.length === 0) {
+    return false;
+  }
+
+  if (hasAnyOverlap(layouts)) {
+    return true;
+  }
+
+  if (layouts.length === 1) {
+    return layouts[0].w < 4 || layouts[0].h < 3;
+  }
+
+  return layouts.every((layout) => layout.w <= 2 && layout.h <= 1);
+}
+
+export function resolveWidgetLayouts(input: ResolveWidgetLayoutsInput): WidgetLayout[] {
+  const columns = input.columns ?? DISPLAY_GRID_COLUMNS;
+  const layouts = input.layouts;
+
+  if (!shouldAutoFlow(layouts)) {
+    return layouts;
+  }
+
+  const columnsPerWidget = Math.max(3, Math.floor(columns / Math.min(layouts.length, 4)));
+  const widgetsPerRow = Math.max(1, Math.floor(columns / columnsPerWidget));
+
+  return layouts.map((_, index) => {
+    const row = Math.floor(index / widgetsPerRow);
+    const columnOffset = index % widgetsPerRow;
+    const x = columnOffset * columnsPerWidget;
+    const isLastColumnInRow = columnOffset === widgetsPerRow - 1;
+    const width = isLastColumnInRow ? columns - x : columnsPerWidget;
+
+    return {
+      x,
+      y: row * 2,
+      w: width,
+      h: 2,
+    };
+  });
+}

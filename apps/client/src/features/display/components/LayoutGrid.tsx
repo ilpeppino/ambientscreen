@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import type { LayoutChangeEvent, ViewStyle } from "react-native";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
-import { computeLayoutFrame } from "./LayoutGrid.logic";
+import { computeLayoutFrame, resolveWidgetLayouts } from "./LayoutGrid.logic";
 import { WidgetContainer } from "./WidgetContainer";
 
 interface LayoutGridProps {
@@ -22,9 +22,13 @@ export function LayoutGrid({ widgets }: LayoutGridProps) {
   });
 
   const positionedWidgets = useMemo<PositionedWidget[]>(() => {
-    return widgets.map((widget) => {
+    const resolvedLayouts = resolveWidgetLayouts({
+      layouts: widgets.map((widget) => widget.layout),
+    });
+
+    return widgets.map((widget, index) => {
       const frame = computeLayoutFrame({
-        layout: widget.layout,
+        layout: resolvedLayouts[index],
         containerWidth: containerSize.width,
         containerHeight: containerSize.height,
       });
