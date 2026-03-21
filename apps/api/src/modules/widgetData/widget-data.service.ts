@@ -12,8 +12,8 @@ type WidgetDataResult =
   WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
 
 export const widgetDataService = {
-  async getWidgetData(widgetId: string): Promise<WidgetDataResult | null> {
-    const widget = await widgetsService.getWidgetById(widgetId);
+  async getWidgetDataForUser(widgetId: string, userId: string): Promise<WidgetDataResult | null> {
+    const widget = await widgetsService.getWidgetByIdForUser(widgetId, userId);
 
     if (!widget) {
       return null;

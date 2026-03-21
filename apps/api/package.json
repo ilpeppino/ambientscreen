@@ -17,14 +17,17 @@
   },
   "dependencies": {
     "@prisma/client": "5.22.0",
+    "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
     "ws": "^8.18.3",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^22.13.10",
     "@types/ws": "^8.18.1",
     "prisma": "5.22.0",

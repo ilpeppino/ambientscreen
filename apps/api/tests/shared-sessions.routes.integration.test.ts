@@ -1,7 +1,6 @@
 import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
-import { profilesService } from "../src/modules/profiles/profiles.service";
 import { sharedSessionsRouter } from "../src/modules/sharedSessions/sharedSessions.routes";
 import { sharedSessionsService } from "../src/modules/sharedSessions/sharedSessions.service";
 
@@ -62,7 +61,6 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1");
   vi.spyOn(sharedSessionsService, "getSessionsForUser").mockImplementation(async (userId: string) =>
     sessionsStore.filter((session) => session.userId === userId),
   );
@@ -196,6 +194,10 @@ async function invokeRoute(
     originalUrl: path,
     body: options.body ?? {},
     params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {

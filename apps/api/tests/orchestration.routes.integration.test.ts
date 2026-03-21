@@ -41,7 +41,6 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1");
   vi.spyOn(profilesService, "getProfilesForUser").mockImplementation(async (userId: string) => ([
     { id: "profile-1", userId },
     { id: "profile-2", userId },
@@ -152,6 +151,10 @@ async function invokeRoute(
     originalUrl: path,
     body: options.body ?? {},
     params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {

@@ -48,10 +48,10 @@ beforeEach(() => {
   widgetCounter = 0;
 
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
-  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
-  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
     if (duplicateUser) {
       throw { code: "P2002" };
@@ -152,7 +152,11 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -182,13 +186,13 @@ async function invokeRoute(
 
 test("M0-1: users endpoints handle create/list and duplicate safely", async () => {
   const createResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
   expect(createResponse.statusCode).toBe(201);
   expect((createResponse.body as { email: string }).email).toBe("owner@ambient.dev");
 
   const duplicateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
   expect(duplicateResponse.statusCode).toBe(409);
 
@@ -200,17 +204,8 @@ test("M0-1: users endpoints handle create/list and duplicate safely", async () =
 });
 
 test("M0-1: widgets endpoints create/list and validate input payload", async () => {
-  const noUserWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: {},
-      position: 0
-    }
-  });
-  expect(noUserWidgetResponse.statusCode).toBe(400);
-
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const invalidWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -250,7 +245,7 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
 
 test("M0-1: widget-data endpoint returns clock data and handles missing widgets", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const clockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {

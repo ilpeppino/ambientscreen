@@ -3,6 +3,7 @@ import { z } from "zod";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 import { profilesService } from "../profiles/profiles.service";
+import { getRequestUserId } from "../auth/auth.middleware";
 import {
   orchestrationService,
   SUPPORTED_ORCHESTRATION_RULE_TYPES,
@@ -49,17 +50,6 @@ const updateOrchestrationRuleSchema = z
     },
   );
 
-async function getPrimaryUserIdOrThrow(): Promise<string> {
-  try {
-    return await profilesService.getPrimaryUserId();
-  } catch (error) {
-    if ((error as Error).message === "No users exist yet. Create a user first.") {
-      throw apiErrors.badRequest((error as Error).message);
-    }
-    throw error;
-  }
-}
-
 async function validateRotationProfileIdsForUser(
   userId: string,
   rotationProfileIds: string[],
@@ -76,8 +66,8 @@ async function validateRotationProfileIdsForUser(
 
 orchestrationRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const userId = await getPrimaryUserIdOrThrow();
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
     const rules = await orchestrationService.getRulesForUser(userId);
     res.json(rules);
   }),
@@ -91,7 +81,7 @@ orchestrationRouter.post(
       throw apiErrors.validation("Invalid orchestration rule payload", parseResult.error.format());
     }
 
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
     if (parseResult.data.type === "rotation" && (parseResult.data.isActive ?? true)) {
       await validateRotationProfileIdsForUser(userId, parseResult.data.rotationProfileIds);
     }
@@ -118,7 +108,7 @@ orchestrationRouter.patch(
 
     const idParam = req.params.id;
     const id = Array.isArray(idParam) ? idParam[0] : idParam;
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
     const existingRule = await orchestrationService.getRuleByIdForUser({ id, userId });
     if (!existingRule) {
       throw apiErrors.notFound("Orchestration rule not found");
@@ -158,7 +148,7 @@ orchestrationRouter.delete(
   asyncHandler(async (req, res) => {
     const idParam = req.params.id;
     const id = Array.isArray(idParam) ? idParam[0] : idParam;
-    const userId = await getPrimaryUserIdOrThrow();
+    const userId = getRequestUserId(req);
 
     const deleted = await orchestrationService.deleteRule({
       id,

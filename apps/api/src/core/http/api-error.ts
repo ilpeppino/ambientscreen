@@ -2,6 +2,7 @@ export type ApiErrorCode =
   | "BAD_REQUEST"
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
+  | "UNAUTHORIZED"
   | "DUPLICATE_RESOURCE"
   | "INTERNAL_ERROR";
 
@@ -58,6 +59,15 @@ export const apiErrors = {
     return new ApiError({
       code: "DUPLICATE_RESOURCE",
       status: 409,
+      message,
+      details
+    });
+  },
+
+  unauthorized(message: string, details?: unknown) {
+    return new ApiError({
+      code: "UNAUTHORIZED",
+      status: 401,
       message,
       details
     });

@@ -132,6 +132,10 @@ async function invokeRoute(
     originalUrl: path,
     body: options.body ?? {},
     params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
   const response = {
     statusCode: 200,

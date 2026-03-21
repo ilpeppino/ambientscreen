@@ -1,51 +1,11 @@
 import { API_BASE_URL } from "../../core/config/api";
+import { apiFetchWithTimeout, toApiErrorMessage } from "./apiClient";
 import type { Profile } from "@ambient/shared-contracts";
 
 const PROFILES_TIMEOUT_MS = 8000;
 
-interface ApiErrorResponse {
-  error?: {
-    message?: string;
-  };
-}
-
-async function toApiErrorMessage(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as ApiErrorResponse;
-    if (body.error?.message) {
-      return body.error.message;
-    }
-  } catch {
-    // Fallback to status-based message when response is not JSON.
-  }
-
-  return `Request failed with status ${response.status}`;
-}
-
-async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const abortController = new AbortController();
-  const timeoutHandle = setTimeout(() => {
-    abortController.abort();
-  }, PROFILES_TIMEOUT_MS);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: abortController.signal,
-    });
-  } catch (error) {
-    if ((error as { name?: string }).name === "AbortError") {
-      throw new Error(`Request timed out after ${PROFILES_TIMEOUT_MS}ms`);
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-}
-
 export async function getProfiles(): Promise<Profile[]> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/profiles`);
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/profiles`, undefined, PROFILES_TIMEOUT_MS);
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
     throw new Error(`Failed to fetch profiles: ${message}`);
@@ -55,13 +15,13 @@ export async function getProfiles(): Promise<Profile[]> {
 }
 
 export async function createProfile(name: string): Promise<Profile> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/profiles`, {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/profiles`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ name }),
-  });
+  }, PROFILES_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -72,13 +32,13 @@ export async function createProfile(name: string): Promise<Profile> {
 }
 
 export async function renameProfile(profileId: string, name: string): Promise<Profile> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/profiles/${profileId}`, {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/profiles/${profileId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ name }),
-  });
+  }, PROFILES_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -89,9 +49,9 @@ export async function renameProfile(profileId: string, name: string): Promise<Pr
 }
 
 export async function deleteProfile(profileId: string): Promise<void> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/profiles/${profileId}`, {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/profiles/${profileId}`, {
     method: "DELETE",
-  });
+  }, PROFILES_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);

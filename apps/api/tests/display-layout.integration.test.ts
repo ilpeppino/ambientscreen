@@ -2,15 +2,9 @@ import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { displayRouter } from "../src/modules/display/display.routes";
-import { usersRepository } from "../src/modules/users/users.repository";
+import { profilesService } from "../src/modules/profiles/profiles.service";
 import { widgetResolvers } from "../src/modules/widgetData/widget-resolvers";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
-
-interface TestUser {
-  id: string;
-  email: string;
-  createdAt: Date;
-}
 
 interface TestWidget {
   id: string;
@@ -28,21 +22,13 @@ interface TestWidget {
   updatedAt: Date;
 }
 
-let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
 
 beforeEach(() => {
-  usersStore = [
-    {
-      id: "user-1",
-      email: "owner@ambient.dev",
-      createdAt: new Date(),
-    },
-  ];
   widgetsStore = [
     {
       id: "widget-1",
-      profileId: "user-1",
+      profileId: "profile-1",
       type: "clockDate",
       config: {},
       layout: { x: 0, y: 0, w: 2, h: 1 },
@@ -52,7 +38,7 @@ beforeEach(() => {
     },
     {
       id: "widget-2",
-      profileId: "user-1",
+      profileId: "profile-1",
       type: "weather",
       config: { location: "Amsterdam" },
       layout: { x: 2, y: 0, w: 2, h: 1 },
@@ -62,7 +48,13 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(profilesService, "resolveProfileForUser").mockImplementation(async () => ({
+    id: "profile-1",
+    userId: "user-1",
+    name: "Default",
+    isDefault: true,
+    createdAt: new Date(),
+  }) as never);
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore.filter((widget) => widget.profileId === profileId) as never;
   });
@@ -131,6 +123,11 @@ async function invokeGetRoute(router: Router, path: string) {
     path,
     originalUrl: path,
     params: {},
+    query: {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {

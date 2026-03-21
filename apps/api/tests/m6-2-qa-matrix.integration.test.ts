@@ -50,10 +50,10 @@ beforeEach(() => {
   widgetCounter = 0;
 
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
-  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
-  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     userCounter += 1;
     const newUser: TestUser = {
       id: `user-${userCounter}`,
@@ -215,6 +215,10 @@ async function invokeRoute(
     originalUrl: path,
     body: options.body ?? {},
     params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -244,7 +248,7 @@ async function invokeRoute(
 
 test("M6-2: critical admin and display flows pass for clockDate, weather, and calendar", async () => {
   const userCreateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" },
+    body: { email: "owner@ambient.dev", password: "password123" },
   });
   expect(userCreateResponse.statusCode).toBe(201);
 

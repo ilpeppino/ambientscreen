@@ -91,6 +91,19 @@ export const widgetsRepository = {
     return widget ? mapWidgetRecord(widget) : null;
   },
 
+  async findByIdForUser(id: string, userId: string): Promise<WidgetRecord | null> {
+    const widget = await prisma.widgetInstance.findFirst({
+      where: {
+        id,
+        profile: {
+          userId,
+        },
+      },
+    });
+
+    return widget ? mapWidgetRecord(widget) : null;
+  },
+
   async create(input: CreateWidgetInput): Promise<WidgetRecord> {
     const widget = await prisma.widgetInstance.create({
       data: {

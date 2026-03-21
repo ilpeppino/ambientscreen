@@ -35,8 +35,8 @@ beforeEach(() => {
     },
   ];
 
-  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1" as never);
-  vi.spyOn(profilesService, "getProfilesForPrimaryUser").mockImplementation(async () => profileStore as never);
+  vi.spyOn(profilesService, "getOrCreateDefaultProfileForUser").mockImplementation(async () => profileStore[0] as never);
+  vi.spyOn(profilesService, "getProfilesForUser").mockImplementation(async () => profileStore as never);
   vi.spyOn(profilesService, "createProfileForUser").mockImplementation(async ({ userId, name }) => {
     profileCounter += 1;
     const profile: TestProfile = {
@@ -110,6 +110,10 @@ async function invokeRoute(
     body: options.body ?? {},
     params: options.params ?? {},
     query: options.query ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
