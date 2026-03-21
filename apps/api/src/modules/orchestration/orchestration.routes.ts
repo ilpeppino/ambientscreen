@@ -12,22 +12,42 @@ import {
 export const orchestrationRouter = Router();
 
 const orchestrationRuleTypeSchema = z.enum(SUPPORTED_ORCHESTRATION_RULE_TYPES);
+const rotationProfileIdsSchema = z.array(z.string().trim().min(1)).min(2);
 
-const createOrchestrationRuleSchema = z.object({
-  type: orchestrationRuleTypeSchema,
-  intervalSec: z.number().int().positive(),
-  isActive: z.boolean().optional(),
-});
+const createOrchestrationRuleSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("interval"),
+    intervalSec: z.number().int().positive(),
+    isActive: z.boolean().optional(),
+  }),
+  z.object({
+    type: z.literal("rotation"),
+    intervalSec: z.number().int().positive(),
+    isActive: z.boolean().optional(),
+    rotationProfileIds: rotationProfileIdsSchema,
+  }),
+]);
 
 const updateOrchestrationRuleSchema = z
   .object({
     type: orchestrationRuleTypeSchema.optional(),
     intervalSec: z.number().int().positive().optional(),
     isActive: z.boolean().optional(),
+    rotationProfileIds: rotationProfileIdsSchema.optional(),
+    currentIndex: z.number().int().nonnegative().optional(),
   })
-  .refine((value) => value.type !== undefined || value.intervalSec !== undefined || value.isActive !== undefined, {
-    message: "At least one field must be provided",
-  });
+  .refine(
+    (value) => (
+      value.type !== undefined
+      || value.intervalSec !== undefined
+      || value.isActive !== undefined
+      || value.rotationProfileIds !== undefined
+      || value.currentIndex !== undefined
+    ),
+    {
+      message: "At least one field must be provided",
+    },
+  );
 
 async function getPrimaryUserIdOrThrow(): Promise<string> {
   try {
@@ -37,6 +57,20 @@ async function getPrimaryUserIdOrThrow(): Promise<string> {
       throw apiErrors.badRequest((error as Error).message);
     }
     throw error;
+  }
+}
+
+async function validateRotationProfileIdsForUser(
+  userId: string,
+  rotationProfileIds: string[],
+): Promise<void> {
+  const availableProfiles = await profilesService.getProfilesForUser(userId);
+  const availableProfileIds = new Set(availableProfiles.map((profile) => profile.id));
+  const missingProfileId = rotationProfileIds.find((profileId) => !availableProfileIds.has(profileId));
+  if (missingProfileId) {
+    throw apiErrors.validation("Rotation rule references one or more non-existent profiles", {
+      missingProfileId,
+    });
   }
 }
 
@@ -58,11 +92,16 @@ orchestrationRouter.post(
     }
 
     const userId = await getPrimaryUserIdOrThrow();
+    if (parseResult.data.type === "rotation" && (parseResult.data.isActive ?? true)) {
+      await validateRotationProfileIdsForUser(userId, parseResult.data.rotationProfileIds);
+    }
+
     const rule = await orchestrationService.createRule({
       userId,
       type: parseResult.data.type,
       intervalSec: parseResult.data.intervalSec,
       isActive: parseResult.data.isActive,
+      rotationProfileIds: parseResult.data.type === "rotation" ? parseResult.data.rotationProfileIds : undefined,
     });
 
     res.status(201).json(rule);
@@ -80,6 +119,21 @@ orchestrationRouter.patch(
     const idParam = req.params.id;
     const id = Array.isArray(idParam) ? idParam[0] : idParam;
     const userId = await getPrimaryUserIdOrThrow();
+    const existingRule = await orchestrationService.getRuleByIdForUser({ id, userId });
+    if (!existingRule) {
+      throw apiErrors.notFound("Orchestration rule not found");
+    }
+
+    const nextType = (parseResult.data.type ?? existingRule.type) as SupportedOrchestrationRuleType;
+    const nextIsActive = parseResult.data.isActive ?? existingRule.isActive;
+    const nextRotationProfileIds = parseResult.data.rotationProfileIds ?? existingRule.rotationProfileIds;
+
+    if (nextType === "rotation" && nextIsActive) {
+      if (nextRotationProfileIds.length < 2) {
+        throw apiErrors.validation("Rotation rule requires at least two profile IDs");
+      }
+      await validateRotationProfileIdsForUser(userId, nextRotationProfileIds);
+    }
 
     const updatedRule = await orchestrationService.updateRule({
       id,
@@ -87,6 +141,8 @@ orchestrationRouter.patch(
       type: parseResult.data.type as SupportedOrchestrationRuleType | undefined,
       intervalSec: parseResult.data.intervalSec,
       isActive: parseResult.data.isActive,
+      rotationProfileIds: parseResult.data.rotationProfileIds,
+      currentIndex: parseResult.data.currentIndex,
     });
 
     if (!updatedRule) {

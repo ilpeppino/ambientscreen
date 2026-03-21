@@ -12,6 +12,8 @@ interface TestRule {
   type: string;
   intervalSec: number;
   isActive: boolean;
+  rotationProfileIds: string[];
+  currentIndex: number;
   createdAt: Date;
 }
 
@@ -23,22 +25,28 @@ interface InvokeRouteOptions {
 }
 
 const originalProfilesGetPrimaryUserId = profilesService.getPrimaryUserId;
+const originalProfilesGetProfilesForUser = profilesService.getProfilesForUser;
 const originalOrchestrationGetRulesForUser = orchestrationService.getRulesForUser;
+const originalOrchestrationGetRuleByIdForUser = orchestrationService.getRuleByIdForUser;
 const originalOrchestrationCreateRule = orchestrationService.createRule;
 const originalOrchestrationUpdateRule = orchestrationService.updateRule;
 const originalOrchestrationDeleteRule = orchestrationService.deleteRule;
 
 const mutableProfilesService = profilesService as unknown as {
   getPrimaryUserId: () => Promise<string>;
+  getProfilesForUser: (userId: string) => Promise<Array<{ id: string; userId: string }>>;
 };
 
 const mutableOrchestrationService = orchestrationService as unknown as {
   getRulesForUser: (userId: string) => Promise<TestRule[]>;
+  getRuleByIdForUser: (data: { id: string; userId: string }) => Promise<TestRule | null>;
   createRule: (data: {
     userId: string;
     type: string;
     intervalSec: number;
     isActive?: boolean;
+    rotationProfileIds?: string[];
+    currentIndex?: number;
   }) => Promise<TestRule>;
   updateRule: (data: {
     id: string;
@@ -46,6 +54,8 @@ const mutableOrchestrationService = orchestrationService as unknown as {
     type?: string;
     intervalSec?: number;
     isActive?: boolean;
+    rotationProfileIds?: string[];
+    currentIndex?: number;
   }) => Promise<TestRule | null>;
   deleteRule: (data: { id: string; userId: string }) => Promise<boolean>;
 };
@@ -62,14 +72,33 @@ beforeEach(() => {
       type: "interval",
       intervalSec: 60,
       isActive: true,
+      rotationProfileIds: [],
+      currentIndex: 0,
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
     },
   ];
 
   mutableProfilesService.getPrimaryUserId = async () => "user-1";
+  mutableProfilesService.getProfilesForUser = async (userId: string) => ([
+    { id: "profile-1", userId },
+    { id: "profile-2", userId },
+    { id: "profile-3", userId },
+  ]);
   mutableOrchestrationService.getRulesForUser = async (userId: string) =>
     ruleStore.filter((rule) => rule.userId === userId);
-  mutableOrchestrationService.createRule = async ({ userId, type, intervalSec, isActive }) => {
+  mutableOrchestrationService.getRuleByIdForUser = async ({ id, userId }) => (
+    ruleStore.find((rule) => rule.id === id && rule.userId === userId) ?? null
+  );
+  mutableOrchestrationService.createRule = async (
+    {
+      userId,
+      type,
+      intervalSec,
+      isActive,
+      rotationProfileIds,
+      currentIndex,
+    },
+  ) => {
     ruleCounter += 1;
     const rule: TestRule = {
       id: `rule-${ruleCounter + 1}`,
@@ -77,13 +106,25 @@ beforeEach(() => {
       type,
       intervalSec,
       isActive: isActive ?? true,
+      rotationProfileIds: rotationProfileIds ?? [],
+      currentIndex: currentIndex ?? 0,
       createdAt: new Date(),
     };
 
     ruleStore.push(rule);
     return rule;
   };
-  mutableOrchestrationService.updateRule = async ({ id, userId, type, intervalSec, isActive }) => {
+  mutableOrchestrationService.updateRule = async (
+    {
+      id,
+      userId,
+      type,
+      intervalSec,
+      isActive,
+      rotationProfileIds,
+      currentIndex,
+    },
+  ) => {
     const current = ruleStore.find((rule) => rule.id === id && rule.userId === userId);
     if (!current) {
       return null;
@@ -98,6 +139,12 @@ beforeEach(() => {
     if (isActive !== undefined) {
       current.isActive = isActive;
     }
+    if (rotationProfileIds !== undefined) {
+      current.rotationProfileIds = rotationProfileIds;
+    }
+    if (currentIndex !== undefined) {
+      current.currentIndex = currentIndex;
+    }
 
     return current;
   };
@@ -110,8 +157,11 @@ beforeEach(() => {
 
 after(() => {
   mutableProfilesService.getPrimaryUserId = originalProfilesGetPrimaryUserId;
+  mutableProfilesService.getProfilesForUser = originalProfilesGetProfilesForUser;
   mutableOrchestrationService.getRulesForUser =
     originalOrchestrationGetRulesForUser as typeof mutableOrchestrationService.getRulesForUser;
+  mutableOrchestrationService.getRuleByIdForUser =
+    originalOrchestrationGetRuleByIdForUser as typeof mutableOrchestrationService.getRuleByIdForUser;
   mutableOrchestrationService.createRule =
     originalOrchestrationCreateRule as typeof mutableOrchestrationService.createRule;
   mutableOrchestrationService.updateRule =
@@ -244,6 +294,46 @@ test("orchestration routes reject unsupported type", async () => {
     body: {
       type: "unsupported",
       intervalSec: 10,
+    },
+  });
+
+  assert.equal(response.statusCode, 400);
+});
+
+test("orchestration routes validate rotation payload and store profile IDs", async () => {
+  const createResponse = await invokeRoute(orchestrationRouter, "post", "/", {
+    body: {
+      type: "rotation",
+      intervalSec: 15,
+      rotationProfileIds: ["profile-1", "profile-2"],
+      isActive: true,
+    },
+  });
+
+  assert.equal(createResponse.statusCode, 201);
+  const createdRule = createResponse.body as TestRule;
+  assert.equal(createdRule.type, "rotation");
+  assert.deepEqual(createdRule.rotationProfileIds, ["profile-1", "profile-2"]);
+
+  const invalidCreateResponse = await invokeRoute(orchestrationRouter, "post", "/", {
+    body: {
+      type: "rotation",
+      intervalSec: 15,
+      rotationProfileIds: ["profile-1"],
+      isActive: true,
+    },
+  });
+
+  assert.equal(invalidCreateResponse.statusCode, 400);
+});
+
+test("orchestration routes reject non-existent rotation profiles", async () => {
+  const response = await invokeRoute(orchestrationRouter, "post", "/", {
+    body: {
+      type: "rotation",
+      intervalSec: 20,
+      rotationProfileIds: ["profile-1", "missing-profile"],
+      isActive: true,
     },
   });
 
