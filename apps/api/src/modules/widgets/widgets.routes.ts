@@ -147,3 +147,23 @@ widgetsRouter.patch(
     res.json(activatedWidget);
   })
 );
+
+widgetsRouter.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const profileId = await resolveRequestProfileId(getQueryProfileId(req.query?.profileId));
+    const idParam = req.params.id;
+    const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
+
+    const deletedWidget = await widgetsService.deleteWidgetForProfile({
+      profileId,
+      widgetId,
+    });
+
+    if (!deletedWidget) {
+      throw apiErrors.notFound("Widget not found");
+    }
+
+    res.status(204).send();
+  }),
+);

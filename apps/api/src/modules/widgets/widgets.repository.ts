@@ -38,6 +38,11 @@ interface UpdateWidgetConfigInput {
   config: Prisma.InputJsonValue;
 }
 
+interface DeleteWidgetInput {
+  id: string;
+  profileId: string;
+}
+
 function mapWidgetRecord(widget: {
   id: string;
   profileId: string;
@@ -173,5 +178,24 @@ export const widgetsRepository = {
     });
 
     return widget ? mapWidgetRecord(widget) : null;
+  },
+
+  async deleteById(input: DeleteWidgetInput): Promise<WidgetRecord | null> {
+    const widget = await prisma.widgetInstance.findFirst({
+      where: {
+        id: input.id,
+        profileId: input.profileId,
+      },
+    });
+
+    if (!widget) {
+      return null;
+    }
+
+    await prisma.widgetInstance.delete({
+      where: { id: widget.id },
+    });
+
+    return mapWidgetRecord(widget);
   },
 };

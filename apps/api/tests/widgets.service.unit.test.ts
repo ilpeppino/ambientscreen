@@ -30,7 +30,7 @@ test("widgetsService createWidget validates layout", async () => {
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
   })) as typeof widgetsRepository.create;
 
-  assert.throws(() =>
+  await assert.rejects(() =>
     widgetsService.createWidget({
       profileId: "user-1",
       type: "clockDate",
