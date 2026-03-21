@@ -20,13 +20,15 @@ function buildWindowBounds(timeWindow: "today" | "next24h" | "next7d"): {
   windowStartIso: string;
   windowEndIso: string;
 } {
-  const windowStart = new Date();
+  const now = new Date();
+  // Anchor to start of current UTC day so all-day events for today are included
+  const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const windowEnd = new Date(windowStart);
 
   if (timeWindow === "today") {
     windowEnd.setUTCHours(23, 59, 59, 999);
   } else if (timeWindow === "next24h") {
-    windowEnd.setUTCHours(windowEnd.getUTCHours() + 24);
+    windowEnd.setTime(windowEnd.getTime() + 24 * 60 * 60 * 1000);
   } else {
     windowEnd.setUTCDate(windowEnd.getUTCDate() + 7);
   }
