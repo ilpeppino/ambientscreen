@@ -1,7 +1,8 @@
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
+import type { AnimatedItemPhase } from "../animations/transitionManager";
 import { renderWidgetFromKey } from "../../../widgets/widget.registry";
 import { computeWidgetScale, getWidgetErrorLabel } from "./WidgetContainer.logic";
 import {
@@ -15,6 +16,7 @@ import {
 interface WidgetContainerProps {
   widget: DisplayLayoutWidgetEnvelope;
   frameStyle: StyleProp<ViewStyle>;
+  animationPhase?: AnimatedItemPhase;
   editMode?: boolean;
   isSelected?: boolean;
   containerSize?: { width: number; height: number };
@@ -26,6 +28,7 @@ interface WidgetContainerProps {
 function WidgetContainerBase({
   widget,
   frameStyle,
+  animationPhase = "stable",
   editMode = false,
   isSelected = false,
   containerSize = { width: 0, height: 0 },
@@ -40,11 +43,45 @@ function WidgetContainerBase({
   const [dragPreview, setDragPreview] = useState({ dx: 0, dy: 0 });
   const [resizePreview, setResizePreview] = useState({ dw: 0, dh: 0 });
   const isResizingRef = useRef(false);
+  const mountOpacity = useRef(new Animated.Value(animationPhase === "enter" ? 0 : 1)).current;
+  const mountScale = useRef(new Animated.Value(animationPhase === "enter" ? 0.97 : 1)).current;
 
   const layoutRef = useRef(widget.layout);
   useEffect(() => {
     layoutRef.current = widget.layout;
   }, [widget.layout]);
+
+  useEffect(() => {
+    let toValueOpacity = 1;
+    let toValueScale = 1;
+
+    if (animationPhase === "exit") {
+      toValueOpacity = 0;
+      toValueScale = 0.98;
+    } else if (animationPhase === "enter") {
+      mountOpacity.setValue(0);
+      mountScale.setValue(0.97);
+    }
+
+    const animation = Animated.parallel([
+      Animated.timing(mountOpacity, {
+        toValue: toValueOpacity,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+      Animated.timing(mountScale, {
+        toValue: toValueScale,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+    ]);
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [animationPhase, mountOpacity, mountScale]);
 
   const columnWidth = containerSize.width > 0 ? containerSize.width / DISPLAY_GRID_COLUMNS : 0;
   const rowHeight = containerSize.height > 0 ? containerSize.height / DISPLAY_GRID_BASE_ROWS : 0;
@@ -137,7 +174,6 @@ function WidgetContainerBase({
     const maxHeightDelta = containerSize.height - height;
 
     return {
-      transform: [{ translateX: dragPreview.dx }, { translateY: dragPreview.dy }],
       width: clampValue(width + resizePreview.dw, 48, Math.max(48, width + maxWidthDelta)),
       height: clampValue(height + resizePreview.dh, 48, Math.max(48, height + maxHeightDelta)),
     };
@@ -178,42 +214,52 @@ function WidgetContainerBase({
   }, [scale, widget]);
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
         frameStyle,
         previewStyle,
         editMode ? styles.editModeContainer : null,
         editMode && isSelected ? styles.selectedContainer : null,
+        {
+          opacity: mountOpacity,
+          transform: [
+            { translateX: editMode ? dragPreview.dx : 0 },
+            { translateY: editMode ? dragPreview.dy : 0 },
+            { scale: mountScale },
+          ],
+        },
       ]}
       {...(editMode ? dragResponder.panHandlers : {})}
     >
-      <Pressable
-        disabled={!editMode}
-        style={styles.contentPressArea}
-        onPress={() => {
-          if (editMode) {
-            onSelectWidget?.(widget.widgetInstanceId);
-          }
-        }}
-      >
-        {content}
-      </Pressable>
-      {editMode ? (
+      <View style={styles.contentPressArea}>
         <Pressable
-          accessibilityRole="button"
-          style={styles.settingsButton}
-          onPress={() => onOpenWidgetSettings?.(widget.widgetInstanceId)}
+          disabled={!editMode}
+          style={styles.contentPressArea}
+          onPress={() => {
+            if (editMode) {
+              onSelectWidget?.(widget.widgetInstanceId);
+            }
+          }}
         >
-          <Text style={styles.settingsButtonLabel}>Settings</Text>
+          {content}
         </Pressable>
-      ) : null}
-      {editMode ? (
-        <View style={styles.resizeHandle} {...resizeResponder.panHandlers}>
-          <View style={styles.resizeHandleGlyph} />
-        </View>
-      ) : null}
-    </View>
+        {editMode ? (
+          <Pressable
+            accessibilityRole="button"
+            style={styles.settingsButton}
+            onPress={() => onOpenWidgetSettings?.(widget.widgetInstanceId)}
+          >
+            <Text style={styles.settingsButtonLabel}>Settings</Text>
+          </Pressable>
+        ) : null}
+        {editMode ? (
+          <View style={styles.resizeHandle} {...resizeResponder.panHandlers}>
+            <View style={styles.resizeHandleGlyph} />
+          </View>
+        ) : null}
+      </View>
+    </Animated.View>
   );
 }
 
@@ -230,6 +276,7 @@ export const WidgetContainer = memo(WidgetContainerBase, (prevProps, nextProps) 
     && prevProps.widget.layout.y === nextProps.widget.layout.y
     && prevProps.widget.layout.w === nextProps.widget.layout.w
     && prevProps.widget.layout.h === nextProps.widget.layout.h
+    && prevProps.animationPhase === nextProps.animationPhase
     && prevProps.editMode === nextProps.editMode
     && prevProps.isSelected === nextProps.isSelected
     && prevFrame.left === nextFrame.left

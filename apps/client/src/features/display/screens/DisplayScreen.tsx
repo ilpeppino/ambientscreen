@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   AppState,
+  Easing,
   Pressable,
   StyleSheet,
   Switch,
@@ -53,6 +55,11 @@ import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
 import { API_BASE_URL } from "../../../core/config/api";
 import { createOrchestrationEngine } from "../services/orchestrationEngine";
 import {
+  createTransitionManager,
+  transitionPresets,
+  type TransitionType,
+} from "../animations/transitionManager";
+import {
   createOrchestrationRule,
   getOrchestrationRules,
   updateOrchestrationRule,
@@ -63,6 +70,8 @@ interface DisplayScreenProps {
 }
 
 const FALLBACK_REFRESH_INTERVAL_MS = 30000;
+const DISPLAY_TRANSITION_TYPE: TransitionType = "fade";
+const WIDGET_TRANSITION_LIBRARY = "react-native Animated API";
 
 export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -85,12 +94,25 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [slideshowSaveError, setSlideshowSaveError] = useState<string | null>(null);
   const [savingSlideshow, setSavingSlideshow] = useState(false);
   const [isAppActive, setIsAppActive] = useState(true);
+  const [dashboardTransitionType] = useState<TransitionType>(DISPLAY_TRANSITION_TYPE);
+  const [renderedWidgets, setRenderedWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
+  const [outgoingWidgets, setOutgoingWidgets] = useState<DisplayLayoutWidgetEnvelope[] | null>(null);
+  const transitionManagerRef = useRef(createTransitionManager<DisplayLayoutWidgetEnvelope[]>({
+    transitionType: DISPLAY_TRANSITION_TYPE,
+    initialDashboard: [],
+  }));
+  const transitionPendingRef = useRef(false);
+  const dashboardTransitionAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const dashboardIncomingOpacity = useRef(new Animated.Value(1)).current;
+  const dashboardOutgoingOpacity = useRef(new Animated.Value(0)).current;
+  const dashboardIncomingSlide = useRef(new Animated.Value(0)).current;
 
   const setActiveProfile = useCallback(async (profileId: string) => {
     setActiveProfileId((current) => {
       if (current === profileId) {
         return current;
       }
+      transitionPendingRef.current = true;
       return profileId;
     });
     await persistActiveProfileId(profileId);
@@ -267,6 +289,29 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, []);
 
   useEffect(() => {
+    transitionManagerRef.current.setTransitionType(dashboardTransitionType);
+  }, [dashboardTransitionType]);
+
+  useEffect(() => {
+    if (isAppActive) {
+      return;
+    }
+
+    transitionPendingRef.current = false;
+    dashboardTransitionAnimationRef.current?.stop();
+    dashboardTransitionAnimationRef.current = null;
+    transitionManagerRef.current.cancelDashboardTransition();
+    setOutgoingWidgets(null);
+  }, [isAppActive]);
+
+  useEffect(() => {
+    console.info("[display] animation stack", {
+      dashboardTransitionType,
+      widgetAnimations: WIDGET_TRANSITION_LIBRARY,
+    });
+  }, [dashboardTransitionType]);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function runInitialLoad() {
@@ -393,6 +438,87 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       layout: draftLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
     }));
   }, [draftLayoutsByWidgetId, editMode, widgets]);
+
+  useEffect(() => {
+    const transitionManager = transitionManagerRef.current;
+    const shouldAnimate = transitionPendingRef.current
+      && !editMode
+      && isAppActive
+      && dashboardTransitionType !== "none";
+
+    if (!shouldAnimate) {
+      const nextState = transitionManager.replaceDashboard(layoutWidgets);
+      setRenderedWidgets(nextState.currentDashboard ?? []);
+      setOutgoingWidgets(null);
+      transitionPendingRef.current = false;
+      dashboardTransitionAnimationRef.current?.stop();
+      dashboardTransitionAnimationRef.current = null;
+      return;
+    }
+
+    const nextState = transitionManager.beginDashboardTransition(layoutWidgets);
+    setRenderedWidgets(nextState.currentDashboard ?? []);
+
+    if (nextState.phase !== "animating" || !nextState.previousDashboard) {
+      setOutgoingWidgets(null);
+      transitionPendingRef.current = false;
+      return;
+    }
+
+    setOutgoingWidgets(nextState.previousDashboard);
+    transitionPendingRef.current = false;
+
+    dashboardTransitionAnimationRef.current?.stop();
+    const preset = transitionPresets[dashboardTransitionType];
+    dashboardIncomingOpacity.setValue(dashboardTransitionType === "fade" ? 0.35 : 0.5);
+    dashboardOutgoingOpacity.setValue(1);
+    dashboardIncomingSlide.setValue(dashboardTransitionType === "slide" ? 22 : 0);
+
+    const transitionId = nextState.transitionId;
+    dashboardTransitionAnimationRef.current = Animated.parallel([
+      Animated.timing(dashboardOutgoingOpacity, {
+        toValue: 0,
+        duration: preset.durationMs,
+        easing: Easing.inOut(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(dashboardIncomingOpacity, {
+        toValue: 1,
+        duration: preset.durationMs,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(dashboardIncomingSlide, {
+        toValue: 0,
+        duration: preset.durationMs,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]);
+
+    dashboardTransitionAnimationRef.current.start(({ finished }) => {
+      if (!finished) {
+        return;
+      }
+
+      const completedState = transitionManager.completeDashboardTransition(transitionId);
+      setRenderedWidgets(completedState.currentDashboard ?? []);
+      setOutgoingWidgets(completedState.previousDashboard);
+    });
+  }, [
+    dashboardIncomingOpacity,
+    dashboardIncomingSlide,
+    dashboardOutgoingOpacity,
+    dashboardTransitionType,
+    editMode,
+    isAppActive,
+    layoutWidgets,
+  ]);
+
+  useEffect(() => () => {
+    dashboardTransitionAnimationRef.current?.stop();
+    dashboardTransitionAnimationRef.current = null;
+  }, []);
 
   const hasLayoutChanges = useMemo(() => {
     if (!editMode) {
@@ -529,35 +655,74 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, [loadDisplayLayout, settingsWidget]);
 
   const frameModel = getDisplayFrameModel(undefined);
-  const hasWidgets = widgets.length > 0;
+  const hasWidgets = renderedWidgets.length > 0;
+  const hasAnyDashboardWidgets = hasWidgets || Boolean(outgoingWidgets?.length);
 
   const content = useMemo(() => {
-    if (loadingLayout && !hasWidgets) {
+    if (loadingLayout && !hasAnyDashboardWidgets) {
       const model = getDisplayStatusModel("loadingWidgets", null);
       return <DisplayStatusCard title={model.title} message={model.message} showSpinner />;
     }
 
-    if (!hasWidgets && error) {
+    if (!hasAnyDashboardWidgets && error) {
       const model = getDisplayStatusModel("error", error);
       return <DisplayStatusCard title={model.title} message={model.message} />;
     }
 
-    if (!hasWidgets) {
+    if (!hasAnyDashboardWidgets) {
       const model = getDisplayStatusModel("empty", null);
       return <DisplayStatusCard title={model.title} message={model.message} />;
     }
 
     return (
-      <LayoutGrid
-        widgets={layoutWidgets}
-        editMode={editMode}
-        selectedWidgetId={selectedWidgetId}
-        onSelectWidget={setSelectedWidgetId}
-        onWidgetLayoutChange={handleWidgetLayoutChange}
-        onOpenWidgetSettings={handleOpenWidgetSettings}
-      />
+      <View style={styles.dashboardLayerStack}>
+        <Animated.View
+          style={[
+            styles.dashboardLayer,
+            {
+              opacity: dashboardIncomingOpacity,
+              transform: [{ translateX: dashboardIncomingSlide }],
+            },
+          ]}
+        >
+          <LayoutGrid
+            widgets={renderedWidgets}
+            editMode={editMode}
+            selectedWidgetId={selectedWidgetId}
+            onSelectWidget={setSelectedWidgetId}
+            onWidgetLayoutChange={handleWidgetLayoutChange}
+            onOpenWidgetSettings={handleOpenWidgetSettings}
+          />
+        </Animated.View>
+        {outgoingWidgets ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.dashboardLayer,
+              {
+                opacity: dashboardOutgoingOpacity,
+              },
+            ]}
+          >
+            <LayoutGrid widgets={outgoingWidgets} />
+          </Animated.View>
+        ) : null}
+      </View>
     );
-  }, [editMode, error, handleWidgetLayoutChange, hasWidgets, layoutWidgets, loadingLayout, selectedWidgetId]);
+  }, [
+    dashboardIncomingOpacity,
+    dashboardIncomingSlide,
+    dashboardOutgoingOpacity,
+    editMode,
+    error,
+    handleWidgetLayoutChange,
+    hasAnyDashboardWidgets,
+    hasWidgets,
+    loadingLayout,
+    outgoingWidgets,
+    renderedWidgets,
+    selectedWidgetId,
+  ]);
 
   return (
     <View style={styles.screen}>
@@ -676,7 +841,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       <DisplayFrame
         title={frameModel.title}
         subtitle={frameModel.subtitle}
-        footer={<Text style={styles.footerText}>{hasWidgets ? `${widgets.length} widgets live` : frameModel.footerLabel}</Text>}
+        footer={<Text style={styles.footerText}>{hasWidgets ? `${renderedWidgets.length} widgets live` : frameModel.footerLabel}</Text>}
       >
         {content}
       </DisplayFrame>
@@ -751,6 +916,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 24,
+  },
+  dashboardLayerStack: {
+    flex: 1,
+    position: "relative",
+  },
+  dashboardLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
   statusCard: {
     width: "100%",

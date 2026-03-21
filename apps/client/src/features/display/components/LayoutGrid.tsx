@@ -1,7 +1,13 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, useWindowDimensions, View } from "react-native";
 import type { LayoutChangeEvent, ViewStyle } from "react-native";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
+import {
+  reconcileAnimatedItems,
+  settleAnimatedItems,
+  transitionPresets,
+  type AnimatedItem,
+} from "../animations/transitionManager";
 import {
   clampWidgetLayout,
   computeLayoutFrame,
@@ -21,7 +27,7 @@ interface LayoutGridProps {
 }
 
 interface PositionedWidget {
-  widget: DisplayLayoutWidgetEnvelope;
+  widgetEntry: AnimatedItem<DisplayLayoutWidgetEnvelope>;
   frameStyle: ViewStyle;
 }
 
@@ -38,17 +44,55 @@ export function LayoutGrid({
     width: windowDimensions.width,
     height: windowDimensions.height,
   });
+  const [animatedWidgetEntries, setAnimatedWidgetEntries] = useState<AnimatedItem<DisplayLayoutWidgetEnvelope>[]>(
+    () =>
+      widgets.map((widget) => ({
+        key: widget.widgetInstanceId,
+        item: widget,
+        phase: "stable",
+      })),
+  );
+  const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setAnimatedWidgetEntries((previous) => reconcileAnimatedItems(
+      previous,
+      widgets,
+      (widget) => widget.widgetInstanceId,
+    ));
+  }, [widgets]);
+
+  useEffect(() => {
+    if (!animatedWidgetEntries.some((entry) => entry.phase !== "stable")) {
+      return () => undefined;
+    }
+
+    if (settleTimeoutRef.current) {
+      clearTimeout(settleTimeoutRef.current);
+    }
+
+    settleTimeoutRef.current = setTimeout(() => {
+      setAnimatedWidgetEntries((previous) => settleAnimatedItems(previous));
+    }, transitionPresets.fade.durationMs + 40);
+
+    return () => {
+      if (settleTimeoutRef.current) {
+        clearTimeout(settleTimeoutRef.current);
+        settleTimeoutRef.current = null;
+      }
+    };
+  }, [animatedWidgetEntries]);
 
   const positionedWidgets = useMemo<PositionedWidget[]>(() => {
-    const resolvedLayouts = widgets.map((widget) =>
+    const resolvedLayouts = animatedWidgetEntries.map((entry) =>
       clampWidgetLayout({
-        layout: widget.layout,
+        layout: entry.item.layout,
         columns: DISPLAY_GRID_COLUMNS,
         rows: DISPLAY_GRID_BASE_ROWS,
       }),
     );
 
-    return widgets.map((widget, index) => {
+    return animatedWidgetEntries.map((widgetEntry, index) => {
       const frame = computeLayoutFrame({
         layout: resolvedLayouts[index],
         containerWidth: containerSize.width,
@@ -56,7 +100,7 @@ export function LayoutGrid({
       });
 
       return {
-        widget,
+        widgetEntry,
         frameStyle: {
           left: frame.left,
           top: frame.top,
@@ -65,7 +109,7 @@ export function LayoutGrid({
         },
       };
     });
-  }, [containerSize.height, containerSize.width, widgets]);
+  }, [animatedWidgetEntries, containerSize.height, containerSize.width]);
 
   function handleLayout(event: LayoutChangeEvent) {
     const { width, height } = event.nativeEvent.layout;
@@ -83,13 +127,14 @@ export function LayoutGrid({
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
-      {positionedWidgets.map(({ widget, frameStyle }) => (
+      {positionedWidgets.map(({ widgetEntry, frameStyle }) => (
         <WidgetContainer
-          key={widget.widgetInstanceId}
-          widget={widget}
+          key={widgetEntry.key}
+          widget={widgetEntry.item}
           frameStyle={frameStyle}
+          animationPhase={widgetEntry.phase}
           editMode={editMode}
-          isSelected={widget.widgetInstanceId === selectedWidgetId}
+          isSelected={widgetEntry.item.widgetInstanceId === selectedWidgetId}
           containerSize={containerSize}
           onSelectWidget={onSelectWidget}
           onWidgetLayoutChange={onWidgetLayoutChange}
