@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   createWidgetSchema,
+  defaultWidgetLayout,
   normalizeWidgetConfig,
 } from "./widget-contracts";
 import { widgetsService } from "./widgets.service";
@@ -39,11 +40,12 @@ widgetsRouter.post(
       throw apiErrors.validation("Invalid widget payload", result.error.format());
     }
 
-    const { type, config } = result.data;
+    const { type, config, layout } = result.data;
     const widget = await widgetsService.createWidgetAtNextPosition({
       userId,
       type,
-      config: normalizeWidgetConfig(type, config)
+      config: normalizeWidgetConfig(type, config),
+      layout: layout ?? defaultWidgetLayout,
     });
 
     res.status(201).json(widget);

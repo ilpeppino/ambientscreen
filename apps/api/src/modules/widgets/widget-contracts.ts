@@ -10,6 +10,22 @@ import { z } from "zod";
 export const SUPPORTED_WIDGET_TYPES = ["clockDate", "weather", "calendar"] as const;
 export type SupportedWidgetType = (typeof SUPPORTED_WIDGET_TYPES)[number];
 
+export const defaultWidgetLayout = {
+  x: 0,
+  y: 0,
+  w: 1,
+  h: 1,
+} as const;
+
+export const widgetLayoutSchema = z
+  .object({
+    x: z.number().int().min(0),
+    y: z.number().int().min(0),
+    w: z.number().int().min(1),
+    h: z.number().int().min(1),
+  })
+  .strict();
+
 const refreshPolicyByWidget: { [TKey in WidgetKey]: WidgetRefreshPolicy } = {
   clockDate: { intervalMs: 1000 },
   weather: { intervalMs: 300000 },
@@ -94,14 +110,17 @@ export const createWidgetSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("clockDate"),
     config: clockDateConfigSchema.optional(),
+    layout: widgetLayoutSchema.optional(),
   }),
   z.object({
     type: z.literal("weather"),
     config: weatherConfigSchema.optional(),
+    layout: widgetLayoutSchema.optional(),
   }),
   z.object({
     type: z.literal("calendar"),
     config: calendarConfigSchema.optional(),
+    layout: widgetLayoutSchema.optional(),
   }),
 ]);
 

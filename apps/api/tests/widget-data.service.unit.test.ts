@@ -12,7 +12,12 @@ const mutableWidgetsRepository = widgetsRepository as unknown as {
     userId: string;
     type: string;
     config: Record<string, unknown>;
-    position: number;
+    layout: {
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    };
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -26,7 +31,7 @@ beforeEach(() => {
       userId: "user-1",
       type: "clockDate",
       config: {},
-      position: 0,
+      layout: { x: 0, y: 0, w: 1, h: 1 },
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),

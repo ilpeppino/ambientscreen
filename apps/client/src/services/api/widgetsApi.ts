@@ -7,6 +7,7 @@ import type {
 
 export type { CreateWidgetInput, WidgetInstance, WidgetKey };
 export const WIDGET_TYPES: WidgetKey[] = ["clockDate", "weather", "calendar"];
+const WIDGETS_TIMEOUT_MS = 8000;
 
 interface ApiErrorResponse {
   error?: {
@@ -27,8 +28,30 @@ async function toApiErrorMessage(response: Response): Promise<string> {
   return `Request failed with status ${response.status}`;
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const abortController = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    abortController.abort();
+  }, WIDGETS_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    if ((error as { name?: string }).name === "AbortError") {
+      throw new Error(`Request timed out after ${WIDGETS_TIMEOUT_MS}ms`);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
 export async function getWidgets(): Promise<WidgetInstance[]> {
-  const response = await fetch(`${API_BASE_URL}/widgets`);
+  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets`);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -39,7 +62,7 @@ export async function getWidgets(): Promise<WidgetInstance[]> {
 }
 
 export async function createWidget(input: CreateWidgetInput): Promise<WidgetInstance> {
-  const response = await fetch(`${API_BASE_URL}/widgets`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
@@ -56,7 +79,7 @@ export async function createWidget(input: CreateWidgetInput): Promise<WidgetInst
 }
 
 export async function setActiveWidget(widgetId: string): Promise<WidgetInstance> {
-  const response = await fetch(`${API_BASE_URL}/widgets/${widgetId}/active`, {
+  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets/${widgetId}/active`, {
     method: "PATCH"
   });
 
