@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { apiErrors } from "../../core/http/api-error";
+import { createRealtimeEvent } from "../realtime/realtime.events";
+import { publishRealtimeEvent } from "../realtime/realtime.runtime";
 import { widgetsRepository } from "./widgets.repository";
 import {
   defaultWidgetLayout,
@@ -22,7 +24,7 @@ export const widgetsService = {
     return widgetsRepository.findById(id);
   },
 
-  createWidget(data: {
+  async createWidget(data: {
     profileId: string;
     type: SupportedWidgetType;
     config?: Prisma.InputJsonValue;
@@ -40,7 +42,7 @@ export const widgetsService = {
       throw apiErrors.validation("Invalid widget layout", parsedLayout.error.format());
     }
 
-    return widgetsRepository.create({
+    const createdWidget = await widgetsRepository.create({
       profileId: data.profileId,
       type: data.type,
       config:
@@ -50,6 +52,23 @@ export const widgetsService = {
       layout: parsedLayout.data,
       isActive: data.isActive,
     });
+
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "widget.created",
+        profileId: data.profileId,
+        widgetId: createdWidget.id,
+      }),
+    );
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "display.refreshRequested",
+        profileId: data.profileId,
+        widgetId: createdWidget.id,
+      }),
+    );
+
+    return createdWidget;
   },
 
   async createWidgetAtNextPosition(data: {
@@ -103,7 +122,24 @@ export const widgetsService = {
       return null;
     }
 
-    return widgetsRepository.activateWidget(data.profileId, data.widgetId);
+    const updatedWidget = await widgetsRepository.activateWidget(data.profileId, data.widgetId);
+
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "widget.updated",
+        profileId: data.profileId,
+        widgetId: updatedWidget.id,
+      }),
+    );
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "display.refreshRequested",
+        profileId: data.profileId,
+        widgetId: updatedWidget.id,
+      }),
+    );
+
+    return updatedWidget;
   },
 
   async updateWidgetsLayoutForProfile(data: {
@@ -149,7 +185,22 @@ export const widgetsService = {
     }
 
     try {
-      return await widgetsRepository.updateLayouts(data.profileId, parsedWidgets);
+      const updatedWidgets = await widgetsRepository.updateLayouts(data.profileId, parsedWidgets);
+
+      publishRealtimeEvent(
+        createRealtimeEvent({
+          type: "layout.updated",
+          profileId: data.profileId,
+        }),
+      );
+      publishRealtimeEvent(
+        createRealtimeEvent({
+          type: "display.refreshRequested",
+          profileId: data.profileId,
+        }),
+      );
+
+      return updatedWidgets;
     } catch {
       throw apiErrors.notFound("One or more widgets were not found for this profile.");
     }
@@ -182,11 +233,60 @@ export const widgetsService = {
       );
     }
 
-    return widgetsRepository.updateConfig({
+    const updatedWidget = await widgetsRepository.updateConfig({
       id: widget.id,
       profileId: data.profileId,
       config: validationResult.data as Prisma.InputJsonValue,
     });
+
+    if (!updatedWidget) {
+      return null;
+    }
+
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "widget.updated",
+        profileId: data.profileId,
+        widgetId: updatedWidget.id,
+      }),
+    );
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "display.refreshRequested",
+        profileId: data.profileId,
+        widgetId: updatedWidget.id,
+      }),
+    );
+
+    return updatedWidget;
+  },
+
+  async deleteWidgetForProfile(data: { profileId: string; widgetId: string }) {
+    const deletedWidget = await widgetsRepository.deleteById({
+      id: data.widgetId,
+      profileId: data.profileId,
+    });
+
+    if (!deletedWidget) {
+      return null;
+    }
+
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "widget.deleted",
+        profileId: data.profileId,
+        widgetId: deletedWidget.id,
+      }),
+    );
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "display.refreshRequested",
+        profileId: data.profileId,
+        widgetId: deletedWidget.id,
+      }),
+    );
+
+    return deletedWidget;
   },
 };
 

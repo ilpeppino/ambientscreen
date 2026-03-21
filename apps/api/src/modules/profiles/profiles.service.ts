@@ -1,4 +1,6 @@
 import { profilesRepository } from "./profiles.repository";
+import { createRealtimeEvent } from "../realtime/realtime.events";
+import { publishRealtimeEvent } from "../realtime/realtime.runtime";
 import { usersService } from "../users/users.service";
 
 export interface ProfileRecord {
@@ -68,11 +70,26 @@ export const profilesService = {
 
   async createProfileForUser(data: { userId: string; name: string }) {
     const existingProfiles = await profilesRepository.findAllByUser(data.userId);
-    return profilesRepository.create({
+    const createdProfile = await profilesRepository.create({
       userId: data.userId,
       name: data.name,
       isDefault: existingProfiles.length === 0,
     });
+
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "profile.updated",
+        profileId: createdProfile.id,
+      }),
+    );
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "display.refreshRequested",
+        profileId: createdProfile.id,
+      }),
+    );
+
+    return createdProfile;
   },
 
   async renameProfileForUser(data: { userId: string; profileId: string; name: string }) {
@@ -81,7 +98,22 @@ export const profilesService = {
       return null;
     }
 
-    return profilesRepository.updateName(profile.id, data.name);
+    const updatedProfile = await profilesRepository.updateName(profile.id, data.name);
+
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "profile.updated",
+        profileId: updatedProfile.id,
+      }),
+    );
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "display.refreshRequested",
+        profileId: updatedProfile.id,
+      }),
+    );
+
+    return updatedProfile;
   },
 
   async deleteProfileForUser(data: { userId: string; profileId: string }) {
@@ -100,7 +132,22 @@ export const profilesService = {
     if (profile.isDefault) {
       const remainingProfiles = await profilesRepository.findAllByUser(data.userId);
       if (remainingProfiles.length > 0) {
-        await profilesRepository.setDefaultProfileForUser(data.userId, remainingProfiles[0].id);
+        const updatedDefaultProfile = await profilesRepository.setDefaultProfileForUser(
+          data.userId,
+          remainingProfiles[0].id,
+        );
+        publishRealtimeEvent(
+          createRealtimeEvent({
+            type: "profile.updated",
+            profileId: updatedDefaultProfile.id,
+          }),
+        );
+        publishRealtimeEvent(
+          createRealtimeEvent({
+            type: "display.refreshRequested",
+            profileId: updatedDefaultProfile.id,
+          }),
+        );
       }
     }
 

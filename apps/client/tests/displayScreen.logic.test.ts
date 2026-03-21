@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getEffectivePollingIntervalMs,
   getDisplayStatusModel,
   getDisplayFrameModel,
   getDisplayRefreshIntervalMs,
@@ -63,6 +64,12 @@ test("getDisplayRefreshIntervalMs follows widget refresh policy rules", () => {
   assert.equal(getDisplayRefreshIntervalMs("weather"), 300000);
   assert.equal(getDisplayRefreshIntervalMs("calendar"), 60000);
   assert.equal(getDisplayRefreshIntervalMs(undefined), null);
+});
+
+test("getEffectivePollingIntervalMs reduces polling frequency when realtime is connected", () => {
+  assert.equal(getEffectivePollingIntervalMs(1000, "connected"), 120000);
+  assert.equal(getEffectivePollingIntervalMs(300000, "connected"), 300000);
+  assert.equal(getEffectivePollingIntervalMs(1000, "disconnected"), 1000);
 });
 
 test("resolveDisplayUiState returns loadingWidgets while widgets are loading", () => {
