@@ -14,17 +14,7 @@ import {
   setActiveWidget,
   type WidgetInstance,
 } from "../../../services/api/widgetsApi";
-import type { Profile } from "@ambient/shared-contracts";
-import { resolveActiveProfileId } from "../../profiles/profiles.logic";
-import {
-  loadPersistedActiveProfileId,
-  persistActiveProfileId,
-} from "../../profiles/profileStorage";
-import {
-  createProfile as createProfileApi,
-  deleteProfile as deleteProfileApi,
-  getProfiles as getProfilesApi,
-} from "../../../services/api/profilesApi";
+import { useCloudProfiles } from "../../profiles/useCloudProfiles";
 import {
   buildCreateWidgetInput,
   CALENDAR_PROVIDERS,
@@ -44,11 +34,20 @@ interface AdminHomeScreenProps {
 }
 
 export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScreenProps) {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const {
+    profiles,
+    activeProfileId,
+    profilesError,
+    activateProfile,
+    createProfile,
+    renameProfile,
+    deleteProfile,
+  } = useCloudProfiles();
   const [newProfileName, setNewProfileName] = useState("");
+  const [renameProfileName, setRenameProfileName] = useState("");
   const [profileError, setProfileError] = useState<string | null>(null);
   const [creatingProfile, setCreatingProfile] = useState(false);
+  const [renamingProfile, setRenamingProfile] = useState(false);
   const [deletingProfile, setDeletingProfile] = useState(false);
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [selectedWidgetType, setSelectedWidgetType] =
@@ -64,36 +63,6 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
   const [error, setError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [activeError, setActiveError] = useState<string | null>(null);
-
-  const loadProfiles = useCallback(async (signal?: { cancelled: boolean }) => {
-    try {
-      setProfileError(null);
-      const [responseProfiles, persistedProfileId] = await Promise.all([
-        getProfilesApi(),
-        loadPersistedActiveProfileId(),
-      ]);
-
-      if (signal?.cancelled) {
-        return;
-      }
-
-      setProfiles(responseProfiles);
-      const nextActiveProfileId = resolveActiveProfileId(responseProfiles, persistedProfileId);
-      setActiveProfileId(nextActiveProfileId);
-      if (nextActiveProfileId) {
-        await persistActiveProfileId(nextActiveProfileId);
-      }
-    } catch (err) {
-      if (signal?.cancelled) {
-        return;
-      }
-
-      console.error(err);
-      setProfiles([]);
-      setActiveProfileId(null);
-      setProfileError("Failed to load profiles");
-    }
-  }, []);
 
   const loadWidgets = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!activeProfileId) {
@@ -127,22 +96,16 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
 
   useEffect(() => {
     const signal = { cancelled: false };
-
-    loadProfiles(signal);
-
-    return () => {
-      signal.cancelled = true;
-    };
-  }, [loadProfiles]);
-
-  useEffect(() => {
-    const signal = { cancelled: false };
     loadWidgets(signal);
 
     return () => {
       signal.cancelled = true;
     };
   }, [loadWidgets]);
+
+  useEffect(() => {
+    setProfileError(profilesError);
+  }, [profilesError]);
 
   async function handleCreateWidget() {
     if (!activeProfileId) {
@@ -215,17 +178,37 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
     try {
       setCreatingProfile(true);
       setProfileError(null);
-      const profile = await createProfileApi(trimmedName);
-      const nextProfiles = [...profiles, profile];
-      setProfiles(nextProfiles);
+      await createProfile(trimmedName);
       setNewProfileName("");
-      setActiveProfileId(profile.id);
-      await persistActiveProfileId(profile.id);
     } catch (err) {
       console.error(err);
-      setProfileError("Failed to create profile");
+      setProfileError(err instanceof Error ? err.message : "Failed to create profile");
     } finally {
       setCreatingProfile(false);
+    }
+  }
+
+  async function handleRenameActiveProfile() {
+    if (!activeProfileId) {
+      return;
+    }
+
+    const trimmedName = renameProfileName.trim();
+    if (!trimmedName) {
+      setProfileError("Profile name is required");
+      return;
+    }
+
+    try {
+      setRenamingProfile(true);
+      setProfileError(null);
+      await renameProfile(activeProfileId, trimmedName);
+      setRenameProfileName("");
+    } catch (err) {
+      console.error(err);
+      setProfileError(err instanceof Error ? err.message : "Failed to rename profile");
+    } finally {
+      setRenamingProfile(false);
     }
   }
 
@@ -237,17 +220,10 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
     try {
       setDeletingProfile(true);
       setProfileError(null);
-      await deleteProfileApi(activeProfileId);
-      const refreshedProfiles = await getProfilesApi();
-      const nextActiveProfileId = resolveActiveProfileId(refreshedProfiles, null);
-      setProfiles(refreshedProfiles);
-      setActiveProfileId(nextActiveProfileId);
-      if (nextActiveProfileId) {
-        await persistActiveProfileId(nextActiveProfileId);
-      }
+      await deleteProfile(activeProfileId);
     } catch (err) {
       console.error(err);
-      setProfileError("Failed to delete profile");
+      setProfileError(err instanceof Error ? err.message : "Failed to delete profile");
     } finally {
       setDeletingProfile(false);
     }
@@ -288,8 +264,7 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
                 accessibilityRole="button"
                 style={[styles.profileTab, selected && styles.profileTabSelected]}
                 onPress={async () => {
-                  setActiveProfileId(profile.id);
-                  await persistActiveProfileId(profile.id);
+                  await activateProfile(profile.id);
                 }}
               >
                 <Text style={[styles.profileTabLabel, selected && styles.profileTabLabelSelected]}>
@@ -316,6 +291,24 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
           >
             <Text style={styles.profileActionButtonLabel}>
               {creatingProfile ? "Creating..." : "New Profile"}
+            </Text>
+          </Pressable>
+          <TextInput
+            accessibilityLabel="Rename active profile"
+            style={[styles.textInput, styles.profileInput]}
+            value={renameProfileName}
+            onChangeText={setRenameProfileName}
+            placeholder="Rename active profile"
+            placeholderTextColor="#7f7f7f"
+          />
+          <Pressable
+            accessibilityRole="button"
+            style={[styles.profileActionButton, renamingProfile && styles.createButtonDisabled]}
+            onPress={handleRenameActiveProfile}
+            disabled={renamingProfile}
+          >
+            <Text style={styles.profileActionButtonLabel}>
+              {renamingProfile ? "Renaming..." : "Rename"}
             </Text>
           </Pressable>
           <Pressable

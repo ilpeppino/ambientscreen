@@ -116,14 +116,14 @@ function getRouteHandler(router: Router, path: string) {
   return routeLayer.route.stack[0].handle;
 }
 
-async function invokeGetRoute(router: Router, path: string) {
+async function invokeGetRoute(router: Router, path: string, query?: Record<string, string>) {
   const handler = getRouteHandler(router, path);
   const req = {
     method: "GET",
     path,
     originalUrl: path,
     params: {},
-    query: {},
+    query: query ?? {},
     authUser: {
       id: "user-1",
       email: "owner@ambient.dev",
@@ -209,4 +209,14 @@ test("GET /display-layout continues when one resolver fails", async () => {
   expect(weatherWidget).toBeTruthy();
   expect(weatherWidget!.state).toBe("error");
   expect(weatherWidget!.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
+});
+
+test("GET /display-layout rejects unknown profile ownership context", async () => {
+  vi.spyOn(profilesService, "resolveProfileForUser").mockImplementation(async () => null as never);
+
+  const response = await invokeGetRoute(displayRouter, "/display-layout", {
+    profileId: "profile-other-user",
+  });
+
+  expect(response.statusCode).toBe(404);
 });

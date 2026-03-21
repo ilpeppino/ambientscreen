@@ -5,7 +5,7 @@ import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/c
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
 
 beforeEach(() => {
-  vi.spyOn(widgetsRepository, "findById").mockImplementation(async () => {
+  vi.spyOn(widgetsRepository, "findByIdForUser").mockImplementation(async () => {
     return {
       id: "widget-clock",
       profileId: "user-1",
@@ -32,6 +32,13 @@ test("widgetDataService returns normalized payload for clockDate widget", async 
   expect(result!.data).toBeTruthy();
   expect(typeof result!.data!.formattedTime).toBe("string");
   expect(typeof result!.data!.formattedDate).toBe("string");
+});
+
+test("widgetDataService returns null for another user's widget", async () => {
+  vi.spyOn(widgetsRepository, "findByIdForUser").mockResolvedValueOnce(null as never);
+
+  const result = await widgetDataService.getWidgetDataForUser("widget-clock", "user-2");
+  expect(result).toBeNull();
 });
 
 test("weather resolver returns normalized ready payload from provider data", async () => {

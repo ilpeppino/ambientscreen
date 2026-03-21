@@ -4,6 +4,7 @@ import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
+import { profilesService } from "../src/modules/profiles/profiles.service";
 
 interface TestUser {
   id: string;
@@ -63,11 +64,21 @@ beforeEach(() => {
     },
   ];
 
+  vi.spyOn(profilesService, "resolveProfileForUser").mockImplementation(async ({ userId }) => ({
+    id: userId,
+    userId,
+    name: "Default",
+    isDefault: true,
+    createdAt: new Date(),
+  }) as never);
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) =>
     widgetsStore.filter((widget) => widget.profileId === profileId) as never,
   );
   vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) =>
+    (widgetsStore.find((widget) => widget.id === id) ?? null) as never,
+  );
+  vi.spyOn(widgetsRepository, "findByIdForUser").mockImplementation(async (id: string) =>
     (widgetsStore.find((widget) => widget.id === id) ?? null) as never,
   );
   vi.spyOn(widgetsRepository, "updateConfig").mockImplementation(async ({ id, profileId, config }) => {

@@ -19,9 +19,24 @@ profilesRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const userId = getRequestUserId(req);
-    await profilesService.getOrCreateDefaultProfileForUser(userId);
-    const profiles = await profilesService.getProfilesForUser(userId);
-    res.json(profiles);
+    const result = await profilesService.getProfilesWithActiveForUser(userId);
+    res.json(result);
+  }),
+);
+
+profilesRouter.get(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const idParam = req.params.id;
+    const profileId = Array.isArray(idParam) ? idParam[0] : idParam;
+    const userId = getRequestUserId(req);
+    const profile = await profilesService.getProfileByIdForUser({ userId, profileId });
+
+    if (!profile) {
+      throw apiErrors.notFound("Profile not found");
+    }
+
+    res.json(profile);
   }),
 );
 
@@ -89,5 +104,27 @@ profilesRouter.delete(
     }
 
     res.status(204).send();
+  }),
+);
+
+profilesRouter.patch(
+  "/:id/activate",
+  asyncHandler(async (req, res) => {
+    const idParam = req.params.id;
+    const profileId = Array.isArray(idParam) ? idParam[0] : idParam;
+    const userId = getRequestUserId(req);
+
+    const profile = await profilesService.activateProfileForUser({
+      userId,
+      profileId,
+    });
+
+    if (!profile) {
+      throw apiErrors.notFound("Profile not found");
+    }
+
+    res.json({
+      activeProfileId: profile.id,
+    });
   }),
 );

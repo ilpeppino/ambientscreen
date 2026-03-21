@@ -22,9 +22,10 @@ interface InvokeRouteOptions {
 
 let profileStore: TestProfile[] = [];
 let profileCounter = 0;
+let activeProfileId: string | null = null;
 
 beforeEach(() => {
-  profileCounter = 0;
+  profileCounter = 1;
   profileStore = [
     {
       id: "profile-default",
@@ -34,9 +35,17 @@ beforeEach(() => {
       createdAt: new Date(),
     },
   ];
+  activeProfileId = "profile-default";
 
-  vi.spyOn(profilesService, "getOrCreateDefaultProfileForUser").mockImplementation(async () => profileStore[0] as never);
-  vi.spyOn(profilesService, "getProfilesForUser").mockImplementation(async () => profileStore as never);
+  vi.spyOn(profilesService, "getProfilesWithActiveForUser").mockImplementation(async (userId: string) => ({
+    profiles: profileStore.filter((item) => item.userId === userId),
+    activeProfileId,
+  }) as never);
+
+  vi.spyOn(profilesService, "getProfileByIdForUser").mockImplementation(async ({ userId, profileId }) => {
+    return (profileStore.find((item) => item.id === profileId && item.userId === userId) ?? null) as never;
+  });
+
   vi.spyOn(profilesService, "createProfileForUser").mockImplementation(async ({ userId, name }) => {
     profileCounter += 1;
     const profile: TestProfile = {
@@ -49,6 +58,17 @@ beforeEach(() => {
     profileStore.push(profile);
     return profile as never;
   });
+
+  vi.spyOn(profilesService, "activateProfileForUser").mockImplementation(async ({ userId, profileId }) => {
+    const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
+    if (!profile) {
+      return null as never;
+    }
+
+    activeProfileId = profile.id;
+    return profile as never;
+  });
+
   vi.spyOn(profilesService, "renameProfileForUser").mockImplementation(async ({ userId, profileId, name }) => {
     const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
     if (!profile) {
@@ -58,17 +78,23 @@ beforeEach(() => {
     profile.name = name;
     return profile as never;
   });
+
   vi.spyOn(profilesService, "deleteProfileForUser").mockImplementation(async ({ userId, profileId }) => {
     const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
     if (!profile) {
       return { deleted: false, reason: "notFound" } as never;
     }
 
-    if (profileStore.length <= 1) {
+    const ownedProfiles = profileStore.filter((item) => item.userId === userId);
+    if (ownedProfiles.length <= 1) {
       return { deleted: false, reason: "lastProfile" } as never;
     }
 
     profileStore = profileStore.filter((item) => item.id !== profileId);
+    if (activeProfileId === profileId) {
+      activeProfileId = profileStore.find((item) => item.userId === userId)?.id ?? null;
+    }
+
     return { deleted: true } as never;
   });
 });
@@ -144,30 +170,80 @@ async function invokeRoute(
   return response;
 }
 
-test("profile CRUD routes create, rename, and delete profiles", async () => {
+test("GET /profiles returns authenticated user's profiles with active profile", async () => {
+  profileStore.push({
+    id: "profile-work",
+    userId: "user-1",
+    name: "Work",
+    isDefault: false,
+    createdAt: new Date(),
+  });
+  profileStore.push({
+    id: "profile-other-user",
+    userId: "user-2",
+    name: "Other User",
+    isDefault: true,
+    createdAt: new Date(),
+  });
+
+  const listResponse = await invokeRoute(profilesRouter, "get", "/");
+  expect(listResponse.statusCode).toBe(200);
+  expect(listResponse.body).toEqual({
+    profiles: [
+      expect.objectContaining({ id: "profile-default", userId: "user-1" }),
+      expect.objectContaining({ id: "profile-work", userId: "user-1" }),
+    ],
+    activeProfileId: "profile-default",
+  });
+});
+
+test("profile CRUD and activation are user-scoped", async () => {
   const createResponse = await invokeRoute(profilesRouter, "post", "/", {
     body: { name: "Work" },
   });
   expect(createResponse.statusCode).toBe(201);
 
-  const listResponse = await invokeRoute(profilesRouter, "get", "/");
-  expect(listResponse.statusCode).toBe(200);
-  const profiles = listResponse.body as TestProfile[];
-  expect(profiles.length).toBe(2);
-  expect(profiles[1].name).toBe("Work");
+  const createdProfile = createResponse.body as TestProfile;
+  expect(createdProfile.userId).toBe("user-1");
 
-  const createdProfileId = profiles[1].id;
+  const activateResponse = await invokeRoute(profilesRouter, "patch", "/:id/activate", {
+    params: { id: createdProfile.id },
+  });
+  expect(activateResponse.statusCode).toBe(200);
+  expect(activateResponse.body).toEqual({ activeProfileId: createdProfile.id });
+
+  const getByIdResponse = await invokeRoute(profilesRouter, "get", "/:id", {
+    params: { id: createdProfile.id },
+  });
+  expect(getByIdResponse.statusCode).toBe(200);
+
   const renameResponse = await invokeRoute(profilesRouter, "patch", "/:id", {
-    params: { id: createdProfileId },
+    params: { id: createdProfile.id },
     body: { name: "Office" },
   });
   expect(renameResponse.statusCode).toBe(200);
   expect((renameResponse.body as TestProfile).name).toBe("Office");
 
   const deleteResponse = await invokeRoute(profilesRouter, "delete", "/:id", {
-    params: { id: createdProfileId },
+    params: { id: createdProfile.id },
   });
   expect(deleteResponse.statusCode).toBe(204);
+});
+
+test("GET /profiles/:id rejects another user's profile", async () => {
+  profileStore.push({
+    id: "profile-other-user",
+    userId: "user-2",
+    name: "Other User",
+    isDefault: true,
+    createdAt: new Date(),
+  });
+
+  const response = await invokeRoute(profilesRouter, "get", "/:id", {
+    params: { id: "profile-other-user" },
+  });
+
+  expect(response.statusCode).toBe(404);
 });
 
 test("profile delete prevents deleting the last remaining profile", async () => {
