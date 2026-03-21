@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import {
   applyWidgetConfigUpdate,
   buildConfigDraft,
@@ -14,7 +13,7 @@ test("settings form builds descriptors from schema", () => {
     timezone: "string",
   });
 
-  assert.deepEqual(descriptors, [
+  expect(descriptors).toEqual([
     { key: "format", label: "Format", kind: "enum", options: ["12h", "24h"] },
     { key: "showSeconds", label: "Show Seconds", kind: "boolean" },
     { key: "timezone", label: "Timezone", kind: "string" },
@@ -33,7 +32,7 @@ test("settings form draft uses schema defaults for missing values", () => {
     },
   });
 
-  assert.deepEqual(draft, {
+  expect(draft).toEqual({
     format: "24h",
     showSeconds: false,
     timezone: "",
@@ -54,7 +53,7 @@ test("settings form validation rejects invalid enum values", () => {
     },
   );
 
-  assert.equal(validation.valid, false);
+  expect(validation.valid).toBe(false);
 });
 
 test("saving widget config updates widget list immediately", () => {
@@ -73,12 +72,12 @@ test("saving widget config updates widget list immediately", () => {
     { format: "12h", showSeconds: true, timezone: "UTC" },
   );
 
-  assert.deepEqual(updatedWidgets[0].config, {
+  expect(updatedWidgets[0].config).toEqual({
     format: "12h",
     showSeconds: true,
     timezone: "UTC",
   });
-  assert.deepEqual(updatedWidgets[1].config, {
+  expect(updatedWidgets[1].config).toEqual({
     location: "Amsterdam",
     units: "metric",
   });

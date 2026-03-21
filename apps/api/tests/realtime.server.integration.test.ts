@@ -1,6 +1,5 @@
-import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import test from "node:test";
+import { test, expect } from "vitest";
 import WebSocket from "ws";
 import { createRealtimeEvent } from "../src/modules/realtime/realtime.events";
 import { createRealtimeServer } from "../src/modules/realtime/realtime.server";
@@ -150,10 +149,10 @@ test("realtime server initializes and delivers events for subscribed profile", a
     timestamp: string;
   };
 
-  assert.equal(parsed.type, "display.refreshRequested");
-  assert.equal(parsed.profileId, "profile-1");
-  assert.equal(parsed.widgetId, "widget-1");
-  assert.equal(parsed.timestamp, "2026-03-21T10:00:00.000Z");
+  expect(parsed.type).toBe("display.refreshRequested");
+  expect(parsed.profileId).toBe("profile-1");
+  expect(parsed.widgetId).toBe("widget-1");
+  expect(parsed.timestamp).toBe("2026-03-21T10:00:00.000Z");
 
   client.close();
   await realtimeServer.close();
@@ -184,6 +183,8 @@ test("realtime server scopes event delivery by profile", async (t) => {
   profileOneClient.send(JSON.stringify({ type: "subscribe", profileId: "profile-1" }));
   profileTwoClient.send(JSON.stringify({ type: "subscribe", profileId: "profile-2" }));
 
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
   const profileOneMessagePromise = waitForMessage(profileOneClient);
 
   realtimeServer.publish(
@@ -196,8 +197,8 @@ test("realtime server scopes event delivery by profile", async (t) => {
 
   const profileOnePayload = await profileOneMessagePromise;
   const profileOneEvent = JSON.parse(profileOnePayload) as { profileId: string; type: string };
-  assert.equal(profileOneEvent.profileId, "profile-1");
-  assert.equal(profileOneEvent.type, "layout.updated");
+  expect(profileOneEvent.profileId).toBe("profile-1");
+  expect(profileOneEvent.type).toBe("layout.updated");
 
   await waitForSilence(profileTwoClient, 120);
 

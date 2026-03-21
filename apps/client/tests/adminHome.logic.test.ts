@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import {
   buildCreateWidgetInput,
   CALENDAR_PROVIDERS,
@@ -33,25 +32,25 @@ const widgetB = {
 
 test("selectAdminActiveWidget returns first active widget", () => {
   const selected = selectAdminActiveWidget([widgetA, widgetB]);
-  assert.equal(selected?.id, "widget-b");
+  expect(selected?.id).toBe("widget-b");
 });
 
 test("selectAdminActiveWidget returns null when there is no active widget", () => {
   const selected = selectAdminActiveWidget([widgetA]);
-  assert.equal(selected, null);
+  expect(selected).toBe(null);
 });
 
 test("CREATABLE_WIDGET_TYPES exposes the initial M1-2 widget set", () => {
-  assert.deepEqual(CREATABLE_WIDGET_TYPES, ["clockDate", "weather", "calendar"]);
+  expect(CREATABLE_WIDGET_TYPES).toEqual(["clockDate", "weather", "calendar"]);
 });
 
 test("WEATHER_UNITS exposes weather unit options for admin config", () => {
-  assert.deepEqual(WEATHER_UNITS, ["metric", "imperial"]);
+  expect(WEATHER_UNITS).toEqual(["metric", "imperial"]);
 });
 
 test("calendar admin config options expose providers and time windows", () => {
-  assert.deepEqual(CALENDAR_PROVIDERS, ["ical"]);
-  assert.deepEqual(CALENDAR_TIME_WINDOWS, ["today", "next24h", "next7d"]);
+  expect(CALENDAR_PROVIDERS).toEqual(["ical"]);
+  expect(CALENDAR_TIME_WINDOWS).toEqual(["today", "next24h", "next7d"]);
 });
 
 test("buildCreateWidgetInput omits config for non-weather widgets", () => {
@@ -68,7 +67,7 @@ test("buildCreateWidgetInput omits config for non-weather widgets", () => {
     },
   });
 
-  assert.deepEqual(payload, { type: "clockDate" });
+  expect(payload).toEqual({ type: "clockDate" });
 });
 
 test("buildCreateWidgetInput includes weather config for weather widgets", () => {
@@ -85,7 +84,7 @@ test("buildCreateWidgetInput includes weather config for weather widgets", () =>
     },
   });
 
-  assert.deepEqual(payload, {
+  expect(payload).toEqual({
     type: "weather",
     config: {
       location: "Berlin",
@@ -110,7 +109,7 @@ test("buildCreateWidgetInput includes calendar config for calendar widgets", () 
     },
   });
 
-  assert.deepEqual(payload, {
+  expect(payload).toEqual({
     type: "calendar",
     config: {
       provider: "ical",

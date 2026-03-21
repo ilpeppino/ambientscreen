@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import type { OrchestrationRule } from "@ambient/shared-contracts";
 import { createOrchestrationEngine } from "../src/features/display/services/orchestrationEngine";
 
@@ -68,8 +67,8 @@ test("orchestration engine loads rules and schedules intervals for active interv
 
   await engine.start();
 
-  assert.equal(timer.getActiveIntervals().length, 1);
-  assert.equal(timer.getActiveIntervals()[0][1].intervalMs, 3000);
+  expect(timer.getActiveIntervals().length).toBe(1);
+  expect(timer.getActiveIntervals()[0][1].intervalMs).toBe(3000);
 });
 
 test("orchestration engine avoids duplicate intervals for the same rule", async () => {
@@ -83,8 +82,8 @@ test("orchestration engine avoids duplicate intervals for the same rule", async 
   await engine.start();
   await engine.reload();
 
-  assert.equal(timer.getActiveIntervals().length, 1);
-  assert.deepEqual(timer.getClearedIntervalIds(), []);
+  expect(timer.getActiveIntervals().length).toBe(1);
+  expect(timer.getClearedIntervalIds()).toEqual([]);
 });
 
 test("orchestration engine debounces overlapping executions for the same rule", async () => {
@@ -108,12 +107,12 @@ test("orchestration engine debounces overlapping executions for the same rule", 
   timer.triggerInterval(intervalId);
   timer.triggerInterval(intervalId);
 
-  assert.equal(refreshCount, 1);
+  expect(refreshCount).toBe(1);
 
   resolveRun();
   await new Promise((resolve) => setImmediate(resolve));
   timer.triggerInterval(intervalId);
-  assert.equal(refreshCount, 2);
+  expect(refreshCount).toBe(2);
 });
 
 test("orchestration engine stop clears all active timers", async () => {
@@ -128,12 +127,12 @@ test("orchestration engine stop clears all active timers", async () => {
   });
 
   await engine.start();
-  assert.equal(timer.getActiveIntervals().length, 2);
+  expect(timer.getActiveIntervals().length).toBe(2);
 
   engine.stop();
 
-  assert.equal(timer.getActiveIntervals().length, 0);
-  assert.equal(timer.getClearedIntervalIds().length, 2);
+  expect(timer.getActiveIntervals().length).toBe(0);
+  expect(timer.getClearedIntervalIds().length).toBe(2);
 });
 
 test("integration: create rule then start engine executes refresh on interval", async () => {
@@ -152,9 +151,9 @@ test("integration: create rule then start engine executes refresh on interval", 
   rulesStore.push(getRule({ id: "rule-created", intervalSec: 6 }));
   await engine.start();
 
-  assert.equal(timer.getActiveIntervals().length, 1);
+  expect(timer.getActiveIntervals().length).toBe(1);
   const intervalId = timer.getActiveIntervals()[0][0];
   timer.triggerInterval(intervalId);
 
-  assert.equal(refreshCount, 1);
+  expect(refreshCount).toBe(1);
 });

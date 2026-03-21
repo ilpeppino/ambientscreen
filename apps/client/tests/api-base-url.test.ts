@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { resolveApiBaseUrl } from "../src/core/config/api-base-url";
 
 test("M0-4: resolveApiBaseUrl uses EXPO_PUBLIC_API_BASE_URL when provided", () => {
@@ -8,7 +7,7 @@ test("M0-4: resolveApiBaseUrl uses EXPO_PUBLIC_API_BASE_URL when provided", () =
     platform: "web"
   });
 
-  assert.equal(apiBaseUrl, "http://192.168.1.44:3000");
+  expect(apiBaseUrl).toBe("http://192.168.1.44:3000");
 });
 
 test("M0-4: resolveApiBaseUrl defaults to localhost on web", () => {
@@ -16,7 +15,7 @@ test("M0-4: resolveApiBaseUrl defaults to localhost on web", () => {
     platform: "web"
   });
 
-  assert.equal(apiBaseUrl, "http://localhost:3000");
+  expect(apiBaseUrl).toBe("http://localhost:3000");
 });
 
 test("M0-4: resolveApiBaseUrl prefers Metro host on native when script URL exists", () => {
@@ -25,7 +24,7 @@ test("M0-4: resolveApiBaseUrl prefers Metro host on native when script URL exist
     scriptUrl: "http://192.168.0.25:8081/index.bundle?platform=ios"
   });
 
-  assert.equal(apiBaseUrl, "http://192.168.0.25:3000");
+  expect(apiBaseUrl).toBe("http://192.168.0.25:3000");
 });
 
 test("M0-4: resolveApiBaseUrl falls back to 10.0.2.2 on android emulator", () => {
@@ -34,7 +33,7 @@ test("M0-4: resolveApiBaseUrl falls back to 10.0.2.2 on android emulator", () =>
     scriptUrl: "not-a-valid-url"
   });
 
-  assert.equal(apiBaseUrl, "http://10.0.2.2:3000");
+  expect(apiBaseUrl).toBe("http://10.0.2.2:3000");
 });
 
 test("M0-4: resolveApiBaseUrl rewrites android loopback host to emulator host", () => {
@@ -43,5 +42,5 @@ test("M0-4: resolveApiBaseUrl rewrites android loopback host to emulator host", 
     scriptUrl: "http://127.0.0.1:8081/index.bundle?platform=android"
   });
 
-  assert.equal(apiBaseUrl, "http://10.0.2.2:3000");
+  expect(apiBaseUrl).toBe("http://10.0.2.2:3000");
 });
