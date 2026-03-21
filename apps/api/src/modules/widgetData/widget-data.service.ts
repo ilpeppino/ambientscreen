@@ -4,27 +4,12 @@ import type {
   WidgetDataEnvelope,
   WidgetKey,
 } from "@ambient/shared-contracts";
-import { resolveClockDateWidgetData } from "./resolvers/clockDate.resolver";
-import { resolveWeatherWidgetData } from "./resolvers/weather.resolver";
-import { resolveCalendarWidgetData } from "./resolvers/calendar.resolver";
+import { widgetResolvers } from "./widget-resolvers";
 
 type WidgetDataResult =
   WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate"> |
   WidgetDataEnvelope<WidgetDataByKey["weather"], "weather"> |
   WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
-
-const widgetResolvers: {
-  [TKey in WidgetKey]: (input: {
-    widgetInstanceId: string;
-    widgetConfig: unknown;
-  }) => Promise<
-    WidgetDataEnvelope<WidgetDataByKey[TKey], TKey>
-  >;
-} = {
-  clockDate: resolveClockDateWidgetData,
-  weather: resolveWeatherWidgetData,
-  calendar: resolveCalendarWidgetData,
-};
 
 export const widgetDataService = {
   async getWidgetData(widgetId: string): Promise<WidgetDataResult | null> {
