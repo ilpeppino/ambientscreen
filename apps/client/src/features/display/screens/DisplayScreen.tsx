@@ -1,14 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
-import { getWidgets, type WidgetInstance } from "../../../services/api/widgetsApi";
 import {
-  getWidgetData,
-  type WidgetDataEnvelope,
-} from "../../../services/api/widgetDataApi";
-import type {
-  WidgetDataByKey,
-  WidgetKey,
-} from "@ambient/shared-contracts";
+  getDisplayLayout,
+  type DisplayLayoutWidgetEnvelope,
+} from "../../../services/api/displayLayoutApi";
 import {
   disableDisplayKeepAwake,
   enableDisplayKeepAwake,
@@ -19,33 +14,22 @@ import {
 } from "../services/orientation";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
 import {
-  getDisplayStatusModel,
   getDisplayFrameModel,
-  resolveDisplayUiState,
-  selectDisplayWidget,
+  getDisplayRefreshIntervalMs,
+  getDisplayStatusModel,
 } from "../displayScreen.logic";
-import { renderWidgetFromEnvelope } from "../../../widgets/widget.registry";
-import { createDisplayRefreshEngine } from "../displayRefresh.engine";
+import { LayoutGrid } from "../components/LayoutGrid";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
 }
 
-export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
-  const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
-  const [selectedWidget, setSelectedWidget] = useState<WidgetInstance | null>(null);
-  type WidgetEnvelope =
-    | WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate">
-    | WidgetDataEnvelope<WidgetDataByKey["weather"], "weather">
-    | WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
-  const [widgetData, setWidgetData] =
-    useState<WidgetEnvelope | null>(null);
-  const [loadingWidgets, setLoadingWidgets] = useState(true);
-  const [loadingWidgetData, setLoadingWidgetData] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const refreshEngine = useMemo(() => createDisplayRefreshEngine(), []);
+const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 
-  const selectedWidgetId = selectedWidget?.id ?? null;
+export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
+  const [widgets, setWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
+  const [loadingLayout, setLoadingLayout] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     enableDisplayKeepAwake();
@@ -57,144 +41,89 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     };
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshIntervalMs = useMemo(() => {
+    const intervals = widgets
+      .map((widget) => getDisplayRefreshIntervalMs(widget.widgetKey))
+      .filter((interval): interval is number => interval !== null);
 
-    async function loadWidgets() {
-      try {
-        setLoadingWidgets(true);
-        setError(null);
-
-        const response = await getWidgets();
-        if (cancelled) {
-          return;
-        }
-
-        setWidgets(response);
-
-        setSelectedWidget((previous) => selectDisplayWidget(response, previous));
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        console.error(err);
-        setWidgets([]);
-        setSelectedWidget(null);
-        setError(toErrorMessage(err, "Failed to load widgets"));
-      } finally {
-        if (!cancelled) {
-          setLoadingWidgets(false);
-        }
-      }
+    if (intervals.length === 0) {
+      return FALLBACK_REFRESH_INTERVAL_MS;
     }
 
-    loadWidgets();
+    return Math.min(...intervals);
+  }, [widgets]);
 
-    return () => {
-      cancelled = true;
-    };
+  const loadDisplayLayout = useCallback(async (showInitialLoading: boolean) => {
+    try {
+      if (showInitialLoading) {
+        setLoadingLayout(true);
+      }
+
+      const response = await getDisplayLayout();
+      setWidgets(response.widgets);
+      setError(null);
+    } catch (err) {
+      console.error(err);
+      setError(toErrorMessage(err, "Failed to load display layout"));
+      if (showInitialLoading) {
+        setWidgets([]);
+      }
+    } finally {
+      if (showInitialLoading) {
+        setLoadingLayout(false);
+      }
+    }
   }, []);
 
   useEffect(() => {
-    if (!selectedWidgetId) {
-      refreshEngine.stop();
-      setWidgetData(null);
-      setLoadingWidgetData(false);
-      return;
-    }
-
-    if (!selectedWidget?.type) {
-      refreshEngine.stop();
-      return;
-    }
-    const widgetId = selectedWidgetId;
-    const widgetType = selectedWidget.type;
     let cancelled = false;
 
-    async function loadWidgetData() {
-      try {
-        if (cancelled) {
-          return;
-        }
-        setLoadingWidgetData(true);
-        setError(null);
-
-        const response = await getWidgetData<
-          WidgetDataByKey[WidgetKey]
-        >(widgetId);
-        if (cancelled) {
-          return;
-        }
-        setWidgetData(response as WidgetEnvelope);
-      } catch (err) {
-        if (cancelled) {
-          return;
-        }
-        console.error(err);
-        setError(toErrorMessage(err, "Failed to load widget data"));
-      } finally {
-        if (!cancelled) {
-          setLoadingWidgetData(false);
-        }
+    async function runInitialLoad() {
+      if (cancelled) {
+        return;
       }
+
+      await loadDisplayLayout(true);
     }
 
-    setWidgetData(null);
-    refreshEngine.start({
-      widgetInstanceId: widgetId,
-      widgetType,
-      onRefresh: () => {
-        void loadWidgetData();
-      },
-    });
+    void runInitialLoad();
 
     return () => {
       cancelled = true;
-      refreshEngine.stop();
     };
-  }, [refreshEngine, selectedWidgetId, selectedWidget?.type]);
+  }, [loadDisplayLayout]);
 
-  const uiState = resolveDisplayUiState({
-    loadingWidgets,
-    loadingWidgetData,
-    hasError: !!error,
-    hasSelectedWidget: !!selectedWidget,
-    hasWidgetData: !!widgetData,
-  });
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      void loadDisplayLayout(false);
+    }, refreshIntervalMs);
 
-  const frameModel = getDisplayFrameModel(selectedWidget?.type);
-  const statusModel = uiState === "ready" ? null : getDisplayStatusModel(uiState, error);
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [loadDisplayLayout, refreshIntervalMs]);
+
+  const frameModel = getDisplayFrameModel(undefined);
+  const hasWidgets = widgets.length > 0;
 
   const content = useMemo(() => {
-    if (uiState === "ready" && widgetData) {
-      return renderWidgetFromEnvelope(widgetData);
+    if (loadingLayout && !hasWidgets) {
+      const model = getDisplayStatusModel("loadingWidgets", null);
+      return <DisplayStatusCard title={model.title} message={model.message} showSpinner />;
     }
 
-    if (!statusModel) {
-      return null;
+    if (!hasWidgets && error) {
+      const model = getDisplayStatusModel("error", error);
+      return <DisplayStatusCard title={model.title} message={model.message} />;
     }
 
-    const statusBadgeStyle =
-      statusModel.tone === "error" ? styles.statusBadgeError : styles.statusBadgeNeutral;
-    const statusTitleStyle =
-      statusModel.tone === "error" ? styles.statusTitleError : styles.statusTitle;
+    if (!hasWidgets) {
+      const model = getDisplayStatusModel("empty", null);
+      return <DisplayStatusCard title={model.title} message={model.message} />;
+    }
 
-    return (
-      <View style={styles.centered}>
-        <View style={styles.statusCard}>
-          {statusModel.showSpinner ? (
-            <ActivityIndicator size="large" color="#fff" />
-          ) : (
-            <View style={[styles.statusBadge, statusBadgeStyle]}>
-              <Text style={styles.statusBadgeText}>!</Text>
-            </View>
-          )}
-          <Text style={statusTitleStyle}>{statusModel.title}</Text>
-          <Text style={styles.statusMessage}>{statusModel.message}</Text>
-        </View>
-      </View>
-    );
-  }, [statusModel, uiState, widgetData]);
+    return <LayoutGrid widgets={widgets} />;
+  }, [error, hasWidgets, loadingLayout, widgets]);
 
   return (
     <View style={styles.screen}>
@@ -212,10 +141,34 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       <DisplayFrame
         title={frameModel.title}
         subtitle={frameModel.subtitle}
-        footer={<Text style={styles.footerText}>{frameModel.footerLabel}</Text>}
+        footer={<Text style={styles.footerText}>{hasWidgets ? `${widgets.length} widgets live` : frameModel.footerLabel}</Text>}
       >
         {content}
       </DisplayFrame>
+    </View>
+  );
+}
+
+interface DisplayStatusCardProps {
+  title: string;
+  message: string;
+  showSpinner?: boolean;
+}
+
+function DisplayStatusCard({ title, message, showSpinner = false }: DisplayStatusCardProps) {
+  return (
+    <View style={styles.centered}>
+      <View style={styles.statusCard}>
+        {showSpinner ? (
+          <ActivityIndicator size="large" color="#fff" />
+        ) : (
+          <View style={[styles.statusBadge, styles.statusBadgeNeutral]}>
+            <Text style={styles.statusBadgeText}>!</Text>
+          </View>
+        )}
+        <Text style={styles.statusTitle}>{title}</Text>
+        <Text style={styles.statusMessage}>{message}</Text>
+      </View>
     </View>
   );
 }
@@ -273,9 +226,6 @@ const styles = StyleSheet.create({
   statusBadgeNeutral: {
     backgroundColor: "rgba(255, 255, 255, 0.1)",
   },
-  statusBadgeError: {
-    backgroundColor: "rgba(255, 107, 107, 0.14)",
-  },
   statusBadgeText: {
     color: "#ff7d7d",
     fontSize: 22,
@@ -287,14 +237,6 @@ const styles = StyleSheet.create({
     lineHeight: 38,
     fontWeight: "700",
     color: "#fff",
-    textAlign: "center",
-  },
-  statusTitleError: {
-    marginTop: 16,
-    fontSize: 32,
-    lineHeight: 38,
-    fontWeight: "700",
-    color: "#ff9b9b",
     textAlign: "center",
   },
   statusMessage: {
@@ -310,10 +252,11 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
   },
 });
-  function toErrorMessage(error: unknown, fallback: string): string {
-    if (error instanceof Error && error.message.trim().length > 0) {
-      return error.message;
-    }
 
-    return fallback;
+function toErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim().length > 0) {
+    return error.message;
   }
+
+  return fallback;
+}
