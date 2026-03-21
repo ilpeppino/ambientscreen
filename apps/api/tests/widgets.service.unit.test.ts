@@ -65,6 +65,66 @@ test("widgetsService createWidgetAtNextPosition falls back to default layout", a
   assert.deepEqual(created.layout, { x: 0, y: 0, w: 1, h: 1 });
 });
 
+test("widgetsService createWidgetAtNextPosition auto-places when default slot is occupied", async () => {
+  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll =
+    async () => [
+      {
+        id: "widget-existing",
+        userId: "user-1",
+        type: "clockDate",
+        config: {},
+        layout: { x: 0, y: 0, w: 1, h: 1 },
+        isActive: true,
+        createdAt: new Date("2026-03-21T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-21T10:00:00.000Z"),
+      },
+    ];
+
+  (widgetsRepository as unknown as { create: typeof widgetsRepository.create }).create = (async (
+    input,
+  ) => ({
+    id: "widget-new",
+    userId: input.userId,
+    type: input.type,
+    config: input.config,
+    layout: input.layout,
+    isActive: input.isActive,
+    createdAt: new Date("2026-03-21T10:00:00.000Z"),
+    updatedAt: new Date("2026-03-21T10:00:00.000Z"),
+  })) as typeof widgetsRepository.create;
+
+  const created = await widgetsService.createWidgetAtNextPosition({
+    userId: "user-1",
+    type: "weather",
+  });
+
+  assert.deepEqual(created.layout, { x: 1, y: 0, w: 1, h: 1 });
+});
+
+test("widgetsService createWidgetAtNextPosition rejects explicit overlapping layout", async () => {
+  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll =
+    async () => [
+      {
+        id: "widget-existing",
+        userId: "user-1",
+        type: "clockDate",
+        config: {},
+        layout: { x: 0, y: 0, w: 4, h: 2 },
+        isActive: true,
+        createdAt: new Date("2026-03-21T10:00:00.000Z"),
+        updatedAt: new Date("2026-03-21T10:00:00.000Z"),
+      },
+    ];
+
+  await assert.rejects(
+    widgetsService.createWidgetAtNextPosition({
+      userId: "user-1",
+      type: "weather",
+      layout: { x: 2, y: 0, w: 4, h: 2 },
+    }),
+  );
+});
+
 test("widgetsService updateWidgetsLayoutForUser validates layouts", async () => {
   await assert.rejects(
     widgetsService.updateWidgetsLayoutForUser({

@@ -1,7 +1,6 @@
 import { Router } from "express";
 import {
   createWidgetSchema,
-  defaultWidgetLayout,
   normalizeWidgetConfig,
   updateWidgetsLayoutSchema,
 } from "./widget-contracts";
@@ -46,7 +45,7 @@ widgetsRouter.post(
       userId,
       type,
       config: normalizeWidgetConfig(type, config),
-      layout: layout ?? defaultWidgetLayout,
+      layout,
     });
 
     res.status(201).json(widget);

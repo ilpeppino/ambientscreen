@@ -22,6 +22,7 @@ import {
 import { LayoutGrid } from "../components/LayoutGrid";
 import {
   clampWidgetLayout,
+  normalizeWidgetLayouts,
   resolveWidgetLayoutCollision,
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
@@ -70,8 +71,9 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       }
 
       const response = await getDisplayLayout();
-      setWidgets(response.widgets);
-      setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(response.widgets));
+      const normalizedWidgets = withNormalizedLayouts(response.widgets);
+      setWidgets(normalizedWidgets);
+      setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(normalizedWidgets));
       setError(null);
     } catch (err) {
       console.error(err);
@@ -153,9 +155,9 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     setError(null);
     setEditMode((current) => {
       if (!current) {
-        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(widgets));
+        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
       } else {
-        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(widgets));
+        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
         setSelectedWidgetId(null);
       }
 
@@ -476,4 +478,19 @@ function buildLayoutsByWidgetId(
     accumulator[widget.widgetInstanceId] = widget.layout;
     return accumulator;
   }, {});
+}
+
+function withNormalizedLayouts(
+  widgets: DisplayLayoutWidgetEnvelope[],
+): DisplayLayoutWidgetEnvelope[] {
+  const orderedWidgetIds = widgets.map((widget) => widget.widgetInstanceId);
+  const normalizedLayoutsByWidgetId = normalizeWidgetLayouts({
+    layoutsById: buildLayoutsByWidgetId(widgets),
+    orderedWidgetIds,
+  });
+
+  return widgets.map((widget) => ({
+    ...widget,
+    layout: normalizedLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
+  }));
 }

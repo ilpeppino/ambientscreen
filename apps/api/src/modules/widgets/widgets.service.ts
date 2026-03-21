@@ -3,6 +3,7 @@ import { apiErrors } from "../../core/http/api-error";
 import { widgetsRepository } from "./widgets.repository";
 import {
   defaultWidgetLayout,
+  DISPLAY_GRID_BASE_ROWS,
   DISPLAY_GRID_COLUMNS,
   getDefaultWidgetConfig,
   normalizeWidgetConfig,
@@ -62,12 +63,33 @@ export const widgetsService = {
   }) {
     const widgets = await widgetsRepository.findAll(data.userId);
     const hasActiveWidget = widgets.some((widget) => widget.isActive);
+    const parsedLayout = widgetLayoutSchema.safeParse(data.layout ?? defaultWidgetLayout);
+
+    if (!parsedLayout.success) {
+      throw apiErrors.validation("Invalid widget layout", parsedLayout.error.format());
+    }
+
+    const existingLayouts = widgets.map((widget) => widget.layout);
+    let nextLayout = parsedLayout.data;
+
+    const hasLayoutConflict = existingLayouts.some((layout) => layoutsOverlap(layout, nextLayout));
+    if (hasLayoutConflict) {
+      if (data.layout) {
+        throw apiErrors.validation("Widget layout overlaps with an existing widget.");
+      }
+
+      const autoPlacedLayout = findFirstAvailableLayout(parsedLayout.data, existingLayouts);
+      if (!autoPlacedLayout) {
+        throw apiErrors.validation("No available layout slot for new widget.");
+      }
+      nextLayout = autoPlacedLayout;
+    }
 
     return this.createWidget({
       userId: data.userId,
       type: data.type,
       config: data.config,
-      layout: data.layout ?? defaultWidgetLayout,
+      layout: nextLayout,
       isActive: !hasActiveWidget,
     });
   },
@@ -140,4 +162,23 @@ function layoutsOverlap(
   const yOverlap = first.y < second.y + second.h && second.y < first.y + first.h;
 
   return xOverlap && yOverlap;
+}
+
+function findFirstAvailableLayout(
+  proposedLayout: { x: number; y: number; w: number; h: number },
+  occupiedLayouts: Array<{ x: number; y: number; w: number; h: number }>,
+): { x: number; y: number; w: number; h: number } | null {
+  const maxX = DISPLAY_GRID_COLUMNS - proposedLayout.w;
+  const maxY = DISPLAY_GRID_BASE_ROWS - proposedLayout.h;
+
+  for (let y = 0; y <= maxY; y += 1) {
+    for (let x = 0; x <= maxX; x += 1) {
+      const candidate = { ...proposedLayout, x, y };
+      if (!occupiedLayouts.some((layout) => layoutsOverlap(layout, candidate))) {
+        return candidate;
+      }
+    }
+  }
+
+  return null;
 }

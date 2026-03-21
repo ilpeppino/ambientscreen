@@ -257,7 +257,7 @@ test("M1-2: widget can be created from UI types and appears in refreshed list", 
   assert.equal(widgets[0].type, "clockDate");
   assert.deepEqual(widgets[0].layout, { x: 0, y: 0, w: 1, h: 1 });
   assert.equal(widgets[1].type, "calendar");
-  assert.deepEqual(widgets[1].layout, { x: 0, y: 0, w: 1, h: 1 });
+  assert.deepEqual(widgets[1].layout, { x: 1, y: 0, w: 1, h: 1 });
 });
 
 test("M1-2: unsupported widget type is rejected", async () => {
@@ -321,6 +321,28 @@ test("M2-1: widget can be created with explicit layout and is returned with layo
     layout: { x: number; y: number; w: number; h: number };
   };
   assert.deepEqual(createdWidget.layout, { x: 2, y: 1, w: 3, h: 2 });
+});
+
+test("M2-4: explicit overlapping layout is rejected", async () => {
+  await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev" }
+  });
+
+  const firstCreate = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "clockDate",
+      layout: { x: 0, y: 0, w: 4, h: 2 }
+    }
+  });
+  assert.equal(firstCreate.statusCode, 201);
+
+  const overlappingCreate = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "weather",
+      layout: { x: 2, y: 0, w: 4, h: 2 }
+    }
+  });
+  assert.equal(overlappingCreate.statusCode, 400);
 });
 
 test("M3-3: weather widget creation rejects invalid units config", async () => {

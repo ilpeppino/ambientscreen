@@ -5,6 +5,7 @@ import {
   applyResizeDelta,
   clampWidgetLayout,
   computeLayoutFrame,
+  normalizeWidgetLayouts,
   resolveWidgetLayoutCollision,
   resolveWidgetLayouts,
 } from "../src/features/display/components/LayoutGrid.logic";
@@ -131,4 +132,19 @@ test("resolveWidgetLayoutCollision keeps proposed layout when there is no overla
   });
 
   assert.deepEqual(resolved, { x: 6, y: 0, w: 6, h: 3 });
+});
+
+test("normalizeWidgetLayouts resolves overlaps across the full widget set", () => {
+  const normalized = normalizeWidgetLayouts({
+    layoutsById: {
+      "widget-1": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-2": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-3": { x: 0, y: 0, w: 6, h: 3 },
+    },
+    orderedWidgetIds: ["widget-1", "widget-2", "widget-3"],
+  });
+
+  assert.deepEqual(normalized["widget-1"], { x: 0, y: 0, w: 6, h: 3 });
+  assert.deepEqual(normalized["widget-2"], { x: 6, y: 0, w: 6, h: 3 });
+  assert.deepEqual(normalized["widget-3"], { x: 0, y: 3, w: 6, h: 3 });
 });
