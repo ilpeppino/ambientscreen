@@ -7,6 +7,7 @@ import { widgetsRouter } from "./modules/widgets/widgets.routes";
 import { widgetDataRouter } from "./modules/widgetData/widget-data.routes";
 import { displayRouter } from "./modules/display/display.routes";
 import { orchestrationRouter } from "./modules/orchestration/orchestration.routes";
+import { sharedSessionsRouter } from "./modules/sharedSessions/sharedSessions.routes";
 import {
   globalErrorMiddleware,
   notFoundMiddleware
@@ -29,6 +30,7 @@ export function createApp() {
   app.use("/widgets", widgetsRouter);
   app.use("/widget-data", widgetDataRouter);
   app.use("/orchestration-rules", orchestrationRouter);
+  app.use("/shared-sessions", sharedSessionsRouter);
   app.use("/", displayRouter);
   app.use(notFoundMiddleware);
   app.use(globalErrorMiddleware);

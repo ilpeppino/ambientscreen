@@ -152,6 +152,41 @@ export interface OrchestrationRule {
   createdAt: string;
 }
 
+export interface SharedSessionParticipant {
+  id: string;
+  sessionId: string;
+  deviceId: string;
+  displayName: string | null;
+  lastSeenAt: string;
+  createdAt: string;
+}
+
+export interface SharedSessionPlaybackState {
+  sessionId: string;
+  activeProfileId: string | null;
+  slideshowEnabled: boolean;
+  slideshowIntervalSec: number;
+  rotationProfileIds: string[];
+  currentIndex: number;
+  lastAdvancedAt: string | null;
+}
+
+export interface SharedScreenSession {
+  id: string;
+  userId: string;
+  name: string;
+  isActive: boolean;
+  activeProfileId: string | null;
+  slideshowEnabled: boolean;
+  slideshowIntervalSec: number;
+  rotationProfileIds: string[];
+  currentIndex: number;
+  lastAdvancedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  participants: SharedSessionParticipant[];
+}
+
 export interface WidgetDataMeta {
   fetchedAt?: string;
   staleAt?: string;
