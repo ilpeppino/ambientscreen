@@ -222,3 +222,22 @@ test("PATCH /widgets/layout rejects invalid payload", async () => {
 
   assert.equal(patchResponse.statusCode, 400);
 });
+
+test("PATCH /widgets/layout rejects overlapping layouts", async () => {
+  const patchResponse = await invokeRoute(widgetsRouter, "patch", "/layout", {
+    body: {
+      widgets: [
+        {
+          id: "widget-1",
+          layout: { x: 0, y: 0, w: 7, h: 2 },
+        },
+        {
+          id: "widget-2",
+          layout: { x: 6, y: 0, w: 6, h: 2 },
+        },
+      ],
+    },
+  });
+
+  assert.equal(patchResponse.statusCode, 400);
+});

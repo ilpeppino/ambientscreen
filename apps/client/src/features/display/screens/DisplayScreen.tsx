@@ -20,7 +20,11 @@ import {
   getDisplayStatusModel,
 } from "../displayScreen.logic";
 import { LayoutGrid } from "../components/LayoutGrid";
-import { clampWidgetLayout, type WidgetLayout } from "../components/LayoutGrid.logic";
+import {
+  clampWidgetLayout,
+  resolveWidgetLayoutCollision,
+  type WidgetLayout,
+} from "../components/LayoutGrid.logic";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -160,10 +164,19 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, [widgets]);
 
   const handleWidgetLayoutChange = useCallback((widgetId: string, layout: WidgetLayout) => {
-    setDraftLayoutsByWidgetId((current) => ({
-      ...current,
-      [widgetId]: clampWidgetLayout({ layout }),
-    }));
+    setDraftLayoutsByWidgetId((current) => {
+      const clampedLayout = clampWidgetLayout({ layout });
+      const resolvedLayout = resolveWidgetLayoutCollision({
+        widgetId,
+        proposedLayout: clampedLayout,
+        layoutsById: current,
+      });
+
+      return {
+        ...current,
+        [widgetId]: resolvedLayout,
+      };
+    });
   }, []);
 
   const handleCancelLayout = useCallback(() => {

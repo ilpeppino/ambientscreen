@@ -5,6 +5,7 @@ import {
   applyResizeDelta,
   clampWidgetLayout,
   computeLayoutFrame,
+  resolveWidgetLayoutCollision,
   resolveWidgetLayouts,
 } from "../src/features/display/components/LayoutGrid.logic";
 
@@ -104,4 +105,30 @@ test("applyResizeDelta updates layout dimensions and clamps", () => {
   });
 
   assert.deepEqual(resized, { x: 0, y: 0, w: 12, h: 6 });
+});
+
+test("resolveWidgetLayoutCollision repositions to a non-overlapping slot", () => {
+  const resolved = resolveWidgetLayoutCollision({
+    widgetId: "widget-2",
+    proposedLayout: { x: 0, y: 0, w: 6, h: 3 },
+    layoutsById: {
+      "widget-1": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-2": { x: 6, y: 0, w: 6, h: 3 },
+    },
+  });
+
+  assert.deepEqual(resolved, { x: 6, y: 0, w: 6, h: 3 });
+});
+
+test("resolveWidgetLayoutCollision keeps proposed layout when there is no overlap", () => {
+  const resolved = resolveWidgetLayoutCollision({
+    widgetId: "widget-2",
+    proposedLayout: { x: 6, y: 0, w: 6, h: 3 },
+    layoutsById: {
+      "widget-1": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-2": { x: 6, y: 3, w: 6, h: 3 },
+    },
+  });
+
+  assert.deepEqual(resolved, { x: 6, y: 0, w: 6, h: 3 });
 });

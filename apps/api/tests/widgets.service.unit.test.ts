@@ -79,6 +79,24 @@ test("widgetsService updateWidgetsLayoutForUser validates layouts", async () => 
   );
 });
 
+test("widgetsService updateWidgetsLayoutForUser rejects overlapping layouts", async () => {
+  await assert.rejects(
+    widgetsService.updateWidgetsLayoutForUser({
+      userId: "user-1",
+      widgets: [
+        {
+          id: "widget-1",
+          layout: { x: 0, y: 0, w: 6, h: 3 },
+        },
+        {
+          id: "widget-2",
+          layout: { x: 5, y: 0, w: 6, h: 3 },
+        },
+      ],
+    }),
+  );
+});
+
 test("widgetsService updateWidgetsLayoutForUser persists validated payload", async () => {
   let receivedInput: unknown;
 

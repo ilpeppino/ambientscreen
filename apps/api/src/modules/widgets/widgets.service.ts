@@ -116,6 +116,14 @@ export const widgetsService = {
       };
     });
 
+    for (let index = 0; index < parsedWidgets.length; index += 1) {
+      for (let candidateIndex = index + 1; candidateIndex < parsedWidgets.length; candidateIndex += 1) {
+        if (layoutsOverlap(parsedWidgets[index].layout, parsedWidgets[candidateIndex].layout)) {
+          throw apiErrors.validation("Widget layouts must not overlap.");
+        }
+      }
+    }
+
     try {
       return await widgetsRepository.updateLayouts(data.userId, parsedWidgets);
     } catch {
@@ -123,3 +131,13 @@ export const widgetsService = {
     }
   },
 };
+
+function layoutsOverlap(
+  first: { x: number; y: number; w: number; h: number },
+  second: { x: number; y: number; w: number; h: number },
+) {
+  const xOverlap = first.x < second.x + second.w && second.x < first.x + first.w;
+  const yOverlap = first.y < second.y + second.h && second.y < first.y + first.h;
+
+  return xOverlap && yOverlap;
+}

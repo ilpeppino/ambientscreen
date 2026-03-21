@@ -8,6 +8,14 @@ export interface WidgetLayout {
   h: number;
 }
 
+interface ResolveWidgetLayoutCollisionInput {
+  widgetId: string;
+  proposedLayout: WidgetLayout;
+  layoutsById: Record<string, WidgetLayout>;
+  columns?: number;
+  rows?: number;
+}
+
 interface ClampWidgetLayoutInput {
   layout: WidgetLayout;
   columns?: number;
@@ -103,6 +111,59 @@ function overlaps(a: WidgetLayout, b: WidgetLayout): boolean {
   const yOverlap = a.y < b.y + b.h && b.y < a.y + a.h;
 
   return xOverlap && yOverlap;
+}
+
+export function resolveWidgetLayoutCollision(
+  input: ResolveWidgetLayoutCollisionInput,
+): WidgetLayout {
+  const columns = input.columns ?? DISPLAY_GRID_COLUMNS;
+  const rows = input.rows ?? DISPLAY_GRID_BASE_ROWS;
+  const previousLayout = input.layoutsById[input.widgetId];
+  const nextLayout = clampWidgetLayout({
+    layout: input.proposedLayout,
+    columns,
+    rows,
+  });
+
+  const otherLayouts = Object.entries(input.layoutsById)
+    .filter(([candidateId]) => candidateId !== input.widgetId)
+    .map(([, layout]) => clampWidgetLayout({ layout, columns, rows }));
+
+  if (!otherLayouts.some((layout) => overlaps(layout, nextLayout))) {
+    return nextLayout;
+  }
+
+  const maxY = rows - nextLayout.h;
+  const maxX = columns - nextLayout.w;
+  const preferredStartY = Math.min(Math.max(nextLayout.y, 0), maxY);
+
+  for (let y = preferredStartY; y <= maxY; y += 1) {
+    for (let x = 0; x <= maxX; x += 1) {
+      const candidate = { ...nextLayout, x, y };
+      if (!otherLayouts.some((layout) => overlaps(layout, candidate))) {
+        return candidate;
+      }
+    }
+  }
+
+  for (let y = 0; y < preferredStartY; y += 1) {
+    for (let x = 0; x <= maxX; x += 1) {
+      const candidate = { ...nextLayout, x, y };
+      if (!otherLayouts.some((layout) => overlaps(layout, candidate))) {
+        return candidate;
+      }
+    }
+  }
+
+  if (!previousLayout) {
+    return nextLayout;
+  }
+
+  return clampWidgetLayout({
+    layout: previousLayout,
+    columns,
+    rows,
+  });
 }
 
 function hasAnyOverlap(layouts: WidgetLayout[]): boolean {
