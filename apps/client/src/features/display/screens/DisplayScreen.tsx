@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   getDisplayLayout,
@@ -42,6 +42,7 @@ import {
 } from "../../profiles/profileStorage";
 import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
 import { API_BASE_URL } from "../../../core/config/api";
+import { createOrchestrationEngine } from "../services/orchestrationEngine";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -148,6 +149,17 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     }
   }, [activeProfileId]);
 
+  const loadDisplayLayoutRef = useRef(loadDisplayLayout);
+  loadDisplayLayoutRef.current = loadDisplayLayout;
+
+  const orchestrationEngineRef = useRef(
+    createOrchestrationEngine({
+      onRefresh: async () => {
+        await loadDisplayLayoutRef.current(false);
+      },
+    }),
+  );
+
   const realtimeConnectionState = useRealtimeDisplaySync({
     apiBaseUrl: API_BASE_URL,
     activeProfileId,
@@ -202,6 +214,19 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       clearInterval(intervalId);
     };
   }, [editMode, effectivePollingIntervalMs, loadDisplayLayout]);
+
+  useEffect(() => {
+    const orchestrationEngine = orchestrationEngineRef.current;
+    if (!activeProfileId || editMode) {
+      orchestrationEngine.stop();
+      return () => undefined;
+    }
+
+    void orchestrationEngine.start();
+    return () => {
+      orchestrationEngine.stop();
+    };
+  }, [activeProfileId, editMode]);
 
   const layoutWidgets = useMemo<DisplayLayoutWidgetEnvelope[]>(() => {
     if (!editMode) {

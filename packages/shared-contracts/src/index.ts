@@ -139,6 +139,17 @@ export interface Profile {
   createdAt: string;
 }
 
+export type OrchestrationRuleType = "interval";
+
+export interface OrchestrationRule {
+  id: string;
+  userId: string;
+  type: OrchestrationRuleType;
+  intervalSec: number;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface WidgetDataMeta {
   fetchedAt?: string;
   staleAt?: string;

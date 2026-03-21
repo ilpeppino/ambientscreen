@@ -12,7 +12,8 @@ model User {
   email     String?   @unique
   createdAt DateTime  @default(now())
 
-  profiles  Profile[]
+  profiles           Profile[]
+  orchestrationRules OrchestrationRule[]
 }
 
 model Profile {
@@ -44,4 +45,17 @@ model WidgetInstance {
   profile Profile @relation(fields: [profileId], references: [id])
 
   @@index([profileId])
+}
+
+model OrchestrationRule {
+  id          String   @id @default(uuid())
+  userId      String
+  type        String
+  intervalSec Int
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
