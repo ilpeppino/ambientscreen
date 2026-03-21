@@ -192,6 +192,21 @@ export interface SharedScreenSession {
   participants: SharedSessionParticipant[];
 }
 
+export type DevicePlatform = "ios" | "android" | "web";
+
+export type DeviceType = "phone" | "tablet" | "display" | "web";
+
+export interface Device {
+  id: string;
+  userId: string;
+  name: string;
+  platform: DevicePlatform;
+  deviceType: DeviceType;
+  lastSeenAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface WidgetDataMeta {
   fetchedAt?: string;
   staleAt?: string;
