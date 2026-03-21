@@ -1,20 +1,10 @@
-import assert from "node:assert/strict";
-import test, { afterEach, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import { profilesRepository } from "../src/modules/profiles/profiles.repository";
 import { profilesService } from "../src/modules/profiles/profiles.service";
 import { configureRealtimeServer, resetRealtimeServerForTests } from "../src/modules/realtime/realtime.runtime";
 import type { RealtimeEvent } from "../src/modules/realtime/realtime.types";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsService } from "../src/modules/widgets/widgets.service";
-
-const originalWidgetFindAll = widgetsRepository.findAll;
-const originalWidgetCreate = widgetsRepository.create;
-const originalWidgetFindById = widgetsRepository.findById;
-const originalWidgetUpdateConfig = widgetsRepository.updateConfig;
-const originalWidgetUpdateLayouts = widgetsRepository.updateLayouts;
-const originalWidgetDeleteById = widgetsRepository.deleteById;
-const originalProfileFindById = profilesRepository.findById;
-const originalProfileUpdateName = profilesRepository.updateName;
 
 let emittedEvents: RealtimeEvent[] = [];
 
@@ -29,22 +19,14 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll = originalWidgetFindAll;
-  (widgetsRepository as unknown as { create: typeof widgetsRepository.create }).create = originalWidgetCreate;
-  (widgetsRepository as unknown as { findById: typeof widgetsRepository.findById }).findById = originalWidgetFindById;
-  (widgetsRepository as unknown as { updateConfig: typeof widgetsRepository.updateConfig }).updateConfig = originalWidgetUpdateConfig;
-  (widgetsRepository as unknown as { updateLayouts: typeof widgetsRepository.updateLayouts }).updateLayouts = originalWidgetUpdateLayouts;
-  (widgetsRepository as unknown as { deleteById: typeof widgetsRepository.deleteById }).deleteById = originalWidgetDeleteById;
-  (profilesRepository as unknown as { findById: typeof profilesRepository.findById }).findById = originalProfileFindById;
-  (profilesRepository as unknown as { updateName: typeof profilesRepository.updateName }).updateName = originalProfileUpdateName;
+  vi.restoreAllMocks();
   resetRealtimeServerForTests();
 });
 
 test("widgetsService emits widget.created and display.refreshRequested on create", async () => {
-  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll =
-    async () => [];
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => []);
 
-  (widgetsRepository as unknown as { create: (input: { profileId: string; type: string; layout: { x: number; y: number; w: number; h: number }; isActive: boolean }) => Promise<unknown> }).create = async (input) => ({
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => ({
     id: "widget-1",
     profileId: input.profileId,
     type: input.type,
@@ -53,23 +35,20 @@ test("widgetsService emits widget.created and display.refreshRequested on create
     isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  });
+  }));
 
   await widgetsService.createWidgetAtNextPosition({
     profileId: "profile-1",
     type: "clockDate",
   });
 
-  assert.deepEqual(
-    emittedEvents.map((event) => event.type),
-    ["widget.created", "display.refreshRequested"],
-  );
-  assert.equal(emittedEvents[0].profileId, "profile-1");
-  assert.equal(emittedEvents[0].widgetId, "widget-1");
+  expect(emittedEvents.map((event) => event.type)).toEqual(["widget.created", "display.refreshRequested"]);
+  expect(emittedEvents[0].profileId).toBe("profile-1");
+  expect(emittedEvents[0].widgetId).toBe("widget-1");
 });
 
 test("widgetsService emits widget.updated and display.refreshRequested on config update", async () => {
-  (widgetsRepository as unknown as { findById: typeof widgetsRepository.findById }).findById = async () => ({
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async () => ({
     id: "widget-1",
     profileId: "profile-1",
     type: "weather",
@@ -78,9 +57,9 @@ test("widgetsService emits widget.updated and display.refreshRequested on config
     isActive: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  });
+  }));
 
-  (widgetsRepository as unknown as { updateConfig: typeof widgetsRepository.updateConfig }).updateConfig = async () => ({
+  vi.spyOn(widgetsRepository, "updateConfig").mockImplementation(async () => ({
     id: "widget-1",
     profileId: "profile-1",
     type: "weather",
@@ -89,7 +68,7 @@ test("widgetsService emits widget.updated and display.refreshRequested on config
     isActive: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:05:00.000Z"),
-  });
+  }));
 
   await widgetsService.updateWidgetConfigForProfile({
     profileId: "profile-1",
@@ -97,15 +76,12 @@ test("widgetsService emits widget.updated and display.refreshRequested on config
     configPatch: { location: "Rotterdam" },
   });
 
-  assert.deepEqual(
-    emittedEvents.map((event) => event.type),
-    ["widget.updated", "display.refreshRequested"],
-  );
-  assert.equal(emittedEvents[0].widgetId, "widget-1");
+  expect(emittedEvents.map((event) => event.type)).toEqual(["widget.updated", "display.refreshRequested"]);
+  expect(emittedEvents[0].widgetId).toBe("widget-1");
 });
 
 test("widgetsService emits layout.updated and display.refreshRequested on layout update", async () => {
-  (widgetsRepository as unknown as { updateLayouts: typeof widgetsRepository.updateLayouts }).updateLayouts = async (
+  vi.spyOn(widgetsRepository, "updateLayouts").mockImplementation(async (
     profileId,
     inputs,
   ) => inputs.map((input) => ({
@@ -117,7 +93,7 @@ test("widgetsService emits layout.updated and display.refreshRequested on layout
     isActive: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:05:00.000Z"),
-  }));
+  })));
 
   await widgetsService.updateWidgetsLayoutForProfile({
     profileId: "profile-1",
@@ -129,15 +105,12 @@ test("widgetsService emits layout.updated and display.refreshRequested on layout
     ],
   });
 
-  assert.deepEqual(
-    emittedEvents.map((event) => event.type),
-    ["layout.updated", "display.refreshRequested"],
-  );
-  assert.equal(emittedEvents[0].profileId, "profile-1");
+  expect(emittedEvents.map((event) => event.type)).toEqual(["layout.updated", "display.refreshRequested"]);
+  expect(emittedEvents[0].profileId).toBe("profile-1");
 });
 
 test("widgetsService emits widget.deleted and display.refreshRequested on widget delete", async () => {
-  (widgetsRepository as unknown as { deleteById: typeof widgetsRepository.deleteById }).deleteById = async () => ({
+  vi.spyOn(widgetsRepository, "deleteById").mockImplementation(async () => ({
     id: "widget-1",
     profileId: "profile-1",
     type: "calendar",
@@ -146,36 +119,33 @@ test("widgetsService emits widget.deleted and display.refreshRequested on widget
     isActive: false,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  });
+  }));
 
   await widgetsService.deleteWidgetForProfile({
     profileId: "profile-1",
     widgetId: "widget-1",
   });
 
-  assert.deepEqual(
-    emittedEvents.map((event) => event.type),
-    ["widget.deleted", "display.refreshRequested"],
-  );
-  assert.equal(emittedEvents[0].widgetId, "widget-1");
+  expect(emittedEvents.map((event) => event.type)).toEqual(["widget.deleted", "display.refreshRequested"]);
+  expect(emittedEvents[0].widgetId).toBe("widget-1");
 });
 
 test("profilesService emits profile.updated and display.refreshRequested on rename", async () => {
-  (profilesRepository as unknown as { findById: (id: string) => Promise<unknown> }).findById = async () => ({
+  vi.spyOn(profilesRepository, "findById").mockImplementation(async () => ({
     id: "profile-1",
     userId: "user-1",
     name: "Before",
     isDefault: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
-  });
+  }));
 
-  (profilesRepository as unknown as { updateName: (id: string, name: string) => Promise<unknown> }).updateName = async () => ({
+  vi.spyOn(profilesRepository, "updateName").mockImplementation(async () => ({
     id: "profile-1",
     userId: "user-1",
     name: "After",
     isDefault: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
-  });
+  }));
 
   await profilesService.renameProfileForUser({
     userId: "user-1",
@@ -183,9 +153,6 @@ test("profilesService emits profile.updated and display.refreshRequested on rena
     name: "After",
   });
 
-  assert.deepEqual(
-    emittedEvents.map((event) => event.type),
-    ["profile.updated", "display.refreshRequested"],
-  );
-  assert.equal(emittedEvents[0].profileId, "profile-1");
+  expect(emittedEvents.map((event) => event.type)).toEqual(["profile.updated", "display.refreshRequested"]);
+  expect(emittedEvents[0].profileId).toBe("profile-1");
 });

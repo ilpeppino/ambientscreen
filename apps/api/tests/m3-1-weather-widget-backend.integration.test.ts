@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -37,45 +36,6 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-const originalUsersRepository = {
-  findAll: usersRepository.findAll,
-  findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create,
-};
-
-const originalWidgetsRepository = {
-  findAll: widgetsRepository.findAll,
-  findById: widgetsRepository.findById,
-  create: widgetsRepository.create,
-  activateWidget: widgetsRepository.activateWidget,
-};
-
-const originalFetch = globalThis.fetch;
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-  findByEmail: (email: string) => Promise<TestUser | null>;
-  create: (email: string) => Promise<TestUser>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (profileId: string) => Promise<TestWidget[]>;
-  findById: (id: string) => Promise<TestWidget | null>;
-  create: (input: {
-    profileId: string;
-    type: string;
-    config: unknown;
-    layout: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-    };
-    isActive: boolean;
-  }) => Promise<TestWidget>;
-  activateWidget: (profileId: string, widgetId: string) => Promise<TestWidget>;
-};
-
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
 let userCounter = 0;
@@ -87,11 +47,11 @@ beforeEach(() => {
   userCounter = 0;
   widgetCounter = 0;
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableUsersRepository.findByEmail = async (email: string) => {
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
     return usersStore.find((user) => user.email === email) ?? null;
-  };
-  mutableUsersRepository.create = async (email: string) => {
+  });
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
     userCounter += 1;
     const newUser: TestUser = {
       id: `user-${userCounter}`,
@@ -100,17 +60,17 @@ beforeEach(() => {
     };
     usersStore.push(newUser);
     return newUser;
-  };
+  });
 
-  mutableWidgetsRepository.findAll = async (profileId: string) => {
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore
       .filter((widget) => widget.profileId === profileId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  };
-  mutableWidgetsRepository.findById = async (id: string) => {
+  });
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) => {
     return widgetsStore.find((widget) => widget.id === id) ?? null;
-  };
-  mutableWidgetsRepository.create = async (input) => {
+  });
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => {
     widgetCounter += 1;
     const now = new Date();
     const newWidget: TestWidget = {
@@ -125,8 +85,8 @@ beforeEach(() => {
     };
     widgetsStore.push(newWidget);
     return newWidget;
-  };
-  mutableWidgetsRepository.activateWidget = async (profileId: string, widgetId: string) => {
+  });
+  vi.spyOn(widgetsRepository, "activateWidget").mockImplementation(async (profileId: string, widgetId: string) => {
     const widget = widgetsStore.find((item) => item.id === widgetId && item.profileId === profileId);
     if (!widget) {
       throw new Error("Widget not found");
@@ -145,9 +105,9 @@ beforeEach(() => {
     });
 
     return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
-  };
+  });
 
-  globalThis.fetch = async (input) => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const requestUrl = String(input);
 
     if (requestUrl.startsWith("https://geocoding-api.open-meteo.com/v1/search")) {
@@ -186,28 +146,10 @@ beforeEach(() => {
     return new Response(JSON.stringify({ message: "not mocked" }), {
       status: 404,
     });
-  };
+  });
 });
 
-after(() => {
-  mutableUsersRepository.findAll =
-    originalUsersRepository.findAll as typeof mutableUsersRepository.findAll;
-  mutableUsersRepository.findByEmail =
-    originalUsersRepository.findByEmail as typeof mutableUsersRepository.findByEmail;
-  mutableUsersRepository.create =
-    originalUsersRepository.create as typeof mutableUsersRepository.create;
-
-  mutableWidgetsRepository.findAll =
-    originalWidgetsRepository.findAll as typeof mutableWidgetsRepository.findAll;
-  mutableWidgetsRepository.findById =
-    originalWidgetsRepository.findById as typeof mutableWidgetsRepository.findById;
-  mutableWidgetsRepository.create =
-    originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
-  mutableWidgetsRepository.activateWidget =
-    originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
-
-  globalThis.fetch = originalFetch;
-});
+afterEach(() => { vi.restoreAllMocks(); });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find(
@@ -286,14 +228,14 @@ test("M3-1: weather widget data endpoint returns normalized provider payload", a
       },
     },
   });
-  assert.equal(createWeatherWidgetResponse.statusCode, 201);
+  expect(createWeatherWidgetResponse.statusCode).toBe(201);
 
   const weatherWidgetId = (createWeatherWidgetResponse.body as { id: string }).id;
   const weatherDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: weatherWidgetId },
   });
 
-  assert.equal(weatherDataResponse.statusCode, 200);
+  expect(weatherDataResponse.statusCode).toBe(200);
   const weatherEnvelope = weatherDataResponse.body as {
     state: string;
     data: {
@@ -307,10 +249,10 @@ test("M3-1: weather widget data endpoint returns normalized provider payload", a
     };
   };
 
-  assert.equal(weatherEnvelope.state, "ready");
-  assert.equal(weatherEnvelope.data.location, "Amsterdam, North Holland, Netherlands");
-  assert.equal(weatherEnvelope.data.temperatureC, 9.2);
-  assert.equal(weatherEnvelope.data.conditionLabel, "Rain");
-  assert.equal(weatherEnvelope.meta.source, "open-meteo");
-  assert.equal(weatherEnvelope.meta.fetchedAt, "2026-03-20T08:15:00.000Z");
+  expect(weatherEnvelope.state).toBe("ready");
+  expect(weatherEnvelope.data.location).toBe("Amsterdam, North Holland, Netherlands");
+  expect(weatherEnvelope.data.temperatureC).toBe(9.2);
+  expect(weatherEnvelope.data.conditionLabel).toBe("Rain");
+  expect(weatherEnvelope.meta.source).toBe("open-meteo");
+  expect(weatherEnvelope.meta.fetchedAt).toBe("2026-03-20T08:15:00.000Z");
 });

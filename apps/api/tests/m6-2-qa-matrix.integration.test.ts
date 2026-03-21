@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -37,45 +36,6 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-const originalUsersRepository = {
-  findAll: usersRepository.findAll,
-  findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create,
-};
-
-const originalWidgetsRepository = {
-  findAll: widgetsRepository.findAll,
-  findById: widgetsRepository.findById,
-  create: widgetsRepository.create,
-  activateWidget: widgetsRepository.activateWidget,
-};
-
-const originalFetch = globalThis.fetch;
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-  findByEmail: (email: string) => Promise<TestUser | null>;
-  create: (email: string) => Promise<TestUser>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (profileId: string) => Promise<TestWidget[]>;
-  findById: (id: string) => Promise<TestWidget | null>;
-  create: (input: {
-    profileId: string;
-    type: string;
-    config: unknown;
-    layout: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-    };
-    isActive: boolean;
-  }) => Promise<TestWidget>;
-  activateWidget: (profileId: string, widgetId: string) => Promise<TestWidget>;
-};
-
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
 let userCounter = 0;
@@ -87,11 +47,11 @@ beforeEach(() => {
   userCounter = 0;
   widgetCounter = 0;
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableUsersRepository.findByEmail = async (email: string) => {
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string) => {
     return usersStore.find((user) => user.email === email) ?? null;
-  };
-  mutableUsersRepository.create = async (email: string) => {
+  });
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string) => {
     userCounter += 1;
     const newUser: TestUser = {
       id: `user-${userCounter}`,
@@ -100,17 +60,17 @@ beforeEach(() => {
     };
     usersStore.push(newUser);
     return newUser;
-  };
+  });
 
-  mutableWidgetsRepository.findAll = async (profileId: string) => {
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore
       .filter((widget) => widget.profileId === profileId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  };
-  mutableWidgetsRepository.findById = async (id: string) => {
+  });
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) => {
     return widgetsStore.find((widget) => widget.id === id) ?? null;
-  };
-  mutableWidgetsRepository.create = async (input) => {
+  });
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => {
     widgetCounter += 1;
     const now = new Date();
     const newWidget: TestWidget = {
@@ -125,8 +85,8 @@ beforeEach(() => {
     };
     widgetsStore.push(newWidget);
     return newWidget;
-  };
-  mutableWidgetsRepository.activateWidget = async (profileId: string, widgetId: string) => {
+  });
+  vi.spyOn(widgetsRepository, "activateWidget").mockImplementation(async (profileId: string, widgetId: string) => {
     const widget = widgetsStore.find((item) => item.id === widgetId && item.profileId === profileId);
     if (!widget) {
       throw new Error("Widget not found");
@@ -145,9 +105,9 @@ beforeEach(() => {
     });
 
     return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
-  };
+  });
 
-  globalThis.fetch = async (input) => {
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
     const requestUrl = String(input);
 
     if (requestUrl.startsWith("https://geocoding-api.open-meteo.com/v1/search")) {
@@ -209,28 +169,10 @@ beforeEach(() => {
     return new Response(JSON.stringify({ message: "not mocked" }), {
       status: 404,
     });
-  };
+  });
 });
 
-after(() => {
-  mutableUsersRepository.findAll =
-    originalUsersRepository.findAll as typeof mutableUsersRepository.findAll;
-  mutableUsersRepository.findByEmail =
-    originalUsersRepository.findByEmail as typeof mutableUsersRepository.findByEmail;
-  mutableUsersRepository.create =
-    originalUsersRepository.create as typeof mutableUsersRepository.create;
-
-  mutableWidgetsRepository.findAll =
-    originalWidgetsRepository.findAll as typeof mutableWidgetsRepository.findAll;
-  mutableWidgetsRepository.findById =
-    originalWidgetsRepository.findById as typeof mutableWidgetsRepository.findById;
-  mutableWidgetsRepository.create =
-    originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
-  mutableWidgetsRepository.activateWidget =
-    originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
-
-  globalThis.fetch = originalFetch;
-});
+afterEach(() => { vi.restoreAllMocks(); });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find(
@@ -299,7 +241,7 @@ test("M6-2: critical admin and display flows pass for clockDate, weather, and ca
   const userCreateResponse = await invokeRoute(usersRouter, "post", "/", {
     body: { email: "owner@ambient.dev" },
   });
-  assert.equal(userCreateResponse.statusCode, 201);
+  expect(userCreateResponse.statusCode).toBe(201);
 
   const clockCreateResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
@@ -311,7 +253,7 @@ test("M6-2: critical admin and display flows pass for clockDate, weather, and ca
       },
     },
   });
-  assert.equal(clockCreateResponse.statusCode, 201);
+  expect(clockCreateResponse.statusCode).toBe(201);
 
   const weatherCreateResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
@@ -322,7 +264,7 @@ test("M6-2: critical admin and display flows pass for clockDate, weather, and ca
       },
     },
   });
-  assert.equal(weatherCreateResponse.statusCode, 201);
+  expect(weatherCreateResponse.statusCode).toBe(201);
 
   const calendarCreateResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
@@ -336,56 +278,47 @@ test("M6-2: critical admin and display flows pass for clockDate, weather, and ca
       },
     },
   });
-  assert.equal(calendarCreateResponse.statusCode, 201);
+  expect(calendarCreateResponse.statusCode).toBe(201);
 
   const activateWeatherResponse = await invokeRoute(widgetsRouter, "patch", "/:id/active", {
     params: { id: (weatherCreateResponse.body as { id: string }).id },
   });
-  assert.equal(activateWeatherResponse.statusCode, 200);
-  assert.equal((activateWeatherResponse.body as { isActive: boolean }).isActive, true);
+  expect(activateWeatherResponse.statusCode).toBe(200);
+  expect((activateWeatherResponse.body as { isActive: boolean }).isActive).toBe(true);
 
   const widgetsListResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(widgetsListResponse.statusCode, 200);
+  expect(widgetsListResponse.statusCode).toBe(200);
   const widgets = widgetsListResponse.body as Array<{
     id: string;
     type: string;
     isActive: boolean;
   }>;
-  assert.equal(widgets.length, 3);
-  assert.equal(widgets.filter((widget) => widget.isActive).length, 1);
-  assert.equal(
-    widgets.some((widget) => widget.type === "weather" && widget.isActive),
-    true,
-  );
+  expect(widgets.length).toBe(3);
+  expect(widgets.filter((widget) => widget.isActive).length).toBe(1);
+  expect(widgets.some((widget) => widget.type === "weather" && widget.isActive)).toBe(true,);
 
   const clockEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: (clockCreateResponse.body as { id: string }).id },
   });
-  assert.equal(clockEnvelopeResponse.statusCode, 200);
-  assert.equal((clockEnvelopeResponse.body as { widgetKey: string }).widgetKey, "clockDate");
-  assert.equal((clockEnvelopeResponse.body as { state: string }).state, "ready");
+  expect(clockEnvelopeResponse.statusCode).toBe(200);
+  expect((clockEnvelopeResponse.body as { widgetKey: string }).widgetKey).toBe("clockDate");
+  expect((clockEnvelopeResponse.body as { state: string }).state).toBe("ready");
 
   const weatherEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: (weatherCreateResponse.body as { id: string }).id },
   });
-  assert.equal(weatherEnvelopeResponse.statusCode, 200);
-  assert.equal((weatherEnvelopeResponse.body as { widgetKey: string }).widgetKey, "weather");
-  assert.equal((weatherEnvelopeResponse.body as { state: string }).state, "ready");
-  assert.equal(
-    (weatherEnvelopeResponse.body as { data: { location: string } }).data.location,
-    "Amsterdam, North Holland, Netherlands",
-  );
+  expect(weatherEnvelopeResponse.statusCode).toBe(200);
+  expect((weatherEnvelopeResponse.body as { widgetKey: string }).widgetKey).toBe("weather");
+  expect((weatherEnvelopeResponse.body as { state: string }).state).toBe("ready");
+  expect((weatherEnvelopeResponse.body as { data: { location: string } }).data.location).toBe("Amsterdam, North Holland, Netherlands",);
 
   const calendarEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: (calendarCreateResponse.body as { id: string }).id },
   });
-  assert.equal(calendarEnvelopeResponse.statusCode, 200);
-  assert.equal((calendarEnvelopeResponse.body as { widgetKey: string }).widgetKey, "calendar");
-  assert.equal((calendarEnvelopeResponse.body as { state: string }).state, "ready");
-  assert.equal(
-    (calendarEnvelopeResponse.body as { data: { upcomingCount: number } }).data.upcomingCount,
-    2,
-  );
+  expect(calendarEnvelopeResponse.statusCode).toBe(200);
+  expect((calendarEnvelopeResponse.body as { widgetKey: string }).widgetKey).toBe("calendar");
+  expect((calendarEnvelopeResponse.body as { state: string }).state).toBe("ready");
+  expect((calendarEnvelopeResponse.body as { data: { upcomingCount: number } }).data.upcomingCount).toBe(2,);
 });
 
 test("M6-2: widget-data returns not-found for unknown widget id", async () => {
@@ -393,6 +326,6 @@ test("M6-2: widget-data returns not-found for unknown widget id", async () => {
     params: { id: "missing-widget" },
   });
 
-  assert.equal(response.statusCode, 404);
-  assert.equal((response.body as { error: { code: string } }).error.code, "NOT_FOUND");
+  expect(response.statusCode).toBe(404);
+  expect((response.body as { error: { code: string } }).error.code).toBe("NOT_FOUND");
 });

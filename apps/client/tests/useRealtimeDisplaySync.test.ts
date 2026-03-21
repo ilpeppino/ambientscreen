@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { createRefreshDebouncer } from "../src/features/display/hooks/realtimeDisplaySync.logic";
 
 test("createRefreshDebouncer coalesces burst triggers into one refresh", async () => {
@@ -17,7 +16,7 @@ test("createRefreshDebouncer coalesces burst triggers into one refresh", async (
     setTimeout(() => resolve(), 35);
   });
 
-  assert.equal(refreshCount, 1);
+  expect(refreshCount).toBe(1);
 });
 
 test("createRefreshDebouncer cancel prevents pending refresh", async () => {
@@ -34,5 +33,5 @@ test("createRefreshDebouncer cancel prevents pending refresh", async () => {
     setTimeout(() => resolve(), 35);
   });
 
-  assert.equal(refreshCount, 0);
+  expect(refreshCount).toBe(0);
 });

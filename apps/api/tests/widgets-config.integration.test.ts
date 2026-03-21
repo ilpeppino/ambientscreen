@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -35,25 +34,6 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-const originalUsersFindAll = usersRepository.findAll;
-const originalWidgetsFindAll = widgetsRepository.findAll;
-const originalWidgetsFindById = widgetsRepository.findById;
-const originalWidgetsUpdateConfig = widgetsRepository.updateConfig;
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (profileId: string) => Promise<TestWidget[]>;
-  findById: (id: string) => Promise<TestWidget | null>;
-  updateConfig: (input: {
-    id: string;
-    profileId: string;
-    config: Record<string, unknown>;
-  }) => Promise<TestWidget | null>;
-};
-
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
 
@@ -83,12 +63,12 @@ beforeEach(() => {
     },
   ];
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableWidgetsRepository.findAll = async (profileId: string) =>
-    widgetsStore.filter((widget) => widget.profileId === profileId);
-  mutableWidgetsRepository.findById = async (id: string) =>
-    widgetsStore.find((widget) => widget.id === id) ?? null;
-  mutableWidgetsRepository.updateConfig = async ({ id, profileId, config }) => {
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) =>
+    widgetsStore.filter((widget) => widget.profileId === profileId));
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) =>
+    widgetsStore.find((widget) => widget.id === id) ?? null);
+  vi.spyOn(widgetsRepository, "updateConfig").mockImplementation(async ({ id, profileId, config }) => {
     let updatedWidget: TestWidget | null = null;
     widgetsStore = widgetsStore.map((widget) => {
       if (widget.id !== id || widget.profileId !== profileId) {
@@ -105,18 +85,10 @@ beforeEach(() => {
     });
 
     return updatedWidget;
-  };
+  });
 });
 
-after(() => {
-  mutableUsersRepository.findAll = originalUsersFindAll as typeof mutableUsersRepository.findAll;
-  mutableWidgetsRepository.findAll =
-    originalWidgetsFindAll as typeof mutableWidgetsRepository.findAll;
-  mutableWidgetsRepository.findById =
-    originalWidgetsFindById as typeof mutableWidgetsRepository.findById;
-  mutableWidgetsRepository.updateConfig =
-    originalWidgetsUpdateConfig as typeof mutableWidgetsRepository.updateConfig;
-});
+afterEach(() => { vi.restoreAllMocks(); });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {
@@ -188,14 +160,14 @@ test("PATCH /widgets/:id/config updates widget config and GET /widgets returns l
     },
   });
 
-  assert.equal(patchResponse.statusCode, 200);
+  expect(patchResponse.statusCode).toBe(200);
 
   const listResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
+  expect(listResponse.statusCode).toBe(200);
 
   const widgets = listResponse.body as TestWidget[];
-  assert.equal(widgets.length, 1);
-  assert.deepEqual(widgets[0].config, {
+  expect(widgets.length).toBe(1);
+  expect(widgets[0].config).toEqual({
     format: "12h",
     showSeconds: true,
     timezone: "UTC",
@@ -212,5 +184,5 @@ test("PATCH /widgets/:id/config rejects invalid config payload", async () => {
     },
   });
 
-  assert.equal(patchResponse.statusCode, 400);
+  expect(patchResponse.statusCode).toBe(400);
 });

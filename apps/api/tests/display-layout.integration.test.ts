@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { displayRouter } from "../src/modules/display/display.routes";
@@ -29,21 +28,10 @@ interface TestWidget {
   updatedAt: Date;
 }
 
-const originalUsersFindAll = usersRepository.findAll;
-const originalWidgetsFindAll = widgetsRepository.findAll;
-const originalClockResolver = widgetResolvers.clockDate;
-const originalWeatherResolver = widgetResolvers.weather;
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (profileId: string) => Promise<TestWidget[]>;
-};
-
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
+
+afterEach(() => { vi.restoreAllMocks(); });
 
 beforeEach(() => {
   usersStore = [
@@ -76,12 +64,12 @@ beforeEach(() => {
     },
   ];
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableWidgetsRepository.findAll = async (profileId: string) => {
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore.filter((widget) => widget.profileId === profileId);
-  };
+  });
 
-  widgetResolvers.clockDate = async ({ widgetInstanceId }) => {
+  vi.spyOn(widgetResolvers, "clockDate").mockImplementation(async ({ widgetInstanceId }) => {
     return {
       widgetInstanceId,
       widgetKey: "clockDate",
@@ -96,8 +84,8 @@ beforeEach(() => {
         source: "system",
       },
     };
-  };
-  widgetResolvers.weather = async ({ widgetInstanceId }) => {
+  });
+  vi.spyOn(widgetResolvers, "weather").mockImplementation(async ({ widgetInstanceId }) => {
     return {
       widgetInstanceId,
       widgetKey: "weather",
@@ -111,15 +99,7 @@ beforeEach(() => {
         source: "open-meteo",
       },
     };
-  };
-});
-
-after(() => {
-  mutableUsersRepository.findAll = originalUsersFindAll as typeof mutableUsersRepository.findAll;
-  mutableWidgetsRepository.findAll =
-    originalWidgetsFindAll as typeof mutableWidgetsRepository.findAll;
-  widgetResolvers.clockDate = originalClockResolver;
-  widgetResolvers.weather = originalWeatherResolver;
+  });
 });
 
 function getRouteHandler(router: Router, path: string) {
@@ -178,7 +158,7 @@ async function invokeGetRoute(router: Router, path: string) {
 
 test("GET /display-layout returns multiple layout-aware widget envelopes", async () => {
   const response = await invokeGetRoute(displayRouter, "/display-layout");
-  assert.equal(response.statusCode, 200);
+  expect(response.statusCode).toBe(200);
 
   const body = response.body as {
     widgets: Array<{
@@ -191,25 +171,25 @@ test("GET /display-layout returns multiple layout-aware widget envelopes", async
     }>;
   };
 
-  assert.equal(body.widgets.length, 2);
-  assert.equal(body.widgets[0].widgetInstanceId, "widget-1");
-  assert.deepEqual(body.widgets[0].layout, { x: 0, y: 0, w: 2, h: 1 });
-  assert.equal(body.widgets[0].state, "ready");
-  assert.equal(typeof body.widgets[0].meta.resolvedAt, "string");
+  expect(body.widgets.length).toBe(2);
+  expect(body.widgets[0].widgetInstanceId).toBe("widget-1");
+  expect(body.widgets[0].layout).toEqual({ x: 0, y: 0, w: 2, h: 1 });
+  expect(body.widgets[0].state).toBe("ready");
+  expect(typeof body.widgets[0].meta.resolvedAt).toBe("string");
 
-  assert.equal(body.widgets[1].widgetInstanceId, "widget-2");
-  assert.deepEqual(body.widgets[1].layout, { x: 2, y: 0, w: 2, h: 1 });
-  assert.equal(body.widgets[1].state, "ready");
-  assert.equal(typeof body.widgets[1].meta.resolvedAt, "string");
+  expect(body.widgets[1].widgetInstanceId).toBe("widget-2");
+  expect(body.widgets[1].layout).toEqual({ x: 2, y: 0, w: 2, h: 1 });
+  expect(body.widgets[1].state).toBe("ready");
+  expect(typeof body.widgets[1].meta.resolvedAt).toBe("string");
 });
 
 test("GET /display-layout continues when one resolver fails", async () => {
-  widgetResolvers.weather = async () => {
+  vi.spyOn(widgetResolvers, "weather").mockImplementation(async () => {
     throw new Error("weather unavailable");
-  };
+  });
 
   const response = await invokeGetRoute(displayRouter, "/display-layout");
-  assert.equal(response.statusCode, 200);
+  expect(response.statusCode).toBe(200);
 
   const body = response.body as {
     widgets: Array<{
@@ -220,14 +200,14 @@ test("GET /display-layout continues when one resolver fails", async () => {
     }>;
   };
 
-  assert.equal(body.widgets.length, 2);
+  expect(body.widgets.length).toBe(2);
 
   const clockWidget = body.widgets.find((widget) => widget.widgetKey === "clockDate");
   const weatherWidget = body.widgets.find((widget) => widget.widgetKey === "weather");
 
-  assert.ok(clockWidget);
-  assert.equal(clockWidget.state, "ready");
-  assert.ok(weatherWidget);
-  assert.equal(weatherWidget.state, "error");
-  assert.equal(weatherWidget.meta.errorCode, "WIDGET_RESOLUTION_FAILED");
+  expect(clockWidget).toBeTruthy();
+  expect(clockWidget.state).toBe("ready");
+  expect(weatherWidget).toBeTruthy();
+  expect(weatherWidget.state).toBe("error");
+  expect(weatherWidget.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
 });

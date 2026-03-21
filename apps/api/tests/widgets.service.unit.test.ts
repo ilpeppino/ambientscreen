@@ -1,23 +1,11 @@
-import assert from "node:assert/strict";
-import test, { afterEach } from "node:test";
+import { test, expect, afterEach, vi } from "vitest";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsService } from "../src/modules/widgets/widgets.service";
 
-const originalCreate = widgetsRepository.create;
-const originalFindAll = widgetsRepository.findAll;
-const originalUpdateLayouts = widgetsRepository.updateLayouts;
-
-afterEach(() => {
-  (widgetsRepository as unknown as { create: typeof widgetsRepository.create }).create =
-    originalCreate;
-  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll =
-    originalFindAll;
-  (widgetsRepository as unknown as { updateLayouts: typeof widgetsRepository.updateLayouts }).updateLayouts =
-    originalUpdateLayouts;
-});
+afterEach(() => { vi.restoreAllMocks(); });
 
 test("widgetsService createWidget validates layout", async () => {
-  (widgetsRepository as unknown as { create: typeof widgetsRepository.create }).create = (async (
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (
     input,
   ) => ({
     id: "widget-1",
@@ -28,23 +16,21 @@ test("widgetsService createWidget validates layout", async () => {
     isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  })) as typeof widgetsRepository.create;
+  }));
 
-  await assert.rejects(() =>
+  await expect(() =>
     widgetsService.createWidget({
       profileId: "user-1",
       type: "clockDate",
       layout: { x: 0, y: 0, w: 0, h: 1 },
       isActive: true,
-    }),
-  );
+    })).rejects.toThrow();
 });
 
 test("widgetsService createWidgetAtNextPosition falls back to default layout", async () => {
-  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll =
-    async () => [];
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => []);
 
-  (widgetsRepository as unknown as { create: typeof widgetsRepository.create }).create = (async (
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (
     input,
   ) => ({
     id: "widget-1",
@@ -55,32 +41,31 @@ test("widgetsService createWidgetAtNextPosition falls back to default layout", a
     isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  })) as typeof widgetsRepository.create;
+  }));
 
   const created = await widgetsService.createWidgetAtNextPosition({
     profileId: "user-1",
     type: "clockDate",
   });
 
-  assert.deepEqual(created.layout, { x: 0, y: 0, w: 1, h: 1 });
+  expect(created.layout).toEqual({ x: 0, y: 0, w: 1, h: 1 });
 });
 
 test("widgetsService createWidgetAtNextPosition auto-places when default slot is occupied", async () => {
-  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll =
-    async () => [
-      {
-        id: "widget-existing",
-        profileId: "user-1",
-        type: "clockDate",
-        config: {},
-        layout: { x: 0, y: 0, w: 1, h: 1 },
-        isActive: true,
-        createdAt: new Date("2026-03-21T10:00:00.000Z"),
-        updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-      },
-    ];
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => [
+    {
+      id: "widget-existing",
+      profileId: "user-1",
+      type: "clockDate",
+      config: {},
+      layout: { x: 0, y: 0, w: 1, h: 1 },
+      isActive: true,
+      createdAt: new Date("2026-03-21T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-21T10:00:00.000Z"),
+    },
+  ]);
 
-  (widgetsRepository as unknown as { create: typeof widgetsRepository.create }).create = (async (
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (
     input,
   ) => ({
     id: "widget-new",
@@ -91,43 +76,39 @@ test("widgetsService createWidgetAtNextPosition auto-places when default slot is
     isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-  })) as typeof widgetsRepository.create;
+  }));
 
   const created = await widgetsService.createWidgetAtNextPosition({
     profileId: "user-1",
     type: "weather",
   });
 
-  assert.deepEqual(created.layout, { x: 1, y: 0, w: 1, h: 1 });
+  expect(created.layout).toEqual({ x: 1, y: 0, w: 1, h: 1 });
 });
 
 test("widgetsService createWidgetAtNextPosition rejects explicit overlapping layout", async () => {
-  (widgetsRepository as unknown as { findAll: typeof widgetsRepository.findAll }).findAll =
-    async () => [
-      {
-        id: "widget-existing",
-        profileId: "user-1",
-        type: "clockDate",
-        config: {},
-        layout: { x: 0, y: 0, w: 4, h: 2 },
-        isActive: true,
-        createdAt: new Date("2026-03-21T10:00:00.000Z"),
-        updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-      },
-    ];
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => [
+    {
+      id: "widget-existing",
+      profileId: "user-1",
+      type: "clockDate",
+      config: {},
+      layout: { x: 0, y: 0, w: 4, h: 2 },
+      isActive: true,
+      createdAt: new Date("2026-03-21T10:00:00.000Z"),
+      updatedAt: new Date("2026-03-21T10:00:00.000Z"),
+    },
+  ]);
 
-  await assert.rejects(
-    widgetsService.createWidgetAtNextPosition({
+  await expect(async () => widgetsService.createWidgetAtNextPosition({
       profileId: "user-1",
       type: "weather",
       layout: { x: 2, y: 0, w: 4, h: 2 },
-    }),
-  );
+    })).rejects.toThrow();
 });
 
 test("widgetsService updateWidgetsLayoutForProfile validates layouts", async () => {
-  await assert.rejects(
-    widgetsService.updateWidgetsLayoutForProfile({
+  await expect(async () => widgetsService.updateWidgetsLayoutForProfile({
       profileId: "user-1",
       widgets: [
         {
@@ -135,13 +116,11 @@ test("widgetsService updateWidgetsLayoutForProfile validates layouts", async () 
           layout: { x: 11, y: 0, w: 2, h: 1 },
         },
       ],
-    }),
-  );
+    })).rejects.toThrow();
 });
 
 test("widgetsService updateWidgetsLayoutForProfile rejects overlapping layouts", async () => {
-  await assert.rejects(
-    widgetsService.updateWidgetsLayoutForProfile({
+  await expect(async () => widgetsService.updateWidgetsLayoutForProfile({
       profileId: "user-1",
       widgets: [
         {
@@ -153,14 +132,13 @@ test("widgetsService updateWidgetsLayoutForProfile rejects overlapping layouts",
           layout: { x: 5, y: 0, w: 6, h: 3 },
         },
       ],
-    }),
-  );
+    })).rejects.toThrow();
 });
 
 test("widgetsService updateWidgetsLayoutForProfile persists validated payload", async () => {
   let receivedInput: unknown;
 
-  (widgetsRepository as unknown as { updateLayouts: typeof widgetsRepository.updateLayouts }).updateLayouts = (async (
+  vi.spyOn(widgetsRepository, "updateLayouts").mockImplementation(async (
     profileId,
     input,
   ) => {
@@ -175,7 +153,7 @@ test("widgetsService updateWidgetsLayoutForProfile persists validated payload", 
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
     }));
-  }) as typeof widgetsRepository.updateLayouts;
+  });
 
   const updated = await widgetsService.updateWidgetsLayoutForProfile({
     profileId: "user-1",
@@ -187,9 +165,9 @@ test("widgetsService updateWidgetsLayoutForProfile persists validated payload", 
     ],
   });
 
-  assert.equal(updated.length, 1);
-  assert.deepEqual(updated[0].layout, { x: 2, y: 1, w: 4, h: 2 });
-  assert.deepEqual(receivedInput, {
+  expect(updated.length).toBe(1);
+  expect(updated[0].layout).toEqual({ x: 2, y: 1, w: 4, h: 2 });
+  expect(receivedInput).toEqual({
     profileId: "user-1",
     input: [
       {

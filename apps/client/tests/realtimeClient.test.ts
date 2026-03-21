@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { buildRealtimeUrl, createRealtimeClient, type RealtimeEvent } from "../src/features/display/services/realtimeClient";
 
 interface FakeSocket {
@@ -47,14 +46,12 @@ function createFakeSocket(): FakeSocket {
 }
 
 test("buildRealtimeUrl converts http API URL to ws realtime endpoint", () => {
-  assert.equal(
+  expect(
     buildRealtimeUrl("http://localhost:3000", "profile-1"),
-    "ws://localhost:3000/realtime?profileId=profile-1",
-  );
-  assert.equal(
+  ).toBe("ws://localhost:3000/realtime?profileId=profile-1");
+  expect(
     buildRealtimeUrl("https://ambient.example.com", null),
-    "wss://ambient.example.com/realtime",
-  );
+  ).toBe("wss://ambient.example.com/realtime");
 });
 
 test("createRealtimeClient tracks connection lifecycle and sends profile subscription", async () => {
@@ -77,19 +74,18 @@ test("createRealtimeClient tracks connection lifecycle and sends profile subscri
   client.setProfileId("profile-1");
   client.connect();
 
-  assert.equal(createdSockets.length, 1);
-  assert.equal(states[0], "connecting");
+  expect(createdSockets.length).toBe(1);
+  expect(states[0]).toBe("connecting");
 
   createdSockets[0].emitOpen();
-  assert.equal(states[1], "connected");
+  expect(states[1]).toBe("connected");
 
-  assert.deepEqual(
+  expect(
     createdSockets[0].sentPayloads,
-    [JSON.stringify({ type: "subscribe", profileId: "profile-1" })],
-  );
+  ).toEqual([JSON.stringify({ type: "subscribe", profileId: "profile-1" })]);
 
   client.disconnect();
-  assert.equal(states[states.length - 1], "disconnected");
+  expect(states[states.length - 1]).toBe("disconnected");
 });
 
 test("createRealtimeClient forwards valid events and ignores invalid payloads", () => {
@@ -123,10 +119,10 @@ test("createRealtimeClient forwards valid events and ignores invalid payloads", 
     }),
   );
 
-  assert.equal(receivedEvents.length, 1);
-  assert.equal(receivedEvents[0].type, "widget.updated");
-  assert.equal(receivedEvents[0].profileId, "profile-1");
-  assert.equal(receivedEvents[0].widgetId, "widget-1");
+  expect(receivedEvents.length).toBe(1);
+  expect(receivedEvents[0].type).toBe("widget.updated");
+  expect(receivedEvents[0].profileId).toBe("profile-1");
+  expect(receivedEvents[0].widgetId).toBe("widget-1");
 });
 
 test("createRealtimeClient reconnects after unexpected disconnect", async () => {
@@ -156,9 +152,9 @@ test("createRealtimeClient reconnects after unexpected disconnect", async () => 
     setTimeout(() => resolve(), 10);
   });
 
-  assert.equal(createdSockets.length, 2);
-  assert.ok(states.includes("disconnected"));
-  assert.equal(states[states.length - 1], "connecting");
+  expect(createdSockets.length).toBe(2);
+  expect(states.includes("disconnected")).toBeTruthy();
+  expect(states[states.length - 1]).toBe("connecting");
 
   client.disconnect();
 });

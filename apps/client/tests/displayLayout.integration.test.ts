@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import type { DisplayLayoutResponse } from "../src/services/api/displayLayoutApi";
 import {
   applyDragDelta,
@@ -59,9 +58,9 @@ test("display layout widgets map into widget envelopes and frames", () => {
   };
 
   const envelopes = response.widgets.map((widget) => toWidgetEnvelope(widget));
-  assert.equal(envelopes.length, 2);
-  assert.equal(envelopes[0].widgetKey, "clockDate");
-  assert.equal(envelopes[1].widgetKey, "weather");
+  expect(envelopes.length).toBe(2);
+  expect(envelopes[0].widgetKey).toBe("clockDate");
+  expect(envelopes[1].widgetKey).toBe("weather");
 
   const firstFrame = computeLayoutFrame({
     layout: response.widgets[0].layout,
@@ -74,11 +73,11 @@ test("display layout widgets map into widget envelopes and frames", () => {
     containerHeight: 600,
   });
 
-  assert.equal(firstFrame.left, 0);
-  assert.equal(firstFrame.width, 600);
-  assert.equal(secondFrame.left, 600);
-  assert.equal(secondFrame.width, 600);
-  assert.ok(firstFrame.left + firstFrame.width <= secondFrame.left);
+  expect(firstFrame.left).toBe(0);
+  expect(firstFrame.width).toBe(600);
+  expect(secondFrame.left).toBe(600);
+  expect(secondFrame.width).toBe(600);
+  expect(firstFrame.left + firstFrame.width <= secondFrame.left).toBeTruthy();
 });
 
 test("edit -> save -> reload keeps widget layout changes", () => {
@@ -130,7 +129,7 @@ test("edit -> save -> reload keeps widget layout changes", () => {
     ],
   };
 
-  assert.deepEqual(patchPayload, {
+  expect(patchPayload).toEqual({
     widgets: [
       {
         id: "clock-1",
@@ -148,5 +147,5 @@ test("edit -> save -> reload keeps widget layout changes", () => {
     ],
   };
 
-  assert.deepEqual(reloadedResponse.widgets[0].layout, { x: 4, y: 2, w: 5, h: 3 });
+  expect(reloadedResponse.widgets[0].layout).toEqual({ x: 4, y: 2, w: 5, h: 3 });
 });

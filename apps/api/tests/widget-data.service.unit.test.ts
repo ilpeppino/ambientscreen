@@ -1,31 +1,13 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetDataService } from "../src/modules/widgetData/widget-data.service";
 import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/calendar.resolver";
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
 
-const originalFindById = widgetsRepository.findById;
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findById: (id: string) => Promise<{
-    id: string;
-    profileId: string;
-    type: string;
-    config: Record<string, unknown>;
-    layout: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-    };
-    isActive: boolean;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null>;
-};
+afterEach(() => { vi.restoreAllMocks(); });
 
 beforeEach(() => {
-  mutableWidgetsRepository.findById = async () => {
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async () => {
     return {
       id: "widget-clock",
       profileId: "user-1",
@@ -36,23 +18,18 @@ beforeEach(() => {
       createdAt: new Date(),
       updatedAt: new Date(),
     };
-  };
-});
-
-after(() => {
-  mutableWidgetsRepository.findById =
-    originalFindById as typeof mutableWidgetsRepository.findById;
+  });
 });
 
 test("widgetDataService returns normalized payload for clockDate widget", async () => {
   const result = await widgetDataService.getWidgetData("widget-clock");
 
-  assert.ok(result);
-  assert.equal(result.widgetKey, "clockDate");
-  assert.equal(result.state, "ready");
-  assert.ok(result.data);
-  assert.equal(typeof result.data.formattedTime, "string");
-  assert.equal(typeof result.data.formattedDate, "string");
+  expect(result).toBeTruthy();
+  expect(result.widgetKey).toBe("clockDate");
+  expect(result.state).toBe("ready");
+  expect(result.data).toBeTruthy();
+  expect(typeof result.data.formattedTime).toBe("string");
+  expect(typeof result.data.formattedDate).toBe("string");
 });
 
 test("weather resolver returns normalized ready payload from provider data", async () => {
@@ -73,15 +50,15 @@ test("weather resolver returns normalized ready payload from provider data", asy
     },
   });
 
-  assert.equal(result.widgetKey, "weather");
-  assert.equal(result.state, "ready");
-  assert.deepEqual(result.data, {
+  expect(result.widgetKey).toBe("weather");
+  expect(result.state).toBe("ready");
+  expect(result.data).toEqual({
     location: "Amsterdam, North Holland, Netherlands",
     temperatureC: 12.2,
     conditionLabel: "Rain",
   });
-  assert.equal(result.meta?.source, "open-meteo");
-  assert.equal(result.meta?.fetchedAt, "2026-03-20T12:34:56.000Z");
+  expect(result.meta?.source).toBe("open-meteo");
+  expect(result.meta?.fetchedAt).toBe("2026-03-20T12:34:56.000Z");
 });
 
 test("weather resolver returns empty payload when location cannot be resolved", async () => {
@@ -94,13 +71,13 @@ test("weather resolver returns empty payload when location cannot be resolved", 
     fetchWeatherData: async () => null,
   });
 
-  assert.equal(result.state, "empty");
-  assert.deepEqual(result.data, {
+  expect(result.state).toBe("empty");
+  expect(result.data).toEqual({
     location: "Unknown City",
     temperatureC: null,
     conditionLabel: null,
   });
-  assert.equal(result.meta?.errorCode, "WEATHER_LOCATION_NOT_FOUND");
+  expect(result.meta?.errorCode).toBe("WEATHER_LOCATION_NOT_FOUND");
 });
 
 test("weather resolver returns stale payload when provider call fails", async () => {
@@ -115,13 +92,13 @@ test("weather resolver returns stale payload when provider call fails", async ()
     },
   });
 
-  assert.equal(result.state, "stale");
-  assert.deepEqual(result.data, {
+  expect(result.state).toBe("stale");
+  expect(result.data).toEqual({
     location: "Amsterdam",
     temperatureC: null,
     conditionLabel: null,
   });
-  assert.equal(result.meta?.errorCode, "WEATHER_PROVIDER_UNAVAILABLE");
+  expect(result.meta?.errorCode).toBe("WEATHER_PROVIDER_UNAVAILABLE");
 });
 
 test("calendar resolver returns normalized events with all-day and timed entries", async () => {
@@ -159,10 +136,10 @@ test("calendar resolver returns normalized events with all-day and timed entries
     },
   });
 
-  assert.equal(result.widgetKey, "calendar");
-  assert.equal(result.state, "ready");
-  assert.equal(result.data?.upcomingCount, 2);
-  assert.deepEqual(result.data?.events[0], {
+  expect(result.widgetKey).toBe("calendar");
+  expect(result.state).toBe("ready");
+  expect(result.data?.upcomingCount).toBe(2);
+  expect(result.data?.events[0]).toEqual({
     id: "event-1",
     title: "All Day Planning",
     startIso: "2026-03-21T00:00:00.000Z",
@@ -170,7 +147,7 @@ test("calendar resolver returns normalized events with all-day and timed entries
     allDay: true,
     location: null,
   });
-  assert.deepEqual(result.data?.events[1], {
+  expect(result.data?.events[1]).toEqual({
     id: "event-2",
     title: "Client Sync",
     startIso: "2026-03-21T14:00:00.000Z",
@@ -178,8 +155,8 @@ test("calendar resolver returns normalized events with all-day and timed entries
     allDay: false,
     location: "Room 4A",
   });
-  assert.equal(result.meta?.source, "ical");
-  assert.equal(result.meta?.fetchedAt, "2026-03-20T12:34:56.000Z");
+  expect(result.meta?.source).toBe("ical");
+  expect(result.meta?.fetchedAt).toBe("2026-03-20T12:34:56.000Z");
 });
 
 test("calendar resolver returns empty when account is missing", async () => {
@@ -193,12 +170,12 @@ test("calendar resolver returns empty when account is missing", async () => {
     },
   });
 
-  assert.equal(result.state, "empty");
-  assert.deepEqual(result.data, {
+  expect(result.state).toBe("empty");
+  expect(result.data).toEqual({
     upcomingCount: 0,
     events: [],
   });
-  assert.equal(result.meta?.errorCode, "CALENDAR_FEED_NOT_CONFIGURED");
+  expect(result.meta?.errorCode).toBe("CALENDAR_FEED_NOT_CONFIGURED");
 });
 
 test("calendar resolver returns stale when provider fails", async () => {
@@ -216,10 +193,10 @@ test("calendar resolver returns stale when provider fails", async () => {
     },
   });
 
-  assert.equal(result.state, "stale");
-  assert.deepEqual(result.data, {
+  expect(result.state).toBe("stale");
+  expect(result.data).toEqual({
     upcomingCount: 0,
     events: [],
   });
-  assert.equal(result.meta?.errorCode, "CALENDAR_PROVIDER_UNAVAILABLE");
+  expect(result.meta?.errorCode).toBe("CALENDAR_PROVIDER_UNAVAILABLE");
 });

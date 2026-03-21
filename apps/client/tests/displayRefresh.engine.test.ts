@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { createDisplayRefreshEngine } from "../src/features/display/displayRefresh.engine";
 
 interface ScheduledInterval {
@@ -55,12 +54,12 @@ test("createDisplayRefreshEngine schedules refresh using widget policy and refre
     },
   });
 
-  assert.equal(refreshCount, 1);
-  assert.equal(timer.getActiveIntervals().length, 1);
-  assert.equal(timer.getActiveIntervals()[0][1].intervalMs, 1000);
+  expect(refreshCount).toBe(1);
+  expect(timer.getActiveIntervals().length).toBe(1);
+  expect(timer.getActiveIntervals()[0][1].intervalMs).toBe(1000);
 
   timer.triggerInterval(timer.getActiveIntervals()[0][0]);
-  assert.equal(refreshCount, 2);
+  expect(refreshCount).toBe(2);
 });
 
 test("createDisplayRefreshEngine avoids duplicate polling for identical widget start", () => {
@@ -79,9 +78,9 @@ test("createDisplayRefreshEngine avoids duplicate polling for identical widget s
   engine.start(startInput);
   engine.start(startInput);
 
-  assert.equal(refreshCount, 1);
-  assert.equal(timer.getActiveIntervals().length, 1);
-  assert.deepEqual(timer.getClearedIntervalIds(), []);
+  expect(refreshCount).toBe(1);
+  expect(timer.getActiveIntervals().length).toBe(1);
+  expect(timer.getClearedIntervalIds()).toEqual([]);
 });
 
 test("createDisplayRefreshEngine clears prior interval before starting a different widget", () => {
@@ -102,9 +101,9 @@ test("createDisplayRefreshEngine clears prior interval before starting a differe
     onRefresh: () => undefined,
   });
 
-  assert.deepEqual(timer.getClearedIntervalIds(), [firstIntervalId]);
-  assert.equal(timer.getActiveIntervals().length, 1);
-  assert.equal(timer.getActiveIntervals()[0][1].intervalMs, 60000);
+  expect(timer.getClearedIntervalIds()).toEqual([firstIntervalId]);
+  expect(timer.getActiveIntervals().length).toBe(1);
+  expect(timer.getActiveIntervals()[0][1].intervalMs).toBe(60000);
 });
 
 test("createDisplayRefreshEngine stop clears interval and prevents further polling", () => {
@@ -123,7 +122,7 @@ test("createDisplayRefreshEngine stop clears interval and prevents further polli
   const intervalId = timer.getActiveIntervals()[0][0];
   engine.stop();
 
-  assert.deepEqual(timer.getClearedIntervalIds(), [intervalId]);
-  assert.equal(timer.getActiveIntervals().length, 0);
-  assert.equal(refreshCount, 1);
+  expect(timer.getClearedIntervalIds()).toEqual([intervalId]);
+  expect(timer.getActiveIntervals().length).toBe(0);
+  expect(refreshCount).toBe(1);
 });

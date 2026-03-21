@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -34,22 +33,6 @@ interface InvokeRouteOptions {
   body?: unknown;
   params?: Record<string, string>;
 }
-
-const originalUsersFindAll = usersRepository.findAll;
-const originalWidgetsFindAll = widgetsRepository.findAll;
-const originalWidgetsUpdateLayouts = widgetsRepository.updateLayouts;
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (profileId: string) => Promise<TestWidget[]>;
-  updateLayouts: (
-    profileId: string,
-    widgets: Array<{ id: string; layout: { x: number; y: number; w: number; h: number } }>,
-  ) => Promise<TestWidget[]>;
-};
 
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
@@ -86,10 +69,10 @@ beforeEach(() => {
     },
   ];
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableWidgetsRepository.findAll = async (profileId: string) =>
-    widgetsStore.filter((widget) => widget.profileId === profileId);
-  mutableWidgetsRepository.updateLayouts = async (profileId, widgets) => {
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore);
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) =>
+    widgetsStore.filter((widget) => widget.profileId === profileId));
+  vi.spyOn(widgetsRepository, "updateLayouts").mockImplementation(async (profileId, widgets) => {
     widgetsStore = widgetsStore.map((widget) => {
       if (widget.profileId !== profileId) {
         return widget;
@@ -108,16 +91,10 @@ beforeEach(() => {
     });
 
     return widgetsStore.filter((widget) => widgets.some((item) => item.id === widget.id));
-  };
+  });
 });
 
-after(() => {
-  mutableUsersRepository.findAll = originalUsersFindAll as typeof mutableUsersRepository.findAll;
-  mutableWidgetsRepository.findAll =
-    originalWidgetsFindAll as typeof mutableWidgetsRepository.findAll;
-  mutableWidgetsRepository.updateLayouts =
-    originalWidgetsUpdateLayouts as typeof mutableWidgetsRepository.updateLayouts;
-});
+afterEach(() => { vi.restoreAllMocks(); });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {
@@ -193,19 +170,19 @@ test("PATCH /widgets/layout persists layout changes and GET /widgets returns upd
     },
   });
 
-  assert.equal(patchResponse.statusCode, 200);
+  expect(patchResponse.statusCode).toBe(200);
 
   const reloadResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(reloadResponse.statusCode, 200);
+  expect(reloadResponse.statusCode).toBe(200);
 
   const widgets = reloadResponse.body as TestWidget[];
   const widgetOne = widgets.find((widget) => widget.id === "widget-1");
   const widgetTwo = widgets.find((widget) => widget.id === "widget-2");
 
-  assert.ok(widgetOne);
-  assert.ok(widgetTwo);
-  assert.deepEqual(widgetOne.layout, { x: 4, y: 1, w: 3, h: 2 });
-  assert.deepEqual(widgetTwo.layout, { x: 7, y: 1, w: 5, h: 2 });
+  expect(widgetOne).toBeTruthy();
+  expect(widgetTwo).toBeTruthy();
+  expect(widgetOne.layout).toEqual({ x: 4, y: 1, w: 3, h: 2 });
+  expect(widgetTwo.layout).toEqual({ x: 7, y: 1, w: 5, h: 2 });
 });
 
 test("PATCH /widgets/layout rejects invalid payload", async () => {
@@ -220,7 +197,7 @@ test("PATCH /widgets/layout rejects invalid payload", async () => {
     },
   });
 
-  assert.equal(patchResponse.statusCode, 400);
+  expect(patchResponse.statusCode).toBe(400);
 });
 
 test("PATCH /widgets/layout rejects overlapping layouts", async () => {
@@ -239,5 +216,5 @@ test("PATCH /widgets/layout rejects overlapping layouts", async () => {
     },
   });
 
-  assert.equal(patchResponse.statusCode, 400);
+  expect(patchResponse.statusCode).toBe(400);
 });

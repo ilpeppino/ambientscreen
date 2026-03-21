@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import {
   applyDragDelta,
   applyResizeDelta,
@@ -17,7 +16,7 @@ test("computeLayoutFrame maps 12-column grid values to absolute bounds", () => {
     containerHeight: 600,
   });
 
-  assert.deepEqual(frame, {
+  expect(frame).toEqual({
     left: 300,
     width: 600,
     top: 200,
@@ -38,12 +37,12 @@ test("computeLayoutFrame supports responsive resizing", () => {
     containerHeight: 300,
   });
 
-  assert.equal(wideFrame.left, 600);
-  assert.equal(wideFrame.width, 600);
-  assert.equal(narrowFrame.left, 300);
-  assert.equal(narrowFrame.width, 300);
-  assert.equal(narrowFrame.top, 50);
-  assert.equal(narrowFrame.height, 150);
+  expect(wideFrame.left).toBe(600);
+  expect(wideFrame.width).toBe(600);
+  expect(narrowFrame.left).toBe(300);
+  expect(narrowFrame.width).toBe(300);
+  expect(narrowFrame.top).toBe(50);
+  expect(narrowFrame.height).toBe(150);
 });
 
 test("resolveWidgetLayouts keeps non-overlapping layouts unchanged", () => {
@@ -53,7 +52,7 @@ test("resolveWidgetLayouts keeps non-overlapping layouts unchanged", () => {
   ];
 
   const resolvedLayouts = resolveWidgetLayouts({ layouts });
-  assert.deepEqual(resolvedLayouts, layouts);
+  expect(resolvedLayouts).toEqual(layouts);
 });
 
 test("resolveWidgetLayouts auto-flows overlapping layouts", () => {
@@ -65,7 +64,7 @@ test("resolveWidgetLayouts auto-flows overlapping layouts", () => {
 
   const resolvedLayouts = resolveWidgetLayouts({ layouts });
 
-  assert.deepEqual(resolvedLayouts, [
+  expect(resolvedLayouts).toEqual([
     { x: 0, y: 0, w: 4, h: 2 },
     { x: 4, y: 0, w: 4, h: 2 },
     { x: 8, y: 0, w: 4, h: 2 },
@@ -77,7 +76,7 @@ test("clampWidgetLayout enforces grid boundaries", () => {
     layout: { x: -4, y: -2, w: 14, h: 9 },
   });
 
-  assert.deepEqual(clamped, { x: 0, y: 0, w: 12, h: 6 });
+  expect(clamped).toEqual({ x: 0, y: 0, w: 12, h: 6 });
 });
 
 test("clampWidgetLayout keeps x + w within 12 columns", () => {
@@ -85,7 +84,7 @@ test("clampWidgetLayout keeps x + w within 12 columns", () => {
     layout: { x: 11, y: 2, w: 4, h: 2 },
   });
 
-  assert.deepEqual(clamped, { x: 8, y: 2, w: 4, h: 2 });
+  expect(clamped).toEqual({ x: 8, y: 2, w: 4, h: 2 });
 });
 
 test("applyDragDelta updates layout position and clamps", () => {
@@ -95,7 +94,7 @@ test("applyDragDelta updates layout position and clamps", () => {
     deltaY: 2,
   });
 
-  assert.deepEqual(dragged, { x: 9, y: 4, w: 3, h: 2 });
+  expect(dragged).toEqual({ x: 9, y: 4, w: 3, h: 2 });
 });
 
 test("applyResizeDelta updates layout dimensions and clamps", () => {
@@ -105,7 +104,7 @@ test("applyResizeDelta updates layout dimensions and clamps", () => {
     deltaY: 10,
   });
 
-  assert.deepEqual(resized, { x: 0, y: 0, w: 12, h: 6 });
+  expect(resized).toEqual({ x: 0, y: 0, w: 12, h: 6 });
 });
 
 test("resolveWidgetLayoutCollision repositions to a non-overlapping slot", () => {
@@ -118,7 +117,7 @@ test("resolveWidgetLayoutCollision repositions to a non-overlapping slot", () =>
     },
   });
 
-  assert.deepEqual(resolved, { x: 6, y: 0, w: 6, h: 3 });
+  expect(resolved).toEqual({ x: 6, y: 0, w: 6, h: 3 });
 });
 
 test("resolveWidgetLayoutCollision keeps proposed layout when there is no overlap", () => {
@@ -131,7 +130,7 @@ test("resolveWidgetLayoutCollision keeps proposed layout when there is no overla
     },
   });
 
-  assert.deepEqual(resolved, { x: 6, y: 0, w: 6, h: 3 });
+  expect(resolved).toEqual({ x: 6, y: 0, w: 6, h: 3 });
 });
 
 test("normalizeWidgetLayouts resolves overlaps across the full widget set", () => {
@@ -144,7 +143,7 @@ test("normalizeWidgetLayouts resolves overlaps across the full widget set", () =
     orderedWidgetIds: ["widget-1", "widget-2", "widget-3"],
   });
 
-  assert.deepEqual(normalized["widget-1"], { x: 0, y: 0, w: 6, h: 3 });
-  assert.deepEqual(normalized["widget-2"], { x: 6, y: 0, w: 6, h: 3 });
-  assert.deepEqual(normalized["widget-3"], { x: 0, y: 3, w: 6, h: 3 });
+  expect(normalized["widget-1"]).toEqual({ x: 0, y: 0, w: 6, h: 3 });
+  expect(normalized["widget-2"]).toEqual({ x: 6, y: 0, w: 6, h: 3 });
+  expect(normalized["widget-3"]).toEqual({ x: 0, y: 3, w: 6, h: 3 });
 });

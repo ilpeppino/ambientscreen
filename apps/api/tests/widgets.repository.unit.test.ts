@@ -1,20 +1,13 @@
-import assert from "node:assert/strict";
-import test, { afterEach } from "node:test";
+import { test, expect, afterEach, vi } from "vitest";
 import { prisma } from "../src/core/db/prisma";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 
-const originalFindMany = prisma.widgetInstance.findMany;
-const originalCreate = prisma.widgetInstance.create;
-const originalTransaction = prisma.$transaction;
-
 afterEach(() => {
-  prisma.widgetInstance.findMany = originalFindMany;
-  prisma.widgetInstance.create = originalCreate;
-  prisma.$transaction = originalTransaction;
+  vi.restoreAllMocks();
 });
 
 test("widgetsRepository maps db layout fields to layout object on list", async () => {
-  prisma.widgetInstance.findMany = (async () => [
+  vi.spyOn(prisma.widgetInstance, "findMany").mockImplementation(async () => [
     {
       id: "widget-1",
       profileId: "user-1",
@@ -28,17 +21,17 @@ test("widgetsRepository maps db layout fields to layout object on list", async (
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
     },
-  ]) as typeof prisma.widgetInstance.findMany;
+  ] as never);
 
   const widgets = await widgetsRepository.findAll("user-1");
-  assert.equal(widgets.length, 1);
-  assert.deepEqual(widgets[0].layout, { x: 2, y: 3, w: 4, h: 5 });
+  expect(widgets.length).toBe(1);
+  expect(widgets[0].layout).toEqual({ x: 2, y: 3, w: 4, h: 5 });
 });
 
 test("widgetsRepository maps layout input to db layout fields on create", async () => {
   let createArgs: unknown;
 
-  prisma.widgetInstance.create = (async (args) => {
+  vi.spyOn(prisma.widgetInstance, "create").mockImplementation(async (args) => {
     createArgs = args;
     return {
       id: "widget-1",
@@ -52,8 +45,8 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
       isActive: true,
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
-    };
-  }) as typeof prisma.widgetInstance.create;
+    } as never;
+  });
 
   const created = await widgetsRepository.create({
     profileId: "user-1",
@@ -63,8 +56,8 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
     isActive: true,
   });
 
-  assert.deepEqual(created.layout, { x: 1, y: 2, w: 3, h: 4 });
-  assert.deepEqual(createArgs, {
+  expect(created.layout).toEqual({ x: 1, y: 2, w: 3, h: 4 });
+  expect(createArgs).toEqual({
     data: {
       profileId: "user-1",
       type: "clockDate",
@@ -91,11 +84,13 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
     },
   };
 
-  prisma.$transaction = (async (callback: (transaction: unknown) => unknown) => {
-    return callback(mockTransaction as never);
-  }) as typeof prisma.$transaction;
+  vi.spyOn(prisma, "$transaction").mockImplementation(
+    (async (callback: (transaction: unknown) => unknown) => {
+      return callback(mockTransaction as never);
+    }) as never,
+  );
 
-  prisma.widgetInstance.findMany = (async (args) => {
+  vi.spyOn(prisma.widgetInstance, "findMany").mockImplementation(async (args) => {
     findManyArgs = args;
     return [
       {
@@ -111,8 +106,8 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
         createdAt: new Date("2026-03-21T10:00:00.000Z"),
         updatedAt: new Date("2026-03-21T10:00:00.000Z"),
       },
-    ];
-  }) as typeof prisma.widgetInstance.findMany;
+    ] as never;
+  });
 
   const updated = await widgetsRepository.updateLayouts("user-1", [
     {
@@ -121,15 +116,15 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
     },
   ]);
 
-  assert.equal(updated.length, 1);
-  assert.deepEqual(updated[0].layout, { x: 3, y: 2, w: 4, h: 2 });
-  assert.deepEqual(updateManyCalls, [
+  expect(updated.length).toBe(1);
+  expect(updated[0].layout).toEqual({ x: 3, y: 2, w: 4, h: 2 });
+  expect(updateManyCalls).toEqual([
     {
       where: { id: "widget-1", profileId: "user-1" },
       data: { layoutX: 3, layoutY: 2, layoutW: 4, layoutH: 2 },
     },
   ]);
-  assert.deepEqual(findManyArgs, {
+  expect(findManyArgs).toEqual({
     where: {
       id: { in: ["widget-1"] },
       profileId: "user-1",

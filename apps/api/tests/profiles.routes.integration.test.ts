@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, beforeEach, afterEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { profilesRouter } from "../src/modules/profiles/profiles.routes";
@@ -21,29 +20,6 @@ interface InvokeRouteOptions {
   query?: Record<string, string>;
 }
 
-const originalProfilesService = {
-  getPrimaryUserId: profilesService.getPrimaryUserId,
-  getProfilesForPrimaryUser: profilesService.getProfilesForPrimaryUser,
-  createProfileForUser: profilesService.createProfileForUser,
-  renameProfileForUser: profilesService.renameProfileForUser,
-  deleteProfileForUser: profilesService.deleteProfileForUser,
-};
-
-const mutableProfilesService = profilesService as unknown as {
-  getPrimaryUserId: () => Promise<string>;
-  getProfilesForPrimaryUser: () => Promise<TestProfile[]>;
-  createProfileForUser: (data: { userId: string; name: string }) => Promise<TestProfile>;
-  renameProfileForUser: (data: {
-    userId: string;
-    profileId: string;
-    name: string;
-  }) => Promise<TestProfile | null>;
-  deleteProfileForUser: (data: {
-    userId: string;
-    profileId: string;
-  }) => Promise<{ deleted: boolean; reason?: "notFound" | "lastProfile" }>;
-};
-
 let profileStore: TestProfile[] = [];
 let profileCounter = 0;
 
@@ -59,9 +35,9 @@ beforeEach(() => {
     },
   ];
 
-  mutableProfilesService.getPrimaryUserId = async () => "user-1";
-  mutableProfilesService.getProfilesForPrimaryUser = async () => profileStore;
-  mutableProfilesService.createProfileForUser = async ({ userId, name }) => {
+  vi.spyOn(profilesService, "getPrimaryUserId").mockImplementation(async () => "user-1");
+  vi.spyOn(profilesService, "getProfilesForPrimaryUser").mockImplementation(async () => profileStore);
+  vi.spyOn(profilesService, "createProfileForUser").mockImplementation(async ({ userId, name }) => {
     profileCounter += 1;
     const profile: TestProfile = {
       id: `profile-${profileCounter}`,
@@ -72,8 +48,8 @@ beforeEach(() => {
     };
     profileStore.push(profile);
     return profile;
-  };
-  mutableProfilesService.renameProfileForUser = async ({ userId, profileId, name }) => {
+  });
+  vi.spyOn(profilesService, "renameProfileForUser").mockImplementation(async ({ userId, profileId, name }) => {
     const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
     if (!profile) {
       return null;
@@ -81,8 +57,8 @@ beforeEach(() => {
 
     profile.name = name;
     return profile;
-  };
-  mutableProfilesService.deleteProfileForUser = async ({ userId, profileId }) => {
+  });
+  vi.spyOn(profilesService, "deleteProfileForUser").mockImplementation(async ({ userId, profileId }) => {
     const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
     if (!profile) {
       return { deleted: false, reason: "notFound" };
@@ -94,16 +70,10 @@ beforeEach(() => {
 
     profileStore = profileStore.filter((item) => item.id !== profileId);
     return { deleted: true };
-  };
+  });
 });
 
-after(() => {
-  mutableProfilesService.getPrimaryUserId = originalProfilesService.getPrimaryUserId;
-  mutableProfilesService.getProfilesForPrimaryUser = originalProfilesService.getProfilesForPrimaryUser;
-  mutableProfilesService.createProfileForUser = originalProfilesService.createProfileForUser;
-  mutableProfilesService.renameProfileForUser = originalProfilesService.renameProfileForUser;
-  mutableProfilesService.deleteProfileForUser = originalProfilesService.deleteProfileForUser;
-});
+afterEach(() => { vi.restoreAllMocks(); });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {
@@ -172,26 +142,26 @@ test("profile CRUD routes create, rename, and delete profiles", async () => {
   const createResponse = await invokeRoute(profilesRouter, "post", "/", {
     body: { name: "Work" },
   });
-  assert.equal(createResponse.statusCode, 201);
+  expect(createResponse.statusCode).toBe(201);
 
   const listResponse = await invokeRoute(profilesRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
+  expect(listResponse.statusCode).toBe(200);
   const profiles = listResponse.body as TestProfile[];
-  assert.equal(profiles.length, 2);
-  assert.equal(profiles[1].name, "Work");
+  expect(profiles.length).toBe(2);
+  expect(profiles[1].name).toBe("Work");
 
   const createdProfileId = profiles[1].id;
   const renameResponse = await invokeRoute(profilesRouter, "patch", "/:id", {
     params: { id: createdProfileId },
     body: { name: "Office" },
   });
-  assert.equal(renameResponse.statusCode, 200);
-  assert.equal((renameResponse.body as TestProfile).name, "Office");
+  expect(renameResponse.statusCode).toBe(200);
+  expect((renameResponse.body as TestProfile).name).toBe("Office");
 
   const deleteResponse = await invokeRoute(profilesRouter, "delete", "/:id", {
     params: { id: createdProfileId },
   });
-  assert.equal(deleteResponse.statusCode, 204);
+  expect(deleteResponse.statusCode).toBe(204);
 });
 
 test("profile delete prevents deleting the last remaining profile", async () => {
@@ -199,5 +169,5 @@ test("profile delete prevents deleting the last remaining profile", async () => 
     params: { id: "profile-default" },
   });
 
-  assert.equal(deleteResponse.statusCode, 400);
+  expect(deleteResponse.statusCode).toBe(400);
 });

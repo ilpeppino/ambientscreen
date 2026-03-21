@@ -1,8 +1,0 @@
-{
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "rootDir": ".",
-    "outDir": "/tmp/ambient-api-test-dist"
-  },
-  "include": ["src", "tests"]
-}
