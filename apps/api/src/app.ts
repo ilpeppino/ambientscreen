@@ -4,6 +4,7 @@ import cors from "cors";
 import { usersRouter } from "./modules/users/users.routes";
 import { widgetsRouter } from "./modules/widgets/widgets.routes";
 import { widgetDataRouter } from "./modules/widgetData/widget-data.routes";
+import { displayRouter } from "./modules/display/display.routes";
 import {
   globalErrorMiddleware,
   notFoundMiddleware
@@ -24,6 +25,7 @@ export function createApp() {
   app.use("/users", usersRouter);
   app.use("/widgets", widgetsRouter);
   app.use("/widget-data", widgetDataRouter);
+  app.use("/", displayRouter);
   app.use(notFoundMiddleware);
   app.use(globalErrorMiddleware);
 
