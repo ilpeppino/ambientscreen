@@ -1,0 +1,36 @@
+name: PR Title Lint
+
+# Validates that the PR title follows Conventional Commits format.
+# A compliant title ensures the automated versioning workflow can
+# correctly classify the change (feat → minor, fix → patch, etc.).
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  lint-pr-title:
+    name: Lint PR Title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # Mirror the types defined in commitlint.config.cjs and VERSIONING_POLICY.md
+          types: |
+            feat
+            fix
+            docs
+            chore
+            ci
+            test
+            refactor
+            perf
+          # Scope is optional (e.g. "feat(api): …" and "feat: …" both pass)
+          requireScope: false
+          # Subject line must not be empty
+          subjectPattern: ^.+$
+          subjectPatternError: |
+            The subject of the PR title must not be empty.
+            Example: "feat(api): add weather resolver"

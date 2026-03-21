@@ -1,0 +1,2 @@
+# Pre-commit hook — intentionally empty.
+# Commit message validation is handled by the commit-msg hook (commitlint).
