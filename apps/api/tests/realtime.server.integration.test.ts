@@ -209,3 +209,57 @@ test("realtime server scopes event delivery by profile", async (t) => {
     httpServer.close(() => resolve());
   });
 });
+
+test("realtime server scopes event delivery by shared session", async (t) => {
+  const httpServer = createServer();
+  const realtimeServer = createRealtimeServer(httpServer);
+
+  let port: number;
+  try {
+    port = await startServerWithEphemeralPort(httpServer);
+  } catch (error) {
+    if ((error as { code?: string }).code === "EPERM") {
+      t.skip("Sandbox does not allow binding local ports.");
+      return;
+    }
+    throw error;
+  }
+
+  const sessionOneClient = new WebSocket(`ws://127.0.0.1:${port}/realtime`);
+  const sessionTwoClient = new WebSocket(`ws://127.0.0.1:${port}/realtime`);
+  await Promise.all([waitForOpen(sessionOneClient), waitForOpen(sessionTwoClient)]);
+
+  sessionOneClient.send(JSON.stringify({ type: "subscribeSession", sessionId: "session-1" }));
+  sessionTwoClient.send(JSON.stringify({ type: "subscribeSession", sessionId: "session-2" }));
+
+  await new Promise((resolve) => setTimeout(resolve, 50));
+
+  const sessionOneMessagePromise = waitForMessage(sessionOneClient);
+
+  realtimeServer.publish({
+    scope: "sharedSession",
+    type: "sharedSession.updated",
+    sessionId: "session-1",
+    timestamp: "2026-03-21T12:00:00.000Z",
+    payload: {
+      activeProfileId: "profile-2",
+    },
+  });
+
+  const sessionOnePayload = await sessionOneMessagePromise;
+  const sessionOneEvent = JSON.parse(sessionOnePayload) as {
+    sessionId: string;
+    type: string;
+  };
+  expect(sessionOneEvent.sessionId).toBe("session-1");
+  expect(sessionOneEvent.type).toBe("sharedSession.updated");
+
+  await waitForSilence(sessionTwoClient, 120);
+
+  sessionOneClient.close();
+  sessionTwoClient.close();
+  await realtimeServer.close();
+  await new Promise<void>((resolve) => {
+    httpServer.close(() => resolve());
+  });
+});
