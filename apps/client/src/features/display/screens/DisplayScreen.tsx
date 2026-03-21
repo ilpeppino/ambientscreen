@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-nati
 import {
   getDisplayLayout,
   type DisplayLayoutWidgetEnvelope,
+  updateWidgetsLayout,
 } from "../../../services/api/displayLayoutApi";
 import {
   disableDisplayKeepAwake,
@@ -19,6 +20,12 @@ import {
   getDisplayStatusModel,
 } from "../displayScreen.logic";
 import { LayoutGrid } from "../components/LayoutGrid";
+import {
+  clampWidgetLayout,
+  normalizeWidgetLayouts,
+  resolveWidgetLayoutCollision,
+  type WidgetLayout,
+} from "../components/LayoutGrid.logic";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -28,7 +35,11 @@ const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 
 export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const [widgets, setWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
+  const [draftLayoutsByWidgetId, setDraftLayoutsByWidgetId] = useState<Record<string, WidgetLayout>>({});
   const [loadingLayout, setLoadingLayout] = useState(true);
+  const [savingLayout, setSavingLayout] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -60,7 +71,9 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       }
 
       const response = await getDisplayLayout();
-      setWidgets(response.widgets);
+      const normalizedWidgets = withNormalizedLayouts(response.widgets);
+      setWidgets(normalizedWidgets);
+      setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(normalizedWidgets));
       setError(null);
     } catch (err) {
       console.error(err);
@@ -94,6 +107,10 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   }, [loadDisplayLayout]);
 
   useEffect(() => {
+    if (editMode) {
+      return () => undefined;
+    }
+
     const intervalId = setInterval(() => {
       void loadDisplayLayout(false);
     }, refreshIntervalMs);
@@ -101,7 +118,104 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     return () => {
       clearInterval(intervalId);
     };
-  }, [loadDisplayLayout, refreshIntervalMs]);
+  }, [editMode, loadDisplayLayout, refreshIntervalMs]);
+
+  const layoutWidgets = useMemo<DisplayLayoutWidgetEnvelope[]>(() => {
+    if (!editMode) {
+      return widgets;
+    }
+
+    return widgets.map((widget) => ({
+      ...widget,
+      layout: draftLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
+    }));
+  }, [draftLayoutsByWidgetId, editMode, widgets]);
+
+  const hasLayoutChanges = useMemo(() => {
+    if (!editMode) {
+      return false;
+    }
+
+    return widgets.some((widget) => {
+      const draftLayout = draftLayoutsByWidgetId[widget.widgetInstanceId];
+      if (!draftLayout) {
+        return false;
+      }
+
+      return (
+        draftLayout.x !== widget.layout.x
+        || draftLayout.y !== widget.layout.y
+        || draftLayout.w !== widget.layout.w
+        || draftLayout.h !== widget.layout.h
+      );
+    });
+  }, [draftLayoutsByWidgetId, editMode, widgets]);
+
+  const handleToggleEditMode = useCallback(() => {
+    setError(null);
+    setEditMode((current) => {
+      if (!current) {
+        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
+      } else {
+        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
+        setSelectedWidgetId(null);
+      }
+
+      return !current;
+    });
+  }, [widgets]);
+
+  const handleWidgetLayoutChange = useCallback((widgetId: string, layout: WidgetLayout) => {
+    setDraftLayoutsByWidgetId((current) => {
+      const clampedLayout = clampWidgetLayout({ layout });
+      const resolvedLayout = resolveWidgetLayoutCollision({
+        widgetId,
+        proposedLayout: clampedLayout,
+        layoutsById: current,
+      });
+
+      return {
+        ...current,
+        [widgetId]: resolvedLayout,
+      };
+    });
+  }, []);
+
+  const handleCancelLayout = useCallback(() => {
+    setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(widgets));
+    setSelectedWidgetId(null);
+    setEditMode(false);
+    setError(null);
+  }, [widgets]);
+
+  const handleSaveLayout = useCallback(async () => {
+    if (!hasLayoutChanges || savingLayout) {
+      return;
+    }
+
+    try {
+      setSavingLayout(true);
+      setError(null);
+
+      await updateWidgetsLayout({
+        widgets: widgets.map((widget) => ({
+          id: widget.widgetInstanceId,
+          layout: clampWidgetLayout({
+            layout: draftLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
+          }),
+        })),
+      });
+
+      await loadDisplayLayout(false);
+      setEditMode(false);
+      setSelectedWidgetId(null);
+    } catch (err) {
+      console.error(err);
+      setError(toErrorMessage(err, "Failed to save display layout"));
+    } finally {
+      setSavingLayout(false);
+    }
+  }, [draftLayoutsByWidgetId, hasLayoutChanges, loadDisplayLayout, savingLayout, widgets]);
 
   const frameModel = getDisplayFrameModel(undefined);
   const hasWidgets = widgets.length > 0;
@@ -122,8 +236,16 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
       return <DisplayStatusCard title={model.title} message={model.message} />;
     }
 
-    return <LayoutGrid widgets={widgets} />;
-  }, [error, hasWidgets, loadingLayout, widgets]);
+    return (
+      <LayoutGrid
+        widgets={layoutWidgets}
+        editMode={editMode}
+        selectedWidgetId={selectedWidgetId}
+        onSelectWidget={setSelectedWidgetId}
+        onWidgetLayoutChange={handleWidgetLayoutChange}
+      />
+    );
+  }, [editMode, error, handleWidgetLayoutChange, hasWidgets, layoutWidgets, loadingLayout, selectedWidgetId]);
 
   return (
     <View style={styles.screen}>
@@ -135,6 +257,39 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
             onPress={onExitDisplayMode}
           >
             <Text style={styles.exitButtonLabel}>Exit Display</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <View style={styles.editModeButtonContainer}>
+        <Pressable
+          accessibilityRole="button"
+          style={[styles.editModeButton, editMode ? styles.editModeButtonActive : null]}
+          onPress={handleToggleEditMode}
+        >
+          <Text style={styles.editModeButtonLabel}>{editMode ? "Done Editing" : "Edit Layout"}</Text>
+        </Pressable>
+      </View>
+      {editMode ? (
+        <View style={styles.layoutActionsContainer}>
+          <Pressable
+            accessibilityRole="button"
+            style={[styles.layoutActionButton, styles.layoutCancelButton]}
+            onPress={handleCancelLayout}
+            disabled={savingLayout}
+          >
+            <Text style={styles.layoutActionLabel}>Cancel</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            style={[
+              styles.layoutActionButton,
+              styles.layoutSaveButton,
+              !hasLayoutChanges || savingLayout ? styles.layoutActionDisabled : null,
+            ]}
+            onPress={handleSaveLayout}
+            disabled={!hasLayoutChanges || savingLayout}
+          >
+            <Text style={styles.layoutActionLabel}>{savingLayout ? "Saving..." : "Save Layout"}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -251,6 +406,61 @@ const styles = StyleSheet.create({
     fontSize: 13,
     letterSpacing: 0.4,
   },
+  editModeButtonContainer: {
+    position: "absolute",
+    top: 18,
+    right: 130,
+    zIndex: 20,
+  },
+  editModeButton: {
+    borderWidth: 1,
+    borderColor: "#356084",
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: "rgba(12, 30, 45, 0.9)",
+  },
+  editModeButtonActive: {
+    borderColor: "#5DAEFF",
+    backgroundColor: "rgba(20, 52, 82, 0.95)",
+  },
+  editModeButtonLabel: {
+    color: "#b8ddff",
+    fontSize: 12,
+    letterSpacing: 0.4,
+    fontWeight: "600",
+  },
+  layoutActionsContainer: {
+    position: "absolute",
+    top: 18,
+    left: 20,
+    zIndex: 20,
+    flexDirection: "row",
+    gap: 10,
+  },
+  layoutActionButton: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  layoutCancelButton: {
+    borderColor: "#575757",
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+  },
+  layoutSaveButton: {
+    borderColor: "#5DAEFF",
+    backgroundColor: "rgba(18, 49, 76, 0.95)",
+  },
+  layoutActionDisabled: {
+    opacity: 0.45,
+  },
+  layoutActionLabel: {
+    color: "#e4f2ff",
+    fontSize: 12,
+    letterSpacing: 0.4,
+    fontWeight: "600",
+  },
 });
 
 function toErrorMessage(error: unknown, fallback: string): string {
@@ -259,4 +469,28 @@ function toErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function buildLayoutsByWidgetId(
+  widgets: DisplayLayoutWidgetEnvelope[],
+): Record<string, WidgetLayout> {
+  return widgets.reduce<Record<string, WidgetLayout>>((accumulator, widget) => {
+    accumulator[widget.widgetInstanceId] = widget.layout;
+    return accumulator;
+  }, {});
+}
+
+function withNormalizedLayouts(
+  widgets: DisplayLayoutWidgetEnvelope[],
+): DisplayLayoutWidgetEnvelope[] {
+  const orderedWidgetIds = widgets.map((widget) => widget.widgetInstanceId);
+  const normalizedLayoutsByWidgetId = normalizeWidgetLayouts({
+    layoutsById: buildLayoutsByWidgetId(widgets),
+    orderedWidgetIds,
+  });
+
+  return widgets.map((widget) => ({
+    ...widget,
+    layout: normalizedLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
+  }));
 }

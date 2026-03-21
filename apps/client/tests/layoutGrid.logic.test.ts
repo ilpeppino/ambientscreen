@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  applyDragDelta,
+  applyResizeDelta,
+  clampWidgetLayout,
   computeLayoutFrame,
+  normalizeWidgetLayouts,
+  resolveWidgetLayoutCollision,
   resolveWidgetLayouts,
 } from "../src/features/display/components/LayoutGrid.logic";
 
@@ -65,4 +70,81 @@ test("resolveWidgetLayouts auto-flows overlapping layouts", () => {
     { x: 4, y: 0, w: 4, h: 2 },
     { x: 8, y: 0, w: 4, h: 2 },
   ]);
+});
+
+test("clampWidgetLayout enforces grid boundaries", () => {
+  const clamped = clampWidgetLayout({
+    layout: { x: -4, y: -2, w: 14, h: 9 },
+  });
+
+  assert.deepEqual(clamped, { x: 0, y: 0, w: 12, h: 6 });
+});
+
+test("clampWidgetLayout keeps x + w within 12 columns", () => {
+  const clamped = clampWidgetLayout({
+    layout: { x: 11, y: 2, w: 4, h: 2 },
+  });
+
+  assert.deepEqual(clamped, { x: 8, y: 2, w: 4, h: 2 });
+});
+
+test("applyDragDelta updates layout position and clamps", () => {
+  const dragged = applyDragDelta({
+    layout: { x: 9, y: 4, w: 3, h: 2 },
+    deltaX: 3,
+    deltaY: 2,
+  });
+
+  assert.deepEqual(dragged, { x: 9, y: 4, w: 3, h: 2 });
+});
+
+test("applyResizeDelta updates layout dimensions and clamps", () => {
+  const resized = applyResizeDelta({
+    layout: { x: 2, y: 1, w: 2, h: 2 },
+    deltaX: 20,
+    deltaY: 10,
+  });
+
+  assert.deepEqual(resized, { x: 0, y: 0, w: 12, h: 6 });
+});
+
+test("resolveWidgetLayoutCollision repositions to a non-overlapping slot", () => {
+  const resolved = resolveWidgetLayoutCollision({
+    widgetId: "widget-2",
+    proposedLayout: { x: 0, y: 0, w: 6, h: 3 },
+    layoutsById: {
+      "widget-1": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-2": { x: 6, y: 0, w: 6, h: 3 },
+    },
+  });
+
+  assert.deepEqual(resolved, { x: 6, y: 0, w: 6, h: 3 });
+});
+
+test("resolveWidgetLayoutCollision keeps proposed layout when there is no overlap", () => {
+  const resolved = resolveWidgetLayoutCollision({
+    widgetId: "widget-2",
+    proposedLayout: { x: 6, y: 0, w: 6, h: 3 },
+    layoutsById: {
+      "widget-1": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-2": { x: 6, y: 3, w: 6, h: 3 },
+    },
+  });
+
+  assert.deepEqual(resolved, { x: 6, y: 0, w: 6, h: 3 });
+});
+
+test("normalizeWidgetLayouts resolves overlaps across the full widget set", () => {
+  const normalized = normalizeWidgetLayouts({
+    layoutsById: {
+      "widget-1": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-2": { x: 0, y: 0, w: 6, h: 3 },
+      "widget-3": { x: 0, y: 0, w: 6, h: 3 },
+    },
+    orderedWidgetIds: ["widget-1", "widget-2", "widget-3"],
+  });
+
+  assert.deepEqual(normalized["widget-1"], { x: 0, y: 0, w: 6, h: 3 });
+  assert.deepEqual(normalized["widget-2"], { x: 6, y: 0, w: 6, h: 3 });
+  assert.deepEqual(normalized["widget-3"], { x: 0, y: 3, w: 6, h: 3 });
 });

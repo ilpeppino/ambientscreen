@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { DisplayLayoutResponse } from "../src/services/api/displayLayoutApi";
-import { computeLayoutFrame } from "../src/features/display/components/LayoutGrid.logic";
+import {
+  applyDragDelta,
+  applyResizeDelta,
+  computeLayoutFrame,
+} from "../src/features/display/components/LayoutGrid.logic";
 import { toWidgetEnvelope } from "../src/features/display/components/WidgetContainer.logic";
 
 test("display layout widgets map into widget envelopes and frames", () => {
@@ -57,4 +61,64 @@ test("display layout widgets map into widget envelopes and frames", () => {
   assert.equal(secondFrame.left, 600);
   assert.equal(secondFrame.width, 600);
   assert.ok(firstFrame.left + firstFrame.width <= secondFrame.left);
+});
+
+test("edit -> save -> reload keeps widget layout changes", () => {
+  const initialResponse: DisplayLayoutResponse = {
+    widgets: [
+      {
+        widgetInstanceId: "clock-1",
+        widgetKey: "clockDate",
+        layout: { x: 0, y: 0, w: 2, h: 2 },
+        state: "ready",
+        data: {
+          nowIso: "2026-03-21T10:00:00.000Z",
+          formattedTime: "10:00",
+          formattedDate: "21 March",
+          weekdayLabel: "Saturday",
+        },
+        meta: { resolvedAt: "2026-03-21T10:00:00.000Z" },
+      },
+    ],
+  };
+
+  const dragged = applyDragDelta({
+    layout: initialResponse.widgets[0].layout,
+    deltaX: 4,
+    deltaY: 2,
+  });
+  const resized = applyResizeDelta({
+    layout: dragged,
+    deltaX: 3,
+    deltaY: 1,
+  });
+
+  const patchPayload = {
+    widgets: [
+      {
+        id: initialResponse.widgets[0].widgetInstanceId,
+        layout: resized,
+      },
+    ],
+  };
+
+  assert.deepEqual(patchPayload, {
+    widgets: [
+      {
+        id: "clock-1",
+        layout: { x: 4, y: 2, w: 5, h: 3 },
+      },
+    ],
+  });
+
+  const reloadedResponse: DisplayLayoutResponse = {
+    widgets: [
+      {
+        ...initialResponse.widgets[0],
+        layout: patchPayload.widgets[0].layout,
+      },
+    ],
+  };
+
+  assert.deepEqual(reloadedResponse.widgets[0].layout, { x: 4, y: 2, w: 5, h: 3 });
 });

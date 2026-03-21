@@ -297,7 +297,7 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
   }>;
   assert.equal(widgets.length, 2);
   assert.deepEqual(widgets[0].layout, { x: 0, y: 0, w: 1, h: 1 });
-  assert.deepEqual(widgets[1].layout, { x: 0, y: 0, w: 1, h: 1 });
+  assert.deepEqual(widgets[1].layout, { x: 1, y: 0, w: 1, h: 1 });
 });
 
 test("M0-1: widget-data endpoint returns clock data and handles missing widgets", async () => {

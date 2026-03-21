@@ -27,6 +27,11 @@ interface CreateWidgetInput {
   isActive: boolean;
 }
 
+interface UpdateWidgetLayoutInput {
+  id: string;
+  layout: WidgetLayout;
+}
+
 function mapWidgetRecord(widget: {
   id: string;
   userId: string;
@@ -106,5 +111,39 @@ export const widgetsRepository = {
 
       return mapWidgetRecord(widget);
     });
+  },
+
+  async updateLayouts(userId: string, inputs: UpdateWidgetLayoutInput[]): Promise<WidgetRecord[]> {
+    await prisma.$transaction(async (transaction) => {
+      for (const input of inputs) {
+        const updateResult = await transaction.widgetInstance.updateMany({
+          where: {
+            id: input.id,
+            userId,
+          },
+          data: {
+            layoutX: input.layout.x,
+            layoutY: input.layout.y,
+            layoutW: input.layout.w,
+            layoutH: input.layout.h,
+          },
+        });
+
+        if (updateResult.count !== 1) {
+          throw new Error(`Widget not found for user: ${input.id}`);
+        }
+      }
+    });
+
+    const widgets = await prisma.widgetInstance.findMany({
+      where: {
+        id: {
+          in: inputs.map((input) => input.id),
+        },
+        userId,
+      },
+    });
+
+    return widgets.map(mapWidgetRecord);
   },
 };

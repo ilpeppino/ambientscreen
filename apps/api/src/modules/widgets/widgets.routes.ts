@@ -1,8 +1,8 @@
 import { Router } from "express";
 import {
   createWidgetSchema,
-  defaultWidgetLayout,
   normalizeWidgetConfig,
+  updateWidgetsLayoutSchema,
 } from "./widget-contracts";
 import { widgetsService } from "./widgets.service";
 import { usersService } from "../users/users.service";
@@ -45,11 +45,32 @@ widgetsRouter.post(
       userId,
       type,
       config: normalizeWidgetConfig(type, config),
-      layout: layout ?? defaultWidgetLayout,
+      layout,
     });
 
     res.status(201).json(widget);
   })
+);
+
+widgetsRouter.patch(
+  "/layout",
+  asyncHandler(async (req, res) => {
+    const userId = await getPrimaryUserId();
+    const parseResult = updateWidgetsLayoutSchema.safeParse(req.body);
+
+    if (!parseResult.success) {
+      throw apiErrors.validation("Invalid widgets layout payload", parseResult.error.format());
+    }
+
+    const updatedWidgets = await widgetsService.updateWidgetsLayoutForUser({
+      userId,
+      widgets: parseResult.data.widgets,
+    });
+
+    res.json({
+      widgets: updatedWidgets,
+    });
+  }),
 );
 
 widgetsRouter.patch(

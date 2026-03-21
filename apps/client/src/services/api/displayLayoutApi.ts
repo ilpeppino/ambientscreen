@@ -52,6 +52,20 @@ export interface DisplayLayoutResponse {
   widgets: DisplayLayoutWidgetEnvelope[];
 }
 
+export interface UpdateWidgetLayoutInput {
+  id: string;
+  layout: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+}
+
+interface UpdateWidgetsLayoutPayload {
+  widgets: UpdateWidgetLayoutInput[];
+}
+
 async function toApiErrorMessage(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as ApiErrorResponse;
@@ -86,6 +100,39 @@ export async function getDisplayLayout(): Promise<DisplayLayoutResponse> {
     if ((error as { name?: string }).name === "AbortError") {
       throw new Error(
         `Failed to fetch display layout: request timed out after ${DISPLAY_LAYOUT_TIMEOUT_MS}ms`,
+      );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeoutHandle);
+  }
+}
+
+export async function updateWidgetsLayout(payload: UpdateWidgetsLayoutPayload): Promise<void> {
+  const abortController = new AbortController();
+  const timeoutHandle = setTimeout(() => {
+    abortController.abort();
+  }, DISPLAY_LAYOUT_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/widgets/layout`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+      signal: abortController.signal,
+    });
+
+    if (!response.ok) {
+      const message = await toApiErrorMessage(response);
+      throw new Error(`Failed to update widget layout: ${message}`);
+    }
+  } catch (error) {
+    if ((error as { name?: string }).name === "AbortError") {
+      throw new Error(
+        `Failed to update widget layout: request timed out after ${DISPLAY_LAYOUT_TIMEOUT_MS}ms`,
       );
     }
 
