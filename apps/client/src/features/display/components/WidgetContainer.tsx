@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import { renderWidgetFromKey } from "../../../widgets/widget.registry";
-import { getWidgetErrorLabel } from "./WidgetContainer.logic";
+import { computeWidgetScale, getWidgetErrorLabel } from "./WidgetContainer.logic";
 
 interface WidgetContainerProps {
   widget: DisplayLayoutWidgetEnvelope;
@@ -11,6 +11,11 @@ interface WidgetContainerProps {
 }
 
 function WidgetContainerBase({ widget, frameStyle }: WidgetContainerProps) {
+  const frame = frameStyle as ViewStyle;
+  const width = typeof frame.width === "number" ? frame.width : 0;
+  const height = typeof frame.height === "number" ? frame.height : 0;
+  const scale = computeWidgetScale(width, height);
+
   const content = useMemo(() => {
     if (widget.state === "loading") {
       return (
@@ -36,8 +41,14 @@ function WidgetContainerBase({ widget, frameStyle }: WidgetContainerProps) {
       );
     }
 
-    return renderWidgetFromKey(widget.widgetKey, widget.data);
-  }, [widget]);
+    return (
+      <View style={styles.readyViewport}>
+        <View style={[styles.readyCanvas, { transform: [{ scale }] }]}>
+          {renderWidgetFromKey(widget.widgetKey, widget.data)}
+        </View>
+      </View>
+    );
+  }, [scale, widget]);
 
   return <View style={[styles.container, frameStyle]}>{content}</View>;
 }
@@ -76,6 +87,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+  },
+  readyViewport: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  readyCanvas: {
+    width: 640,
+    height: 360,
   },
   errorText: {
     color: "#ff9b9b",
