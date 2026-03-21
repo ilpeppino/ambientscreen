@@ -31,6 +31,17 @@ export function getDisplayRefreshIntervalMs(
   return getWidgetRefreshIntervalMs(widgetType);
 }
 
+export function getEffectivePollingIntervalMs(
+  baseIntervalMs: number,
+  realtimeConnectionState: "connecting" | "connected" | "disconnected" | "error",
+): number {
+  if (realtimeConnectionState === "connected") {
+    return Math.max(baseIntervalMs, 120000);
+  }
+
+  return baseIntervalMs;
+}
+
 type DisplayUiState =
   | "loadingWidgets"
   | "error"

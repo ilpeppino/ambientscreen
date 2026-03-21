@@ -19,6 +19,7 @@ import {
 } from "../services/orientation";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
 import {
+  getEffectivePollingIntervalMs,
   getDisplayFrameModel,
   getDisplayRefreshIntervalMs,
   getDisplayStatusModel,
@@ -39,6 +40,8 @@ import {
   loadPersistedActiveProfileId,
   persistActiveProfileId,
 } from "../../profiles/profileStorage";
+import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
+import { API_BASE_URL } from "../../../core/config/api";
 
 interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
@@ -145,6 +148,20 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     }
   }, [activeProfileId]);
 
+  const realtimeConnectionState = useRealtimeDisplaySync({
+    apiBaseUrl: API_BASE_URL,
+    activeProfileId,
+    enabled: !editMode,
+    onRefreshRequested: () => {
+      void loadDisplayLayout(false);
+    },
+  });
+
+  const effectivePollingIntervalMs = useMemo(
+    () => getEffectivePollingIntervalMs(refreshIntervalMs, realtimeConnectionState),
+    [refreshIntervalMs, realtimeConnectionState],
+  );
+
   useEffect(() => {
     const signal = { cancelled: false };
     void loadProfiles(signal);
@@ -179,12 +196,12 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
 
     const intervalId = setInterval(() => {
       void loadDisplayLayout(false);
-    }, refreshIntervalMs);
+    }, effectivePollingIntervalMs);
 
     return () => {
       clearInterval(intervalId);
     };
-  }, [editMode, loadDisplayLayout, refreshIntervalMs]);
+  }, [editMode, effectivePollingIntervalMs, loadDisplayLayout]);
 
   const layoutWidgets = useMemo<DisplayLayoutWidgetEnvelope[]>(() => {
     if (!editMode) {
