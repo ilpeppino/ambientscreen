@@ -11,6 +11,10 @@ function normalizeApiBaseUrl(value: string): string {
   return value.trim().replace(/\/+$/, "");
 }
 
+function isLoopbackHost(host: string): boolean {
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
 export function resolveApiBaseUrl(input: ResolveApiBaseUrlInput): string {
   const apiPort = input.apiPort ?? DEFAULT_API_PORT;
   const envApiBaseUrl = input.envApiBaseUrl?.trim();
@@ -28,6 +32,9 @@ export function resolveApiBaseUrl(input: ResolveApiBaseUrlInput): string {
     try {
       const host = new URL(scriptUrl).hostname;
       if (host) {
+        if (input.platform === "android" && isLoopbackHost(host)) {
+          return `http://10.0.2.2:${apiPort}`;
+        }
         return `http://${host}:${apiPort}`;
       }
     } catch {

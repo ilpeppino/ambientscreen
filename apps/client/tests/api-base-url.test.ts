@@ -36,3 +36,12 @@ test("M0-4: resolveApiBaseUrl falls back to 10.0.2.2 on android emulator", () =>
 
   assert.equal(apiBaseUrl, "http://10.0.2.2:3000");
 });
+
+test("M0-4: resolveApiBaseUrl rewrites android loopback host to emulator host", () => {
+  const apiBaseUrl = resolveApiBaseUrl({
+    platform: "android",
+    scriptUrl: "http://127.0.0.1:8081/index.bundle?platform=android"
+  });
+
+  assert.equal(apiBaseUrl, "http://10.0.2.2:3000");
+});
