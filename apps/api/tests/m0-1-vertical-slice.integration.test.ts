@@ -16,7 +16,7 @@ interface TestUser {
 
 interface TestWidget {
   id: string;
-  userId: string;
+  profileId: string;
   type: string;
   config: Record<string, unknown>;
   layout: {
@@ -57,10 +57,10 @@ const mutableUsersRepository = usersRepository as unknown as {
 };
 
 const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (userId: string) => Promise<TestWidget[]>;
+  findAll: (profileId: string) => Promise<TestWidget[]>;
   findById: (id: string) => Promise<TestWidget | null>;
   create: (input: {
-    userId: string;
+    profileId: string;
     type: string;
     config: unknown;
     layout: {
@@ -71,7 +71,7 @@ const mutableWidgetsRepository = widgetsRepository as unknown as {
     };
     isActive: boolean;
   }) => Promise<TestWidget>;
-  activateWidget: (userId: string, widgetId: string) => Promise<TestWidget>;
+  activateWidget: (profileId: string, widgetId: string) => Promise<TestWidget>;
 };
 
 let usersStore: TestUser[] = [];
@@ -105,9 +105,9 @@ beforeEach(() => {
     return newUser;
   };
 
-  mutableWidgetsRepository.findAll = async (userId: string) => {
+  mutableWidgetsRepository.findAll = async (profileId: string) => {
     return widgetsStore
-      .filter((widget) => widget.userId === userId)
+      .filter((widget) => widget.profileId === profileId)
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   };
   mutableWidgetsRepository.findById = async (id: string) => {
@@ -118,7 +118,7 @@ beforeEach(() => {
     const now = new Date();
     const newWidget: TestWidget = {
       id: `widget-${widgetCounter}`,
-      userId: input.userId,
+      profileId: input.profileId,
       type: input.type,
       config: input.config as Record<string, unknown>,
       layout: input.layout,
@@ -129,14 +129,14 @@ beforeEach(() => {
     widgetsStore.push(newWidget);
     return newWidget;
   };
-  mutableWidgetsRepository.activateWidget = async (userId: string, widgetId: string) => {
-    const widget = widgetsStore.find((item) => item.id === widgetId && item.userId === userId);
+  mutableWidgetsRepository.activateWidget = async (profileId: string, widgetId: string) => {
+    const widget = widgetsStore.find((item) => item.id === widgetId && item.profileId === profileId);
     if (!widget) {
       throw new Error("Widget not found");
     }
 
     widgetsStore = widgetsStore.map((item) => {
-      if (item.userId !== userId) {
+      if (item.profileId !== profileId) {
         return item;
       }
 

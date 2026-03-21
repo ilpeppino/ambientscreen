@@ -9,7 +9,7 @@ const originalFindById = widgetsRepository.findById;
 const mutableWidgetsRepository = widgetsRepository as unknown as {
   findById: (id: string) => Promise<{
     id: string;
-    userId: string;
+    profileId: string;
     type: string;
     config: Record<string, unknown>;
     layout: {
@@ -28,7 +28,7 @@ beforeEach(() => {
   mutableWidgetsRepository.findById = async () => {
     return {
       id: "widget-clock",
-      userId: "user-1",
+      profileId: "user-1",
       type: "clockDate",
       config: {},
       layout: { x: 0, y: 0, w: 1, h: 1 },

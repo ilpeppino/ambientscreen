@@ -14,6 +14,17 @@ import {
   setActiveWidget,
   type WidgetInstance,
 } from "../../../services/api/widgetsApi";
+import type { Profile } from "@ambient/shared-contracts";
+import { resolveActiveProfileId } from "../../profiles/profiles.logic";
+import {
+  loadPersistedActiveProfileId,
+  persistActiveProfileId,
+} from "../../profiles/profileStorage";
+import {
+  createProfile as createProfileApi,
+  deleteProfile as deleteProfileApi,
+  getProfiles as getProfilesApi,
+} from "../../../services/api/profilesApi";
 import {
   buildCreateWidgetInput,
   CALENDAR_PROVIDERS,
@@ -32,6 +43,12 @@ interface AdminHomeScreenProps {
 }
 
 export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
+  const [newProfileName, setNewProfileName] = useState("");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [creatingProfile, setCreatingProfile] = useState(false);
+  const [deletingProfile, setDeletingProfile] = useState(false);
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [selectedWidgetType, setSelectedWidgetType] =
     useState<CreatableWidgetType>(CREATABLE_WIDGET_TYPES[0]);
@@ -47,11 +64,47 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
   const [createError, setCreateError] = useState<string | null>(null);
   const [activeError, setActiveError] = useState<string | null>(null);
 
+  const loadProfiles = useCallback(async (signal?: { cancelled: boolean }) => {
+    try {
+      setProfileError(null);
+      const [responseProfiles, persistedProfileId] = await Promise.all([
+        getProfilesApi(),
+        loadPersistedActiveProfileId(),
+      ]);
+
+      if (signal?.cancelled) {
+        return;
+      }
+
+      setProfiles(responseProfiles);
+      const nextActiveProfileId = resolveActiveProfileId(responseProfiles, persistedProfileId);
+      setActiveProfileId(nextActiveProfileId);
+      if (nextActiveProfileId) {
+        await persistActiveProfileId(nextActiveProfileId);
+      }
+    } catch (err) {
+      if (signal?.cancelled) {
+        return;
+      }
+
+      console.error(err);
+      setProfiles([]);
+      setActiveProfileId(null);
+      setProfileError("Failed to load profiles");
+    }
+  }, []);
+
   const loadWidgets = useCallback(async (signal?: { cancelled: boolean }) => {
+    if (!activeProfileId) {
+      setWidgets([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
-      const response = await getWidgets();
+      const response = await getWidgets(activeProfileId);
 
       if (signal?.cancelled) {
         return;
@@ -69,11 +122,20 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
         setLoading(false);
       }
     }
-  }, []);
+  }, [activeProfileId]);
 
   useEffect(() => {
     const signal = { cancelled: false };
 
+    loadProfiles(signal);
+
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [loadProfiles]);
+
+  useEffect(() => {
+    const signal = { cancelled: false };
     loadWidgets(signal);
 
     return () => {
@@ -82,6 +144,11 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
   }, [loadWidgets]);
 
   async function handleCreateWidget() {
+    if (!activeProfileId) {
+      setCreateError("No active profile selected");
+      return;
+    }
+
     try {
       setCreatingWidget(true);
       setCreateError(null);
@@ -89,6 +156,7 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
 
       await createWidget(
         buildCreateWidgetInput({
+          profileId: activeProfileId ?? undefined,
           widgetType: selectedWidgetType,
           weatherConfig: {
             location: weatherLocation,
@@ -100,6 +168,7 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
             timeWindow: calendarTimeWindow,
           },
         }),
+        activeProfileId ?? undefined,
       );
       await loadWidgets();
     } catch (err) {
@@ -115,18 +184,71 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
   }
 
   async function handleSetActiveWidget(widgetId: string) {
+    if (!activeProfileId) {
+      setActiveError("No active profile selected");
+      return;
+    }
+
     try {
       setSettingActiveWidgetId(widgetId);
       setActiveError(null);
       setCreateError(null);
 
-      await setActiveWidget(widgetId);
+      await setActiveWidget(widgetId, activeProfileId ?? undefined);
       await loadWidgets();
     } catch (err) {
       console.error(err);
       setActiveError("Failed to set active widget");
     } finally {
       setSettingActiveWidgetId(null);
+    }
+  }
+
+  async function handleCreateProfile() {
+    const trimmedName = newProfileName.trim();
+    if (!trimmedName) {
+      setProfileError("Profile name is required");
+      return;
+    }
+
+    try {
+      setCreatingProfile(true);
+      setProfileError(null);
+      const profile = await createProfileApi(trimmedName);
+      const nextProfiles = [...profiles, profile];
+      setProfiles(nextProfiles);
+      setNewProfileName("");
+      setActiveProfileId(profile.id);
+      await persistActiveProfileId(profile.id);
+    } catch (err) {
+      console.error(err);
+      setProfileError("Failed to create profile");
+    } finally {
+      setCreatingProfile(false);
+    }
+  }
+
+  async function handleDeleteActiveProfile() {
+    if (!activeProfileId || profiles.length <= 1) {
+      return;
+    }
+
+    try {
+      setDeletingProfile(true);
+      setProfileError(null);
+      await deleteProfileApi(activeProfileId);
+      const refreshedProfiles = await getProfilesApi();
+      const nextActiveProfileId = resolveActiveProfileId(refreshedProfiles, null);
+      setProfiles(refreshedProfiles);
+      setActiveProfileId(nextActiveProfileId);
+      if (nextActiveProfileId) {
+        await persistActiveProfileId(nextActiveProfileId);
+      }
+    } catch (err) {
+      console.error(err);
+      setProfileError("Failed to delete profile");
+    } finally {
+      setDeletingProfile(false);
     }
   }
 
@@ -154,8 +276,65 @@ export function AdminHomeScreen({ onEnterDisplayMode }: AdminHomeScreenProps) {
       <View style={styles.header}>
         <Text style={styles.title}>Admin Home</Text>
         <Text style={styles.subtitle}>
+          Active profile: {profiles.find((profile) => profile.id === activeProfileId)?.name ?? "none"}
+        </Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.profileTabs}>
+          {profiles.map((profile) => {
+            const selected = profile.id === activeProfileId;
+            return (
+              <Pressable
+                key={profile.id}
+                accessibilityRole="button"
+                style={[styles.profileTab, selected && styles.profileTabSelected]}
+                onPress={async () => {
+                  setActiveProfileId(profile.id);
+                  await persistActiveProfileId(profile.id);
+                }}
+              >
+                <Text style={[styles.profileTabLabel, selected && styles.profileTabLabelSelected]}>
+                  {profile.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+        <View style={styles.profileActions}>
+          <TextInput
+            accessibilityLabel="New profile name"
+            style={[styles.textInput, styles.profileInput]}
+            value={newProfileName}
+            onChangeText={setNewProfileName}
+            placeholder="New profile name"
+            placeholderTextColor="#7f7f7f"
+          />
+          <Pressable
+            accessibilityRole="button"
+            style={[styles.profileActionButton, creatingProfile && styles.createButtonDisabled]}
+            onPress={handleCreateProfile}
+            disabled={creatingProfile}
+          >
+            <Text style={styles.profileActionButtonLabel}>
+              {creatingProfile ? "Creating..." : "New Profile"}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            style={[
+              styles.profileDeleteButton,
+              (profiles.length <= 1 || deletingProfile) && styles.createButtonDisabled,
+            ]}
+            onPress={handleDeleteActiveProfile}
+            disabled={profiles.length <= 1 || deletingProfile}
+          >
+            <Text style={styles.profileDeleteButtonLabel}>
+              {deletingProfile ? "Deleting..." : "Delete Profile"}
+            </Text>
+          </Pressable>
+        </View>
+        <Text style={styles.subtitle}>
           Active widget: {activeWidget ? `${activeWidget.type} (${activeWidget.id})` : "none"}
         </Text>
+        {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
       </View>
 
       <View style={styles.createSection}>
@@ -330,6 +509,62 @@ const styles = StyleSheet.create({
   header: {
     paddingHorizontal: 24,
     paddingBottom: 12,
+  },
+  profileTabs: {
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  profileTab: {
+    borderWidth: 1,
+    borderColor: "#555",
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: "#111",
+    marginRight: 8,
+  },
+  profileTabSelected: {
+    borderColor: "#fff",
+    backgroundColor: "#1e1e1e",
+  },
+  profileTabLabel: {
+    color: "#d1d1d1",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  profileTabLabelSelected: {
+    color: "#fff",
+  },
+  profileActions: {
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  profileInput: {
+    flex: 1,
+  },
+  profileActionButton: {
+    backgroundColor: "#2d8cff",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  profileActionButtonLabel: {
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  profileDeleteButton: {
+    backgroundColor: "#3d1b1b",
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  profileDeleteButtonLabel: {
+    color: "#ffd4d4",
+    fontSize: 12,
+    fontWeight: "700",
   },
   createSection: {
     paddingHorizontal: 24,

@@ -46,8 +46,8 @@ function normalizeState(state: WidgetDataState): DisplayWidgetState {
 }
 
 export const displayService = {
-  async getDisplayLayout(userId: string): Promise<DisplayLayoutResponse> {
-    const widgets = await widgetsService.getUserWidgets(userId);
+  async getDisplayLayout(profileId: string): Promise<DisplayLayoutResponse> {
+    const widgets = await widgetsService.getProfileWidgets(profileId);
 
     const resolvedWidgets = await Promise.all(widgets.map(async (widget) => {
       const resolvedAt = new Date().toISOString();

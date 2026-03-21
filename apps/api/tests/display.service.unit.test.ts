@@ -9,9 +9,9 @@ const originalClockResolver = widgetResolvers.clockDate;
 const originalWeatherResolver = widgetResolvers.weather;
 
 const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (userId: string) => Promise<Array<{
+  findAll: (profileId: string) => Promise<Array<{
     id: string;
-    userId: string;
+    profileId: string;
     type: string;
     config: Record<string, unknown>;
     layout: {
@@ -31,7 +31,7 @@ beforeEach(() => {
     return [
       {
         id: "widget-1",
-        userId: "user-1",
+        profileId: "user-1",
         type: "clockDate",
         config: {},
         layout: { x: 0, y: 0, w: 2, h: 1 },
@@ -41,7 +41,7 @@ beforeEach(() => {
       },
       {
         id: "widget-2",
-        userId: "user-1",
+        profileId: "user-1",
         type: "weather",
         config: { location: "Amsterdam" },
         layout: { x: 2, y: 0, w: 2, h: 1 },

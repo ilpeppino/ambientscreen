@@ -21,7 +21,7 @@ test("widgetsService createWidget validates layout", async () => {
     input,
   ) => ({
     id: "widget-1",
-    userId: input.userId,
+    profileId: input.profileId,
     type: input.type,
     config: input.config,
     layout: input.layout,
@@ -32,7 +32,7 @@ test("widgetsService createWidget validates layout", async () => {
 
   assert.throws(() =>
     widgetsService.createWidget({
-      userId: "user-1",
+      profileId: "user-1",
       type: "clockDate",
       layout: { x: 0, y: 0, w: 0, h: 1 },
       isActive: true,
@@ -48,7 +48,7 @@ test("widgetsService createWidgetAtNextPosition falls back to default layout", a
     input,
   ) => ({
     id: "widget-1",
-    userId: input.userId,
+    profileId: input.profileId,
     type: input.type,
     config: input.config,
     layout: input.layout,
@@ -58,7 +58,7 @@ test("widgetsService createWidgetAtNextPosition falls back to default layout", a
   })) as typeof widgetsRepository.create;
 
   const created = await widgetsService.createWidgetAtNextPosition({
-    userId: "user-1",
+    profileId: "user-1",
     type: "clockDate",
   });
 
@@ -70,7 +70,7 @@ test("widgetsService createWidgetAtNextPosition auto-places when default slot is
     async () => [
       {
         id: "widget-existing",
-        userId: "user-1",
+        profileId: "user-1",
         type: "clockDate",
         config: {},
         layout: { x: 0, y: 0, w: 1, h: 1 },
@@ -84,7 +84,7 @@ test("widgetsService createWidgetAtNextPosition auto-places when default slot is
     input,
   ) => ({
     id: "widget-new",
-    userId: input.userId,
+    profileId: input.profileId,
     type: input.type,
     config: input.config,
     layout: input.layout,
@@ -94,7 +94,7 @@ test("widgetsService createWidgetAtNextPosition auto-places when default slot is
   })) as typeof widgetsRepository.create;
 
   const created = await widgetsService.createWidgetAtNextPosition({
-    userId: "user-1",
+    profileId: "user-1",
     type: "weather",
   });
 
@@ -106,7 +106,7 @@ test("widgetsService createWidgetAtNextPosition rejects explicit overlapping lay
     async () => [
       {
         id: "widget-existing",
-        userId: "user-1",
+        profileId: "user-1",
         type: "clockDate",
         config: {},
         layout: { x: 0, y: 0, w: 4, h: 2 },
@@ -118,17 +118,17 @@ test("widgetsService createWidgetAtNextPosition rejects explicit overlapping lay
 
   await assert.rejects(
     widgetsService.createWidgetAtNextPosition({
-      userId: "user-1",
+      profileId: "user-1",
       type: "weather",
       layout: { x: 2, y: 0, w: 4, h: 2 },
     }),
   );
 });
 
-test("widgetsService updateWidgetsLayoutForUser validates layouts", async () => {
+test("widgetsService updateWidgetsLayoutForProfile validates layouts", async () => {
   await assert.rejects(
-    widgetsService.updateWidgetsLayoutForUser({
-      userId: "user-1",
+    widgetsService.updateWidgetsLayoutForProfile({
+      profileId: "user-1",
       widgets: [
         {
           id: "widget-1",
@@ -139,10 +139,10 @@ test("widgetsService updateWidgetsLayoutForUser validates layouts", async () => 
   );
 });
 
-test("widgetsService updateWidgetsLayoutForUser rejects overlapping layouts", async () => {
+test("widgetsService updateWidgetsLayoutForProfile rejects overlapping layouts", async () => {
   await assert.rejects(
-    widgetsService.updateWidgetsLayoutForUser({
-      userId: "user-1",
+    widgetsService.updateWidgetsLayoutForProfile({
+      profileId: "user-1",
       widgets: [
         {
           id: "widget-1",
@@ -157,17 +157,17 @@ test("widgetsService updateWidgetsLayoutForUser rejects overlapping layouts", as
   );
 });
 
-test("widgetsService updateWidgetsLayoutForUser persists validated payload", async () => {
+test("widgetsService updateWidgetsLayoutForProfile persists validated payload", async () => {
   let receivedInput: unknown;
 
   (widgetsRepository as unknown as { updateLayouts: typeof widgetsRepository.updateLayouts }).updateLayouts = (async (
-    userId,
+    profileId,
     input,
   ) => {
-    receivedInput = { userId, input };
+    receivedInput = { profileId, input };
     return input.map((item) => ({
       id: item.id,
-      userId,
+      profileId,
       type: "clockDate",
       config: {},
       layout: item.layout,
@@ -177,8 +177,8 @@ test("widgetsService updateWidgetsLayoutForUser persists validated payload", asy
     }));
   }) as typeof widgetsRepository.updateLayouts;
 
-  const updated = await widgetsService.updateWidgetsLayoutForUser({
-    userId: "user-1",
+  const updated = await widgetsService.updateWidgetsLayoutForProfile({
+    profileId: "user-1",
     widgets: [
       {
         id: "widget-1",
@@ -190,7 +190,7 @@ test("widgetsService updateWidgetsLayoutForUser persists validated payload", asy
   assert.equal(updated.length, 1);
   assert.deepEqual(updated[0].layout, { x: 2, y: 1, w: 4, h: 2 });
   assert.deepEqual(receivedInput, {
-    userId: "user-1",
+    profileId: "user-1",
     input: [
       {
         id: "widget-1",

@@ -1,4 +1,5 @@
 import { prisma } from "../../core/db/prisma";
+import { randomUUID } from "node:crypto";
 
 export const usersRepository = {
   findAll() {
@@ -14,8 +15,20 @@ export const usersRepository = {
   },
 
   create(email: string) {
+    const userId = randomUUID();
+
     return prisma.user.create({
-      data: { email }
+      data: {
+        id: userId,
+        email,
+        profiles: {
+          create: {
+            id: userId,
+            name: "Default",
+            isDefault: true,
+          },
+        },
+      },
     });
-  }
+  },
 };

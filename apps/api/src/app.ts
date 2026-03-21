@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 
 import { usersRouter } from "./modules/users/users.routes";
+import { profilesRouter } from "./modules/profiles/profiles.routes";
 import { widgetsRouter } from "./modules/widgets/widgets.routes";
 import { widgetDataRouter } from "./modules/widgetData/widget-data.routes";
 import { displayRouter } from "./modules/display/display.routes";
@@ -23,6 +24,7 @@ export function createApp() {
   });
 
   app.use("/users", usersRouter);
+  app.use("/profiles", profilesRouter);
   app.use("/widgets", widgetsRouter);
   app.use("/widget-data", widgetDataRouter);
   app.use("/", displayRouter);

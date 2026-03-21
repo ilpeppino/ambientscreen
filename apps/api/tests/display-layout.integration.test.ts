@@ -15,7 +15,7 @@ interface TestUser {
 
 interface TestWidget {
   id: string;
-  userId: string;
+  profileId: string;
   type: string;
   config: Record<string, unknown>;
   layout: {
@@ -39,7 +39,7 @@ const mutableUsersRepository = usersRepository as unknown as {
 };
 
 const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (userId: string) => Promise<TestWidget[]>;
+  findAll: (profileId: string) => Promise<TestWidget[]>;
 };
 
 let usersStore: TestUser[] = [];
@@ -56,7 +56,7 @@ beforeEach(() => {
   widgetsStore = [
     {
       id: "widget-1",
-      userId: "user-1",
+      profileId: "user-1",
       type: "clockDate",
       config: {},
       layout: { x: 0, y: 0, w: 2, h: 1 },
@@ -66,7 +66,7 @@ beforeEach(() => {
     },
     {
       id: "widget-2",
-      userId: "user-1",
+      profileId: "user-1",
       type: "weather",
       config: { location: "Amsterdam" },
       layout: { x: 2, y: 0, w: 2, h: 1 },
@@ -77,8 +77,8 @@ beforeEach(() => {
   ];
 
   mutableUsersRepository.findAll = async () => usersStore;
-  mutableWidgetsRepository.findAll = async (userId: string) => {
-    return widgetsStore.filter((widget) => widget.userId === userId);
+  mutableWidgetsRepository.findAll = async (profileId: string) => {
+    return widgetsStore.filter((widget) => widget.profileId === profileId);
   };
 
   widgetResolvers.clockDate = async ({ widgetInstanceId }) => {

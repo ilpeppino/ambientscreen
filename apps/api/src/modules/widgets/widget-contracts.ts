@@ -139,16 +139,19 @@ export function getDefaultWidgetConfig(
 
 export const createWidgetSchema = z.discriminatedUnion("type", [
   z.object({
+    profileId: z.string().min(1).optional(),
     type: z.literal("clockDate"),
     config: createClockDateConfigSchema.optional(),
     layout: widgetLayoutSchema.optional(),
   }),
   z.object({
+    profileId: z.string().min(1).optional(),
     type: z.literal("weather"),
     config: configSchemasByWidget.weather.optional(),
     layout: widgetLayoutSchema.optional(),
   }),
   z.object({
+    profileId: z.string().min(1).optional(),
     type: z.literal("calendar"),
     config: createCalendarConfigSchema.optional(),
     layout: widgetLayoutSchema.optional(),

@@ -14,8 +14,8 @@ import {
 } from "./widget-contracts";
 
 export const widgetsService = {
-  getUserWidgets(userId: string) {
-    return widgetsRepository.findAll(userId);
+  getProfileWidgets(profileId: string) {
+    return widgetsRepository.findAll(profileId);
   },
 
   getWidgetById(id: string) {
@@ -23,7 +23,7 @@ export const widgetsService = {
   },
 
   createWidget(data: {
-    userId: string;
+    profileId: string;
     type: SupportedWidgetType;
     config?: Prisma.InputJsonValue;
     layout?: {
@@ -41,7 +41,7 @@ export const widgetsService = {
     }
 
     return widgetsRepository.create({
-      userId: data.userId,
+      profileId: data.profileId,
       type: data.type,
       config:
         data.config === undefined
@@ -53,7 +53,7 @@ export const widgetsService = {
   },
 
   async createWidgetAtNextPosition(data: {
-    userId: string;
+    profileId: string;
     type: SupportedWidgetType;
     config?: Prisma.InputJsonValue;
     layout?: {
@@ -63,7 +63,7 @@ export const widgetsService = {
       h: number;
     };
   }) {
-    const widgets = await widgetsRepository.findAll(data.userId);
+    const widgets = await widgetsRepository.findAll(data.profileId);
     const hasActiveWidget = widgets.some((widget) => widget.isActive);
     const parsedLayout = widgetLayoutSchema.safeParse(data.layout ?? defaultWidgetLayout);
 
@@ -88,7 +88,7 @@ export const widgetsService = {
     }
 
     return this.createWidget({
-      userId: data.userId,
+      profileId: data.profileId,
       type: data.type,
       config: data.config,
       layout: nextLayout,
@@ -96,18 +96,18 @@ export const widgetsService = {
     });
   },
 
-  async activateWidgetForUser(data: { userId: string; widgetId: string }) {
+  async activateWidgetForProfile(data: { profileId: string; widgetId: string }) {
     const widget = await widgetsRepository.findById(data.widgetId);
 
-    if (!widget || widget.userId !== data.userId) {
+    if (!widget || widget.profileId !== data.profileId) {
       return null;
     }
 
-    return widgetsRepository.activateWidget(data.userId, data.widgetId);
+    return widgetsRepository.activateWidget(data.profileId, data.widgetId);
   },
 
-  async updateWidgetsLayoutForUser(data: {
-    userId: string;
+  async updateWidgetsLayoutForProfile(data: {
+    profileId: string;
     widgets: Array<{
       id: string;
       layout: {
@@ -149,19 +149,19 @@ export const widgetsService = {
     }
 
     try {
-      return await widgetsRepository.updateLayouts(data.userId, parsedWidgets);
+      return await widgetsRepository.updateLayouts(data.profileId, parsedWidgets);
     } catch {
-      throw apiErrors.notFound("One or more widgets were not found for this user.");
+      throw apiErrors.notFound("One or more widgets were not found for this profile.");
     }
   },
 
-  async updateWidgetConfigForUser(data: {
-    userId: string;
+  async updateWidgetConfigForProfile(data: {
+    profileId: string;
     widgetId: string;
     configPatch: Record<string, unknown>;
   }) {
     const widget = await widgetsRepository.findById(data.widgetId);
-    if (!widget || widget.userId !== data.userId) {
+    if (!widget || widget.profileId !== data.profileId) {
       return null;
     }
 
@@ -184,7 +184,7 @@ export const widgetsService = {
 
     return widgetsRepository.updateConfig({
       id: widget.id,
-      userId: data.userId,
+      profileId: data.profileId,
       config: validationResult.data as Prisma.InputJsonValue,
     });
   },
