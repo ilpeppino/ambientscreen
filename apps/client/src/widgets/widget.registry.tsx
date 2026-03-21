@@ -2,7 +2,6 @@ import React from "react";
 import {
   type WidgetConfigByKey,
   type WidgetConfigSchema,
-  widgetConfigRegistry,
   type WidgetDataByKey,
   type WidgetDataEnvelope,
   type WidgetKey,
@@ -28,20 +27,46 @@ export const widgetRegistry: { [TKey in WidgetKey]: WidgetRegistryEntry<TKey> } 
   clockDate: {
     key: "clockDate",
     name: "Clock & Date",
-    defaultConfig: widgetConfigRegistry.clockDate.defaultConfig,
-    configSchema: widgetConfigRegistry.clockDate.configSchema,
+    defaultConfig: {
+      format: "24h",
+      showSeconds: false,
+      timezone: "local",
+    },
+    configSchema: {
+      format: ["12h", "24h"],
+      showSeconds: "boolean",
+      timezone: "string",
+    },
   },
   weather: {
     key: "weather",
     name: "Weather",
-    defaultConfig: widgetConfigRegistry.weather.defaultConfig,
-    configSchema: widgetConfigRegistry.weather.configSchema,
+    defaultConfig: {
+      location: "Amsterdam",
+      units: "metric",
+    },
+    configSchema: {
+      location: "string",
+      units: ["metric", "imperial"],
+    },
   },
   calendar: {
     key: "calendar",
     name: "Calendar",
-    defaultConfig: widgetConfigRegistry.calendar.defaultConfig,
-    configSchema: widgetConfigRegistry.calendar.configSchema,
+    defaultConfig: {
+      provider: "ical",
+      account: "",
+      timeWindow: "next7d",
+      maxEvents: 10,
+      includeAllDay: true,
+    },
+    configSchema: {
+      provider: ["ical"],
+      account: "string",
+      timeWindow: ["today", "next24h", "next7d"],
+      maxEvents: "number",
+      includeAllDay: "boolean",
+    },
   },
 };
 
