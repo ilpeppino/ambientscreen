@@ -15,7 +15,8 @@ export function requestLoggingMiddleware(
     const finishedAt = process.hrtime.bigint()
     const durationMs = Number(finishedAt - startedAt) / 1_000_000
     const formattedDuration = formatDurationMs(durationMs)
-    const message = `[API] ${req.method} ${req.originalUrl} -> ${res.statusCode} ${formattedDuration}ms`
+    const reqId = req.requestId ? ` [${req.requestId}]` : ""
+    const message = `[API]${reqId} ${req.method} ${req.originalUrl} -> ${res.statusCode} ${formattedDuration}ms`
 
     console.info(message)
   })
