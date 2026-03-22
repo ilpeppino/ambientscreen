@@ -21,6 +21,7 @@ model User {
   sharedSessions     SharedScreenSession[]
   activeProfile      Profile?            @relation("UserActiveProfile", fields: [activeProfileId], references: [id], onDelete: SetNull)
   installedPlugins   InstalledPlugin[]
+  authoredPlugins    Plugin[]            @relation("AuthoredPlugins")
 
   @@index([activeProfileId])
 }
@@ -126,16 +127,20 @@ model SharedScreenParticipant {
 model Plugin {
   id          String   @id @default(uuid())
   key         String   @unique
-  name        String
+  name        String   @unique
   description String
   category    String
+  authorId    String?
   isPremium   Boolean  @default(false)
   isApproved  Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  author            User?           @relation("AuthoredPlugins", fields: [authorId], references: [id], onDelete: SetNull)
   versions          PluginVersion[]
   installedByUsers  InstalledPlugin[]
+
+  @@index([authorId])
 }
 
 model InstalledPlugin {
@@ -158,6 +163,7 @@ model PluginVersion {
   pluginId     String
   version      String
   manifestJson Json
+  entryPoint   String?
   changelog    String?
   isActive     Boolean  @default(false)
   createdAt    DateTime @default(now())
