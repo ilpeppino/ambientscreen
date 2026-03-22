@@ -22,6 +22,7 @@ import {
   type AppMode,
 } from "./src/features/navigation/appMode.logic";
 import { API_BASE_URL } from "./src/core/config/api";
+import { EntitlementsProvider } from "./src/features/entitlements/entitlements.context";
 
 function AuthenticatedApp() {
   const { isLoading, token, logout } = useAuth();
@@ -133,7 +134,9 @@ function AuthenticatedApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <AuthenticatedApp />
+      <EntitlementsProvider>
+        <AuthenticatedApp />
+      </EntitlementsProvider>
     </AuthProvider>
   );
 }

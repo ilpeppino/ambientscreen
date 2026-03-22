@@ -1,4 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
+import { useEntitlements } from "../../entitlements/entitlements.context";
+import { PremiumLock } from "../../../shared/ui/PremiumLock";
+import { UpgradeModal } from "../../entitlements/UpgradeModal";
 import {
   ActivityIndicator,
   Pressable,
@@ -56,6 +60,9 @@ export function AdminHomeScreen({
   onEnterRemoteControlMode,
   onLogout,
 }: AdminHomeScreenProps) {
+  const { plan, hasFeature } = useEntitlements();
+  const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
+
   const {
     profiles,
     activeProfileId,
@@ -504,21 +511,46 @@ export function AdminHomeScreen({
       </View>
 
       <View style={styles.createSection}>
+        {plan === "free" ? (
+          <View style={styles.planBanner}>
+            <Text style={styles.planBannerText}>Free Plan</Text>
+            <Pressable
+              accessibilityRole="button"
+              style={styles.upgradeInlineCta}
+              onPress={() => setUpgradeModalVisible(true)}
+            >
+              <Text style={styles.upgradeInlineCtaLabel}>Upgrade to Pro</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.planBanner}>
+            <Text style={styles.planBannerTextPro}>Pro Plan</Text>
+          </View>
+        )}
         <Text style={styles.createLabel}>Create widget</Text>
         <View style={styles.typeGrid}>
           {CREATABLE_WIDGET_TYPES.map((widgetType) => {
             const selected = widgetType === selectedWidgetType;
+            const isPremium = widgetBuiltinDefinitions[widgetType]?.manifest?.premium === true;
+            const isLocked = isPremium && !hasFeature("premium_widgets");
 
             return (
               <Pressable
                 key={widgetType}
                 accessibilityRole="button"
-                style={[styles.typeButton, selected && styles.typeButtonSelected]}
-                onPress={() => setSelectedWidgetType(widgetType)}
+                style={[styles.typeButton, selected && styles.typeButtonSelected, isLocked && styles.typeButtonLocked]}
+                onPress={() => {
+                  if (isLocked) {
+                    setUpgradeModalVisible(true);
+                    return;
+                  }
+                  setSelectedWidgetType(widgetType);
+                }}
               >
                 <Text style={[styles.typeButtonLabel, selected && styles.typeButtonLabelSelected]}>
                   {widgetType}
                 </Text>
+                {isPremium ? <PremiumLock compact /> : null}
               </Pressable>
             );
           })}
@@ -652,6 +684,11 @@ export function AdminHomeScreen({
         )}
       </ScrollView>
       {activeError ? <Text style={styles.error}>{activeError}</Text> : null}
+
+      <UpgradeModal
+        visible={upgradeModalVisible}
+        onDismiss={() => setUpgradeModalVisible(false)}
+      />
 
       <View style={styles.footer}>
         <Pressable
@@ -797,6 +834,45 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
     backgroundColor: "#111",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  typeButtonLocked: {
+    opacity: 0.7,
+    borderColor: "#f5a62355",
+  },
+  planBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#111",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "#2d2d2d",
+  },
+  planBannerText: {
+    color: "#aaa",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  planBannerTextPro: {
+    color: "#f5a623",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  upgradeInlineCta: {
+    backgroundColor: "#f5a623",
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  upgradeInlineCtaLabel: {
+    color: "#000",
+    fontSize: 12,
+    fontWeight: "800",
   },
   typeButtonSelected: {
     borderColor: "#fff",

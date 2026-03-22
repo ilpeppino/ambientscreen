@@ -11,6 +11,7 @@ import { displayRouter } from "./modules/display/display.routes";
 import { orchestrationRouter } from "./modules/orchestration/orchestration.routes";
 import { sharedSessionsRouter } from "./modules/sharedSessions/sharedSessions.routes";
 import { devicesRouter } from "./modules/devices/devices.routes";
+import { entitlementsRouter } from "./modules/entitlements/entitlements.routes";
 import { registerBuiltinWidgetPlugins } from "./modules/widgets/registerBuiltinPlugins";
 import {
   globalErrorMiddleware,
@@ -45,6 +46,7 @@ export function createApp() {
   app.use("/orchestration-rules", requireAuth, orchestrationRouter);
   app.use("/shared-sessions", requireAuth, sharedSessionsRouter);
   app.use("/devices", requireAuth, devicesRouter);
+  app.use("/entitlements", requireAuth, entitlementsRouter);
   app.use("/", requireAuth, displayRouter);
   app.use(notFoundMiddleware);
   app.use(globalErrorMiddleware);
