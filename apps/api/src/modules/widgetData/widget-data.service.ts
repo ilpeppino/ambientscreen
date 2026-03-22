@@ -51,10 +51,23 @@ export const widgetDataService = {
       };
     }
 
-    return plugin.api.resolveData({
-      widgetInstanceId: widget.id,
-      widgetKey: widgetType,
-      widgetConfig: normalizeWidgetConfig(widgetType, widget.config),
-    });
+    try {
+      return await plugin.api.resolveData({
+        widgetInstanceId: widget.id,
+        widgetKey: widgetType,
+        widgetConfig: normalizeWidgetConfig(widgetType, widget.config),
+      });
+    } catch {
+      return {
+        widgetInstanceId: widget.id,
+        widgetKey: widgetType,
+        state: "error",
+        data: null,
+        meta: {
+          errorCode: "RESOLVER_FAILURE",
+          message: "Widget data resolver encountered an unexpected error",
+        },
+      };
+    }
   },
 };

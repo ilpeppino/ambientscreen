@@ -3,6 +3,7 @@ import { z } from "zod";
 import { authService } from "./auth.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
+import { createRateLimit } from "../../core/http/rate-limit";
 
 export const authRouter = Router();
 
@@ -10,6 +11,26 @@ const authPayloadSchema = z.object({
   email: z.string().trim().email(),
   password: z.string().min(8).max(128),
 });
+
+// Rate limiters applied at router level so they do not alter route.stack
+// (preserving compatibility with the route-inspection test pattern).
+authRouter.use(
+  "/register",
+  createRateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 5,
+    message: "Too many registration attempts, please try again later",
+  }),
+);
+
+authRouter.use(
+  "/login",
+  createRateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    message: "Too many login attempts, please try again later",
+  }),
+);
 
 authRouter.post(
   "/register",

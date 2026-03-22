@@ -4,6 +4,7 @@ import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 import { getRequestUserId } from "../auth/auth.middleware";
 import { devicesService } from "./devices.service";
+import { createRateLimit } from "../../core/http/rate-limit";
 
 export const devicesRouter = Router();
 
@@ -46,6 +47,35 @@ function getRouteParamId(value: unknown): string {
 
   return "";
 }
+
+// Rate limiters applied at router level so they do not alter route.stack
+// (preserving compatibility with the route-inspection test pattern).
+devicesRouter.use(
+  "/register",
+  createRateLimit({
+    windowMs: 60 * 60 * 1000, // 1 hour
+    max: 10,
+    message: "Too many device registration attempts, please try again later",
+  }),
+);
+
+devicesRouter.use(
+  "/heartbeat",
+  createRateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 120,
+    message: "Heartbeat rate limit exceeded",
+  }),
+);
+
+devicesRouter.use(
+  "/:id/command",
+  createRateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 60,
+    message: "Too many remote commands, please try again later",
+  }),
+);
 
 devicesRouter.post(
   "/register",

@@ -5,6 +5,7 @@ export type ApiErrorCode =
   | "UNAUTHORIZED"
   | "FORBIDDEN"
   | "DUPLICATE_RESOURCE"
+  | "RATE_LIMIT_EXCEEDED"
   | "INTERNAL_ERROR";
 
 interface ApiErrorOptions {

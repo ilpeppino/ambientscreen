@@ -17,6 +17,7 @@ import {
   notFoundMiddleware
 } from "./core/http/error-middleware";
 import { requestLoggingMiddleware } from "./core/http/request-logging-middleware";
+import { requestIdMiddleware } from "./core/http/request-id-middleware";
 
 export function createApp() {
   registerBuiltinWidgetPlugins();
@@ -24,11 +25,16 @@ export function createApp() {
   const app = express();
 
   app.use(cors());
+  app.use(requestIdMiddleware);
   app.use(requestLoggingMiddleware);
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.get("/health/ready", (_req, res) => {
+    res.json({ status: "ready" });
   });
 
   app.use("/auth", authRouter);
