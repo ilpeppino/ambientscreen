@@ -42,6 +42,10 @@ export function applyMarketplaceFilter(
       return plugins.filter((p) => p.isPremium);
     case "free":
       return plugins.filter((p) => !p.isPremium);
+    case "enabled":
+      return plugins.filter((p) => p.isInstalled && p.isEnabled);
+    case "disabled":
+      return plugins.filter((p) => p.isInstalled && !p.isEnabled);
     default:
       return plugins;
   }

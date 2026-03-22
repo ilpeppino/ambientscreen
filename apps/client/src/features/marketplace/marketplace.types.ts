@@ -13,4 +13,11 @@ export interface MarketplacePlugin {
   installationId: string | null;
 }
 
-export type MarketplaceFilter = "all" | "installed" | "not-installed" | "premium" | "free";
+export type MarketplaceFilter =
+  | "all"
+  | "installed"
+  | "not-installed"
+  | "premium"
+  | "free"
+  | "enabled"
+  | "disabled";
