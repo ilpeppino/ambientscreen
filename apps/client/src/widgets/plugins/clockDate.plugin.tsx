@@ -9,6 +9,6 @@ export const clockDateWidgetPlugin: WidgetClientPluginModule<"clockDate", JSX.El
   configSchema: definition.configSchema,
   defaultConfig: definition.defaultConfig,
   client: {
-    Renderer: ({ data }) => <ClockDateRenderer data={data} />,
+    Renderer: (props) => <ClockDateRenderer {...props} />,
   },
 };

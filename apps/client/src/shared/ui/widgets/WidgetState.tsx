@@ -15,21 +15,23 @@ const DEFAULT_MESSAGES: Record<WidgetStateType, string> = {
 interface WidgetStateProps {
   type: WidgetStateType;
   message?: string;
+  compact?: boolean;
 }
 
-export function WidgetState({ type, message }: WidgetStateProps) {
+export function WidgetState({ type, message, compact = false }: WidgetStateProps) {
   const resolvedMessage = message ?? DEFAULT_MESSAGES[type];
+  const iconSize = compact ? "md" : "lg";
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, compact ? styles.containerCompact : null]}>
       {type === "loading" ? (
-        <ActivityIndicator size="large" color={colors.textPrimary} />
+        <ActivityIndicator size="small" color={colors.textSecondary} />
       ) : null}
-      {type === "error" ? <AppIcon name="close" size="lg" color="error" /> : null}
-      {type === "empty" ? <AppIcon name="grid" size="lg" color="textSecondary" /> : null}
+      {type === "error" ? <AppIcon name="close" size={iconSize} color="textSecondary" /> : null}
+      {type === "empty" ? <AppIcon name="grid" size={iconSize} color="textSecondary" /> : null}
       <Text
-        variant="body"
-        color={type === "error" ? "error" : type === "empty" ? "textSecondary" : "textPrimary"}
+        variant={compact ? "caption" : "body"}
+        color={type === "error" ? "error" : "textSecondary"}
         style={styles.message}
       >
         {resolvedMessage}
@@ -47,9 +49,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,
-    minHeight: 140,
+    minHeight: 132,
+  },
+  containerCompact: {
+    minHeight: 112,
   },
   message: {
     textAlign: "center",
+    maxWidth: 320,
   },
 });

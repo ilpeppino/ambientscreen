@@ -5,16 +5,27 @@ import { colors, radius, spacing } from "../theme";
 interface WidgetSurfaceProps {
   children?: React.ReactNode;
   isSelected?: boolean;
+  mode?: "display" | "edit";
   style?: StyleProp<ViewStyle>;
 }
 
 export function WidgetSurface({
   children,
   isSelected = false,
+  mode = "display",
   style,
 }: WidgetSurfaceProps) {
+  const surfaceModeStyle = mode === "edit" ? styles.surfaceEdit : styles.surfaceDisplay;
+
   return (
-    <View style={[styles.surface, isSelected ? styles.surfaceSelected : null, style]}>
+    <View
+      style={[
+        styles.surface,
+        surfaceModeStyle,
+        isSelected ? styles.surfaceSelected : null,
+        style,
+      ]}
+    >
       {children}
     </View>
   );
@@ -23,11 +34,18 @@ export function WidgetSurface({
 const styles = StyleSheet.create({
   surface: {
     width: "100%",
-    borderWidth: 1,
-    borderColor: colors.surface,
     borderRadius: radius.lg,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
     padding: spacing.xl,
+  },
+  surfaceDisplay: {
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+  },
+  surfaceEdit: {
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.22)",
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
   },
   surfaceSelected: {
     borderColor: colors.accent,

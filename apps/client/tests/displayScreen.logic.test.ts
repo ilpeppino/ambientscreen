@@ -6,6 +6,7 @@ import {
   getDisplayRefreshIntervalMs,
   resolveDisplayUiState,
   selectDisplayWidget,
+  shouldShowDisplayEditControls,
 } from "../src/features/display/displayScreen.logic";
 
 const widgetA = {
@@ -63,6 +64,11 @@ test("getDisplayRefreshIntervalMs follows widget refresh policy rules", () => {
   expect(getDisplayRefreshIntervalMs("weather")).toBe(300000);
   expect(getDisplayRefreshIntervalMs("calendar")).toBe(60000);
   expect(getDisplayRefreshIntervalMs(undefined)).toBe(null);
+});
+
+test("shouldShowDisplayEditControls hides edit UI in display mode", () => {
+  expect(shouldShowDisplayEditControls(false)).toBe(false);
+  expect(shouldShowDisplayEditControls(true)).toBe(true);
 });
 
 test("getEffectivePollingIntervalMs reduces polling frequency when realtime is connected", () => {

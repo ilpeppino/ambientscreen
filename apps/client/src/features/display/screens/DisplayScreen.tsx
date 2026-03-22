@@ -35,6 +35,7 @@ import {
   getDisplayFrameModel,
   getDisplayRefreshIntervalMs,
   getDisplayStatusModel,
+  shouldShowDisplayEditControls,
 } from "../displayScreen.logic";
 import { LayoutGrid } from "../components/LayoutGrid";
 import { EditModeHint } from "../components/EditModeHint";
@@ -560,9 +561,9 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
 
     dashboardTransitionAnimationRef.current?.stop();
     const preset = transitionPresets[dashboardTransitionType];
-    dashboardIncomingOpacity.setValue(dashboardTransitionType === "fade" ? 0.35 : 0.5);
+    dashboardIncomingOpacity.setValue(dashboardTransitionType === "fade" ? 0.72 : 0.78);
     dashboardOutgoingOpacity.setValue(1);
-    dashboardIncomingSlide.setValue(dashboardTransitionType === "slide" ? 22 : 0);
+    dashboardIncomingSlide.setValue(dashboardTransitionType === "slide" ? 14 : 0);
 
     const transitionId = nextState.transitionId;
     dashboardTransitionAnimationRef.current = Animated.parallel([
@@ -747,6 +748,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   const frameModel = getDisplayFrameModel(undefined);
   const hasWidgets = renderedWidgets.length > 0;
   const hasAnyDashboardWidgets = hasWidgets || Boolean(outgoingWidgets?.length);
+  const showEditControls = shouldShowDisplayEditControls(editMode);
 
   const content = useMemo(() => {
     if (loadingLayout && !hasAnyDashboardWidgets) {
@@ -854,165 +856,176 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
           </Pressable>
         </View>
       ) : null}
-      <View style={styles.editModeButtonContainer}>
-        <WidgetSurface style={styles.sharedSessionPanel}>
-          <WidgetHeader icon="grid" title="Shared Session" />
-          <View style={styles.sharedSessionRow}>
-            <Text style={styles.sharedSessionLabel}>
-              {isSharedMode
-                ? `Shared: ${sharedSession.name}`
-                : "Shared session: off"}
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.sharedSessionRefreshButton}
-              onPress={() => {
-                void refreshSharedSessions();
-              }}
-            >
-              <Text style={styles.sharedSessionRefreshLabel}>Refresh</Text>
-            </Pressable>
-            {isSharedMode ? (
-              <Pressable
-                accessibilityRole="button"
-                style={styles.sharedSessionLeaveButton}
-                onPress={() => {
-                  void leaveCurrentSession();
-                }}
-              >
-                <Text style={styles.sharedSessionLeaveLabel}>Leave</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          {!isSharedMode ? (
+      {!showEditControls ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Enter edit mode"
+          style={styles.hiddenEditTrigger}
+          delayLongPress={450}
+          onLongPress={handleToggleEditMode}
+        />
+      ) : null}
+      {showEditControls ? (
+        <View style={styles.editModeButtonContainer}>
+          <WidgetSurface mode="edit" style={styles.sharedSessionPanel}>
+            <WidgetHeader mode="edit" icon="grid" title="Shared Session" />
             <View style={styles.sharedSessionRow}>
-              <TextInput
-                value={newSharedSessionName}
-                onChangeText={setNewSharedSessionName}
-                style={styles.sharedSessionNameInput}
-                placeholder="Session name"
-                placeholderTextColor="#6b6b6b"
-              />
+              <Text style={styles.sharedSessionLabel}>
+                {isSharedMode
+                  ? `Shared: ${sharedSession.name}`
+                  : "Shared session: off"}
+              </Text>
               <Pressable
                 accessibilityRole="button"
-                style={styles.sharedSessionCreateButton}
+                style={styles.sharedSessionRefreshButton}
                 onPress={() => {
-                  void createAndJoinSession(newSharedSessionName);
+                  void refreshSharedSessions();
                 }}
               >
-                <Text style={styles.sharedSessionCreateLabel}>Create & Join</Text>
+                <Text style={styles.sharedSessionRefreshLabel}>Refresh</Text>
               </Pressable>
-            </View>
-          ) : null}
-          <View style={styles.sharedSessionSessionsRow}>
-            {availableSessions.map((session) => {
-              const selected = session.id === sharedSession?.id;
-              return (
+              {isSharedMode ? (
                 <Pressable
-                  key={session.id}
                   accessibilityRole="button"
-                  style={[styles.sharedSessionChip, selected ? styles.sharedSessionChipActive : null]}
+                  style={styles.sharedSessionLeaveButton}
                   onPress={() => {
-                    void joinSessionById(session.id);
+                    void leaveCurrentSession();
                   }}
                 >
-                  <Text style={styles.sharedSessionChipLabel}>
-                    {session.name}
-                  </Text>
+                  <Text style={styles.sharedSessionLeaveLabel}>Leave</Text>
                 </Pressable>
-              );
-            })}
-          </View>
-          <Text style={styles.sharedSessionMeta}>
-            Connection: {sharedSessionConnectionState}
-            {loadingSharedSessions || loadingSharedSessionState ? " • syncing..." : ""}
-          </Text>
-        </WidgetSurface>
-        <View style={styles.profileTabsRow}>
-          {profiles.map((profile) => {
-            const selected = profile.id === effectiveActiveProfileId;
-            return (
-              <Pressable
-                key={profile.id}
-                accessibilityRole="button"
-                style={[styles.profileTab, selected ? styles.profileTabSelected : null]}
-                onPress={() => {
-                  if (isSharedMode) {
-                    void patchCurrentSession({
-                      activeProfileId: profile.id,
-                    });
-                    return;
-                  }
-
-                  void setActiveProfile(profile.id);
-                }}
-              >
-                <Text style={[styles.profileTabLabel, selected ? styles.profileTabLabelSelected : null]}>
-                  {profile.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        <WidgetSurface style={styles.slideshowPanel}>
-          <WidgetHeader icon="refresh" title="Slideshow" />
-          <View style={styles.slideshowRow}>
-            <Text style={styles.slideshowLabel}>Enabled</Text>
-            <Switch
-              value={slideshowEnabled}
-              onValueChange={setSlideshowEnabled}
-              disabled={profiles.length < 2}
-            />
-          </View>
-          <View style={styles.slideshowProfileRow}>
-            {profiles.map((profile) => {
-              const selected = slideshowProfileIds.includes(profile.id);
-              return (
+              ) : null}
+            </View>
+            {!isSharedMode ? (
+              <View style={styles.sharedSessionRow}>
+                <TextInput
+                  value={newSharedSessionName}
+                  onChangeText={setNewSharedSessionName}
+                  style={styles.sharedSessionNameInput}
+                  placeholder="Session name"
+                  placeholderTextColor="#6b6b6b"
+                />
                 <Pressable
-                  key={`${profile.id}-slideshow`}
                   accessibilityRole="button"
-                  style={[styles.slideshowProfileChip, selected ? styles.slideshowProfileChipSelected : null]}
+                  style={styles.sharedSessionCreateButton}
                   onPress={() => {
-                    toggleSlideshowProfileId(profile.id);
+                    void createAndJoinSession(newSharedSessionName);
                   }}
                 >
-                  <Text style={[styles.slideshowProfileChipLabel, selected ? styles.slideshowProfileChipLabelSelected : null]}>
+                  <Text style={styles.sharedSessionCreateLabel}>Create & Join</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            <View style={styles.sharedSessionSessionsRow}>
+              {availableSessions.map((session) => {
+                const selected = session.id === sharedSession?.id;
+                return (
+                  <Pressable
+                    key={session.id}
+                    accessibilityRole="button"
+                    style={[styles.sharedSessionChip, selected ? styles.sharedSessionChipActive : null]}
+                    onPress={() => {
+                      void joinSessionById(session.id);
+                    }}
+                  >
+                    <Text style={styles.sharedSessionChipLabel}>
+                      {session.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.sharedSessionMeta}>
+              Connection: {sharedSessionConnectionState}
+              {loadingSharedSessions || loadingSharedSessionState ? " • syncing..." : ""}
+            </Text>
+          </WidgetSurface>
+          <View style={styles.profileTabsRow}>
+            {profiles.map((profile) => {
+              const selected = profile.id === effectiveActiveProfileId;
+              return (
+                <Pressable
+                  key={profile.id}
+                  accessibilityRole="button"
+                  style={[styles.profileTab, selected ? styles.profileTabSelected : null]}
+                  onPress={() => {
+                    if (isSharedMode) {
+                      void patchCurrentSession({
+                        activeProfileId: profile.id,
+                      });
+                      return;
+                    }
+
+                    void setActiveProfile(profile.id);
+                  }}
+                >
+                  <Text style={[styles.profileTabLabel, selected ? styles.profileTabLabelSelected : null]}>
                     {profile.name}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
-          <View style={styles.slideshowRow}>
-            <Text style={styles.slideshowLabel}>Interval (s)</Text>
-            <TextInput
-              value={slideshowIntervalSecInput}
-              onChangeText={setSlideshowIntervalSecInput}
-              keyboardType="numeric"
-              style={styles.slideshowIntervalInput}
-              placeholder="60"
-              placeholderTextColor="#6b6b6b"
-            />
-            <Pressable
-              accessibilityRole="button"
-              style={[styles.slideshowSaveButton, savingSlideshow ? styles.slideshowSaveButtonDisabled : null]}
-              onPress={handleSaveSlideshow}
-              disabled={savingSlideshow}
-            >
-              <Text style={styles.slideshowSaveButtonLabel}>{savingSlideshow ? "Saving..." : "Save"}</Text>
-            </Pressable>
-          </View>
-          {slideshowSaveError ? <Text style={styles.slideshowError}>{slideshowSaveError}</Text> : null}
-        </WidgetSurface>
-        <Pressable
-          accessibilityRole="button"
-          style={[styles.editModeButton, editMode ? styles.editModeButtonActive : null]}
-          onPress={handleToggleEditMode}
-        >
-          <Text style={styles.editModeButtonLabel}>{editMode ? "Done Editing" : "Edit Layout"}</Text>
-        </Pressable>
-      </View>
-      {editMode ? (
+          <WidgetSurface mode="edit" style={styles.slideshowPanel}>
+            <WidgetHeader mode="edit" icon="refresh" title="Slideshow" />
+            <View style={styles.slideshowRow}>
+              <Text style={styles.slideshowLabel}>Enabled</Text>
+              <Switch
+                value={slideshowEnabled}
+                onValueChange={setSlideshowEnabled}
+                disabled={profiles.length < 2}
+              />
+            </View>
+            <View style={styles.slideshowProfileRow}>
+              {profiles.map((profile) => {
+                const selected = slideshowProfileIds.includes(profile.id);
+                return (
+                  <Pressable
+                    key={`${profile.id}-slideshow`}
+                    accessibilityRole="button"
+                    style={[styles.slideshowProfileChip, selected ? styles.slideshowProfileChipSelected : null]}
+                    onPress={() => {
+                      toggleSlideshowProfileId(profile.id);
+                    }}
+                  >
+                    <Text style={[styles.slideshowProfileChipLabel, selected ? styles.slideshowProfileChipLabelSelected : null]}>
+                      {profile.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={styles.slideshowRow}>
+              <Text style={styles.slideshowLabel}>Interval (s)</Text>
+              <TextInput
+                value={slideshowIntervalSecInput}
+                onChangeText={setSlideshowIntervalSecInput}
+                keyboardType="numeric"
+                style={styles.slideshowIntervalInput}
+                placeholder="60"
+                placeholderTextColor="#6b6b6b"
+              />
+              <Pressable
+                accessibilityRole="button"
+                style={[styles.slideshowSaveButton, savingSlideshow ? styles.slideshowSaveButtonDisabled : null]}
+                onPress={handleSaveSlideshow}
+                disabled={savingSlideshow}
+              >
+                <Text style={styles.slideshowSaveButtonLabel}>{savingSlideshow ? "Saving..." : "Save"}</Text>
+              </Pressable>
+            </View>
+            {slideshowSaveError ? <Text style={styles.slideshowError}>{slideshowSaveError}</Text> : null}
+          </WidgetSurface>
+          <Pressable
+            accessibilityRole="button"
+            style={[styles.editModeButton, editMode ? styles.editModeButtonActive : null]}
+            onPress={handleToggleEditMode}
+          >
+            <Text style={styles.editModeButtonLabel}>{editMode ? "Done Editing" : "Edit Layout"}</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {showEditControls ? (
         <View style={styles.layoutActionsContainer}>
           <Pressable
             accessibilityRole="button"
@@ -1078,7 +1091,7 @@ function DisplayStatusContent({
   return (
     <View style={styles.centered}>
       <WidgetSurface style={styles.statusCard}>
-        <WidgetHeader icon={icon} title={title} />
+        <WidgetHeader mode="display" icon={icon} title={title} />
         <WidgetState type={type} message={message} />
       </WidgetSurface>
     </View>
@@ -1116,6 +1129,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: 24,
   },
+  hiddenEditTrigger: {
+    position: "absolute",
+    left: 12,
+    top: 12,
+    width: 60,
+    height: 60,
+    zIndex: 12,
+  },
   dashboardLayerStack: {
     flex: 1,
     position: "relative",
@@ -1126,44 +1147,10 @@ const styles = StyleSheet.create({
   statusCard: {
     width: "100%",
     maxWidth: 560,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "#1f1f1f",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
     paddingHorizontal: 24,
     paddingVertical: 26,
     alignItems: "center",
     justifyContent: "center",
-  },
-  statusBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statusBadgeNeutral: {
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-  },
-  statusBadgeText: {
-    color: "#ff7d7d",
-    fontSize: 22,
-    fontWeight: "700",
-  },
-  statusTitle: {
-    marginTop: 16,
-    fontSize: 32,
-    lineHeight: 38,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-  },
-  statusMessage: {
-    marginTop: 10,
-    fontSize: 18,
-    lineHeight: 26,
-    color: "#c8c8c8",
-    textAlign: "center",
   },
   footerText: {
     color: "#8d8d8d",

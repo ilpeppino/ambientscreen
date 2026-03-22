@@ -5,8 +5,8 @@ export interface TransitionPreset {
 }
 
 export const transitionPresets: Record<TransitionType, TransitionPreset> = {
-  fade: { durationMs: 360 },
-  slide: { durationMs: 420 },
+  fade: { durationMs: 220 },
+  slide: { durationMs: 280 },
   none: { durationMs: 0 },
 };
 

@@ -79,6 +79,20 @@ describe("widget core components", () => {
     expect(style.padding).toBe(24);
   });
 
+  test("WidgetSurface exposes stronger contrast in edit mode", () => {
+    const tree = TestRenderer.create(
+      React.createElement(
+        WidgetSurface,
+        { mode: "edit" },
+        React.createElement("inner", { testID: "inner" }),
+      ),
+    );
+
+    const rootView = tree.root.findByType("view");
+    const style = flattenStyle(rootView.props.style);
+    expect(style.backgroundColor).toBe("rgba(0, 0, 0, 0.72)");
+  });
+
   test("WidgetHeader renders title, icon, and right-side content", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetHeader, {
@@ -107,7 +121,7 @@ describe("widget core components", () => {
       React.createElement(WidgetState, { type: "error", message: "Failed to load" }),
     );
     const errorIcon = error.root.findByType("mock-icon" as any);
-    expect(errorIcon.props.color).toBe("error");
+    expect(errorIcon.props.color).toBe("textSecondary");
 
     const empty = TestRenderer.create(
       React.createElement(WidgetState, { type: "empty", message: "No widgets" }),
