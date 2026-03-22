@@ -44,6 +44,61 @@ let widgetCounter = 0;
 
 const originalFetch = globalThis.fetch;
 
+function formatDateAsIcsUtcDay(value: Date): string {
+  const year = value.getUTCFullYear();
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function buildCalendarIcsFixture(): {
+  ics: string;
+  expectedAllDayStartIso: string;
+  expectedTimedStartIso: string;
+  expectedTimedEndIso: string;
+} {
+  const todayUtc = new Date();
+  const dayString = formatDateAsIcsUtcDay(todayUtc);
+
+  const timedStart = new Date(Date.UTC(
+    todayUtc.getUTCFullYear(),
+    todayUtc.getUTCMonth(),
+    todayUtc.getUTCDate(),
+    14,
+    0,
+    0,
+    0,
+  ));
+  const timedEnd = new Date(timedStart);
+  timedEnd.setUTCMinutes(30);
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "BEGIN:VEVENT",
+    "UID:event-1",
+    `DTSTART;VALUE=DATE:${dayString}`,
+    "SUMMARY:All Day Planning",
+    "LOCATION:HQ",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:event-2",
+    `DTSTART:${dayString}T140000Z`,
+    `DTEND:${dayString}T143000Z`,
+    "SUMMARY:Client Sync",
+    "LOCATION:Room 4A",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  return {
+    ics,
+    expectedAllDayStartIso: `${timedStart.toISOString().slice(0, 10)}T00:00:00.000Z`,
+    expectedTimedStartIso: timedStart.toISOString(),
+    expectedTimedEndIso: timedEnd.toISOString(),
+  };
+}
+
 beforeEach(() => {
   usersStore = [];
   widgetsStore = [];
@@ -125,24 +180,7 @@ beforeEach(() => {
     const requestUrl = String(input);
 
     if (requestUrl === "https://calendar.example.com/demo.ics") {
-      const ics = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "BEGIN:VEVENT",
-        "UID:event-1",
-        "DTSTART;VALUE=DATE:20260321",
-        "SUMMARY:All Day Planning",
-        "LOCATION:HQ",
-        "END:VEVENT",
-        "BEGIN:VEVENT",
-        "UID:event-2",
-        "DTSTART:20260321T140000Z",
-        "DTEND:20260321T143000Z",
-        "SUMMARY:Client Sync",
-        "LOCATION:Room 4A",
-        "END:VEVENT",
-        "END:VCALENDAR",
-      ].join("\r\n");
+      const { ics } = buildCalendarIcsFixture();
 
       return new Response(ics, { status: 200 });
     }
@@ -250,6 +288,11 @@ test("M4-1: calendar widget data endpoint returns normalized event list", async 
   });
 
   expect(calendarDataResponse.statusCode).toBe(200);
+  const {
+    expectedAllDayStartIso,
+    expectedTimedStartIso,
+    expectedTimedEndIso,
+  } = buildCalendarIcsFixture();
   const calendarEnvelope = calendarDataResponse.body as {
     state: string;
     data: {
@@ -274,7 +317,7 @@ test("M4-1: calendar widget data endpoint returns normalized event list", async 
   expect(calendarEnvelope.data.events[0]).toEqual({
     id: "event-1",
     title: "All Day Planning",
-    startIso: "2026-03-21T00:00:00.000Z",
+    startIso: expectedAllDayStartIso,
     endIso: null,
     allDay: true,
     location: "HQ",
@@ -282,8 +325,8 @@ test("M4-1: calendar widget data endpoint returns normalized event list", async 
   expect(calendarEnvelope.data.events[1]).toEqual({
     id: "event-2",
     title: "Client Sync",
-    startIso: "2026-03-21T14:00:00.000Z",
-    endIso: "2026-03-21T14:30:00.000Z",
+    startIso: expectedTimedStartIso,
+    endIso: expectedTimedEndIso,
     allDay: false,
     location: "Room 4A",
   });
