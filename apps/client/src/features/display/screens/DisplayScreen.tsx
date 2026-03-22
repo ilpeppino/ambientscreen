@@ -59,6 +59,7 @@ import {
 } from "../../../services/api/orchestrationRulesApi";
 
 interface DisplayScreenProps {
+  deviceId?: string | null;
   onExitDisplayMode?: () => void;
 }
 
@@ -66,7 +67,7 @@ const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 const DISPLAY_TRANSITION_TYPE: TransitionType = "fade";
 const WIDGET_TRANSITION_LIBRARY = "react-native Animated API";
 
-export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
+export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProps) {
   const {
     profiles,
     activeProfileId,
@@ -103,7 +104,8 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
   const dashboardIncomingOpacity = useRef(new Animated.Value(1)).current;
   const dashboardOutgoingOpacity = useRef(new Animated.Value(0)).current;
   const dashboardIncomingSlide = useRef(new Animated.Value(0)).current;
-  const deviceIdRef = useRef(`display-${Math.random().toString(36).slice(2, 10)}`);
+  const fallbackDeviceIdRef = useRef(`display-${Math.random().toString(36).slice(2, 10)}`);
+  const effectiveDeviceId = deviceId ?? fallbackDeviceIdRef.current;
 
   const {
     availableSessions,
@@ -119,7 +121,7 @@ export function DisplayScreen({ onExitDisplayMode }: DisplayScreenProps) {
     patchCurrentSession,
   } = useSharedScreenSession({
     apiBaseUrl: API_BASE_URL,
-    deviceId: deviceIdRef.current,
+    deviceId: effectiveDeviceId,
     displayName: "Display device",
   });
   const isSharedMode = sharedSession !== null;

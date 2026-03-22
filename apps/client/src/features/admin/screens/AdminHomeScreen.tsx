@@ -14,6 +14,12 @@ import {
   setActiveWidget,
   type WidgetInstance,
 } from "../../../services/api/widgetsApi";
+import {
+  deleteDevice,
+  getDevices,
+  updateDeviceName,
+} from "../../../services/api/devicesApi";
+import type { Device } from "@ambient/shared-contracts";
 import { useCloudProfiles } from "../../profiles/useCloudProfiles";
 import {
   buildCreateWidgetInput,
@@ -29,11 +35,21 @@ import {
 } from "../adminHome.logic";
 
 interface AdminHomeScreenProps {
+  currentDeviceId: string | null;
   onEnterDisplayMode: () => void;
   onLogout: () => void;
 }
 
-export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScreenProps) {
+function formatLastSeenAt(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return date.toLocaleString();
+}
+
+export function AdminHomeScreen({ currentDeviceId, onEnterDisplayMode, onLogout }: AdminHomeScreenProps) {
   const {
     profiles,
     activeProfileId,
@@ -63,6 +79,12 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
   const [error, setError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
   const [activeError, setActiveError] = useState<string | null>(null);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loadingDevices, setLoadingDevices] = useState(true);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
+  const [renameDraftByDeviceId, setRenameDraftByDeviceId] = useState<Record<string, string>>({});
+  const [renamingDeviceId, setRenamingDeviceId] = useState<string | null>(null);
+  const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
 
   const loadWidgets = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!activeProfileId) {
@@ -94,6 +116,39 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
     }
   }, [activeProfileId]);
 
+  const loadDevices = useCallback(async (signal?: { cancelled: boolean }) => {
+    try {
+      setLoadingDevices(true);
+      setDevicesError(null);
+      const response = await getDevices();
+
+      if (signal?.cancelled) {
+        return;
+      }
+
+      setDevices(response);
+      setRenameDraftByDeviceId((current) => {
+        const next: Record<string, string> = {};
+        response.forEach((device) => {
+          next[device.id] = current[device.id] ?? device.name;
+        });
+        return next;
+      });
+    } catch (error) {
+      if (signal?.cancelled) {
+        return;
+      }
+
+      console.error(error);
+      setDevices([]);
+      setDevicesError("Failed to load devices");
+    } finally {
+      if (!signal?.cancelled) {
+        setLoadingDevices(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const signal = { cancelled: false };
     loadWidgets(signal);
@@ -102,6 +157,15 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
       signal.cancelled = true;
     };
   }, [loadWidgets]);
+
+  useEffect(() => {
+    const signal = { cancelled: false };
+    void loadDevices(signal);
+
+    return () => {
+      signal.cancelled = true;
+    };
+  }, [loadDevices]);
 
   useEffect(() => {
     setProfileError(profilesError);
@@ -144,6 +208,40 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
       }
     } finally {
       setCreatingWidget(false);
+    }
+  }
+
+  async function handleRenameDevice(deviceId: string) {
+    const nextName = (renameDraftByDeviceId[deviceId] ?? "").trim();
+    if (!nextName) {
+      setDevicesError("Device name cannot be empty");
+      return;
+    }
+
+    try {
+      setRenamingDeviceId(deviceId);
+      setDevicesError(null);
+      await updateDeviceName(deviceId, { name: nextName });
+      await loadDevices();
+    } catch (error) {
+      console.error(error);
+      setDevicesError(error instanceof Error ? error.message : "Failed to rename device");
+    } finally {
+      setRenamingDeviceId(null);
+    }
+  }
+
+  async function handleDeleteDevice(deviceId: string) {
+    try {
+      setDeletingDeviceId(deviceId);
+      setDevicesError(null);
+      await deleteDevice(deviceId);
+      await loadDevices();
+    } catch (error) {
+      console.error(error);
+      setDevicesError(error instanceof Error ? error.message : "Failed to delete device");
+    } finally {
+      setDeletingDeviceId(null);
     }
   }
 
@@ -329,6 +427,74 @@ export function AdminHomeScreen({ onEnterDisplayMode, onLogout }: AdminHomeScree
           Active widget: {activeWidget ? `${activeWidget.type} (${activeWidget.id})` : "none"}
         </Text>
         {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
+      </View>
+
+      <View style={styles.devicesSection}>
+        <Text style={styles.createLabel}>Devices</Text>
+        {loadingDevices ? (
+          <Text style={styles.deviceMeta}>Loading devices...</Text>
+        ) : devices.length === 0 ? (
+          <Text style={styles.deviceMeta}>No registered devices yet.</Text>
+        ) : (
+          devices.map((device) => {
+            const isCurrentDevice = currentDeviceId === device.id;
+            const isRenaming = renamingDeviceId === device.id;
+            const isDeleting = deletingDeviceId === device.id;
+
+            return (
+              <View key={device.id} style={styles.deviceCard}>
+                <Text style={styles.deviceName}>
+                  {device.name}
+                  {isCurrentDevice ? " (This Device)" : ""}
+                </Text>
+                <Text style={styles.deviceMeta}>
+                  {device.platform} / {device.deviceType}
+                </Text>
+                <Text style={styles.deviceMeta}>Last seen: {formatLastSeenAt(device.lastSeenAt)}</Text>
+                <View style={styles.deviceActions}>
+                  <TextInput
+                    accessibilityLabel={`Rename device ${device.name}`}
+                    style={[styles.textInput, styles.deviceRenameInput]}
+                    value={renameDraftByDeviceId[device.id] ?? ""}
+                    onChangeText={(value) => {
+                      setRenameDraftByDeviceId((current) => ({
+                        ...current,
+                        [device.id]: value,
+                      }));
+                    }}
+                    placeholder="Device name"
+                    placeholderTextColor="#7f7f7f"
+                  />
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.profileActionButton, isRenaming && styles.createButtonDisabled]}
+                    disabled={isRenaming}
+                    onPress={() => {
+                      void handleRenameDevice(device.id);
+                    }}
+                  >
+                    <Text style={styles.profileActionButtonLabel}>
+                      {isRenaming ? "Renaming..." : "Rename"}
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    style={[styles.profileDeleteButton, isDeleting && styles.createButtonDisabled]}
+                    disabled={isDeleting || isCurrentDevice}
+                    onPress={() => {
+                      void handleDeleteDevice(device.id);
+                    }}
+                  >
+                    <Text style={styles.profileDeleteButtonLabel}>
+                      {isDeleting ? "Deleting..." : "Delete"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })
+        )}
+        {devicesError ? <Text style={styles.error}>{devicesError}</Text> : null}
       </View>
 
       <View style={styles.createSection}>
@@ -571,6 +737,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 16,
     gap: 10,
+  },
+  devicesSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 16,
+    gap: 10,
+  },
+  deviceCard: {
+    borderWidth: 1,
+    borderColor: "#2d2d2d",
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: "#111",
+    gap: 6,
+  },
+  deviceName: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "600",
+  },
+  deviceMeta: {
+    color: "#bbb",
+    fontSize: 13,
+  },
+  deviceActions: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
+  deviceRenameInput: {
+    flex: 1,
   },
   createLabel: {
     color: "#fff",
