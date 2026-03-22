@@ -101,3 +101,15 @@ adminPluginsRouter.post(
     res.json(version);
   }),
 );
+
+/** GET /admin/plugins/:pluginId/events — moderation audit trail */
+adminPluginsRouter.get(
+  "/:pluginId/events",
+  asyncHandler(async (req, res) => {
+    const pluginId = Array.isArray(req.params.pluginId)
+      ? req.params.pluginId[0]
+      : req.params.pluginId;
+    const events = await adminPluginsService.listEvents(pluginId);
+    res.json(events);
+  }),
+);

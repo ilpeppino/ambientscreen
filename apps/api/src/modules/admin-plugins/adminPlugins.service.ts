@@ -1,6 +1,8 @@
 import { z } from "zod";
+import { ModerationStatus } from "@prisma/client";
 import { apiErrors } from "../../core/http/api-error";
 import { adminPluginsRepository } from "./adminPlugins.repository";
+import { moderationEventRepository } from "./moderationEvent.repository";
 
 const rejectSchema = z.object({
   reason: z.string().optional(),
@@ -20,6 +22,13 @@ export const adminPluginsService = {
     if (!updated) {
       throw apiErrors.notFound("Plugin not found");
     }
+    await moderationEventRepository.create({
+      targetType: "plugin",
+      targetId: pluginId,
+      pluginId,
+      action: ModerationStatus.APPROVED,
+      actorId: adminId,
+    });
     return updated;
   },
 
@@ -33,6 +42,14 @@ export const adminPluginsService = {
     if (!updated) {
       throw apiErrors.notFound("Plugin not found");
     }
+    await moderationEventRepository.create({
+      targetType: "plugin",
+      targetId: pluginId,
+      pluginId,
+      action: ModerationStatus.REJECTED,
+      actorId: adminId,
+      reason: parsed.data.reason,
+    });
     return updated;
   },
 
@@ -55,6 +72,13 @@ export const adminPluginsService = {
     if (!updated) {
       throw apiErrors.notFound("Plugin version not found");
     }
+    await moderationEventRepository.create({
+      targetType: "pluginVersion",
+      targetId: versionId,
+      pluginId,
+      action: ModerationStatus.APPROVED,
+      actorId: adminId,
+    });
     return updated;
   },
 
@@ -73,6 +97,18 @@ export const adminPluginsService = {
     if (!updated) {
       throw apiErrors.notFound("Plugin version not found");
     }
+    await moderationEventRepository.create({
+      targetType: "pluginVersion",
+      targetId: versionId,
+      pluginId,
+      action: ModerationStatus.REJECTED,
+      actorId: adminId,
+      reason: parsed.data.reason,
+    });
     return updated;
+  },
+
+  listEvents(pluginId: string) {
+    return moderationEventRepository.findByPlugin(pluginId);
   },
 };

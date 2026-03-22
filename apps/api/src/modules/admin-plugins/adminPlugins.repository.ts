@@ -23,7 +23,7 @@ export interface AdminVersionRecord {
   pluginId: string;
   version: string;
   manifestJson: Prisma.JsonValue;
-  entryPoint: string | null;
+  entryPoint: string;
   changelog: string | null;
   isActive: boolean;
   isApproved: boolean;

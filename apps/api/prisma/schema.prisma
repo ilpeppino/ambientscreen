@@ -131,6 +131,21 @@ model SharedScreenParticipant {
   @@index([sessionId])
 }
 
+model ModerationEvent {
+  id         String           @id @default(uuid())
+  targetType String           // "plugin" | "pluginVersion"
+  targetId   String
+  pluginId   String
+  action     ModerationStatus // APPROVED | REJECTED
+  actorId    String
+  reason     String?
+  createdAt  DateTime         @default(now())
+
+  @@index([pluginId])
+  @@index([targetId])
+  @@index([actorId])
+}
+
 model TokenBlocklist {
   jti       String   @id
   expiresAt DateTime

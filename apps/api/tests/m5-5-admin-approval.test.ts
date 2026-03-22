@@ -20,6 +20,7 @@ import type { Router } from "express";
 import { ModerationStatus } from "@prisma/client";
 import { adminPluginsRouter } from "../src/modules/admin-plugins/adminPlugins.routes";
 import { adminPluginsRepository } from "../src/modules/admin-plugins/adminPlugins.repository";
+import { moderationEventRepository } from "../src/modules/admin-plugins/moderationEvent.repository";
 import { pluginRegistryRouter } from "../src/modules/plugin-registry/pluginRegistry.routes";
 import { pluginRegistryRepository } from "../src/modules/plugin-registry/pluginRegistry.repository";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
@@ -86,25 +87,30 @@ async function invokeRoute(
 
   const response = { statusCode: 200, body: null as unknown };
 
-  const res = {
-    status(code: number) { response.statusCode = code; return res; },
-    json(body: unknown) { response.body = body; return res; },
-    send() { return res; },
-  };
+  // Resolve the outer promise when a response is actually sent.
+  // This correctly handles middleware (e.g. requireAdmin) that calls next()
+  // without awaiting, which would otherwise cause a race condition.
+  await new Promise<void>((resolve) => {
+    const res = {
+      status(code: number) { response.statusCode = code; return res; },
+      json(body: unknown) { response.body = body; resolve(); return res; },
+      send() { resolve(); return res; },
+    };
 
-  let idx = 0;
-  async function callNext(error?: unknown): Promise<void> {
-    if (error) {
-      globalErrorMiddleware(error, req as never, res as never, (() => undefined) as never);
-      return;
+    let idx = 0;
+    function callNext(error?: unknown): void {
+      if (error) {
+        globalErrorMiddleware(error, req as never, res as never, (() => undefined) as never);
+        return;
+      }
+      if (idx < handlers.length) {
+        const h = handlers[idx++];
+        Promise.resolve(h(req, res, callNext)).catch(callNext);
+      }
     }
-    if (idx < handlers.length) {
-      const h = handlers[idx++];
-      await h(req, res, callNext);
-    }
-  }
 
-  await callNext();
+    callNext();
+  });
 
   return response;
 }
@@ -150,8 +156,20 @@ interface UserRow {
   isAdmin: boolean;
 }
 
+interface EventRow {
+  id: string;
+  targetType: string;
+  targetId: string;
+  pluginId: string;
+  action: ModerationStatus;
+  actorId: string;
+  reason: string | null;
+  createdAt: Date;
+}
+
 let pluginsStore: PluginRow[] = [];
 let versionsStore: VersionRow[] = [];
+let eventsStore: EventRow[] = [];
 let usersStore: Record<string, UserRow> = {};
 let idCounter = 0;
 
@@ -207,11 +225,31 @@ function makeVersion(pluginId: string, overrides: Partial<VersionRow> = {}): Ver
 beforeEach(() => {
   pluginsStore = [];
   versionsStore = [];
+  eventsStore = [];
   usersStore = {
     "admin-1": { isAdmin: true },
     "user-1": { isAdmin: false },
   };
   idCounter = 0;
+
+  vi.spyOn(moderationEventRepository, "create").mockImplementation(async (data) => {
+    const event: EventRow = {
+      id: nextId(),
+      targetType: data.targetType,
+      targetId: data.targetId,
+      pluginId: data.pluginId,
+      action: data.action,
+      actorId: data.actorId,
+      reason: data.reason ?? null,
+      createdAt: new Date(),
+    };
+    eventsStore.push(event);
+    return event;
+  });
+
+  vi.spyOn(moderationEventRepository, "findByPlugin").mockImplementation(async (pluginId) => {
+    return eventsStore.filter((e) => e.pluginId === pluginId).slice().reverse();
+  });
 
   // adminPluginsRepository mocks
   vi.spyOn(adminPluginsRepository, "findUserById").mockImplementation(async (userId) => {
@@ -324,12 +362,13 @@ beforeEach(() => {
       pluginId: data.pluginId,
       version: data.version,
       manifestJson: data.manifestJson as Record<string, unknown>,
-      entryPoint: null,
+      entryPoint: data.entryPoint,
       changelog: data.changelog ?? null,
       isActive: false,
       isApproved: false,
       approvedAt: null,
       approvedBy: null,
+      rejectionReason: null,
       status: ModerationStatus.PENDING,
       createdAt: new Date(),
     };
@@ -766,5 +805,104 @@ describe("Integration: registry filtering enforcement", () => {
     // No longer visible
     list = await invokeRoute(pluginRegistryRouter, "get", "/");
     expect((list.body as unknown[]).length).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GET /admin/plugins/:pluginId/events — audit trail
+// ---------------------------------------------------------------------------
+
+describe("GET /admin/plugins/:pluginId/events — moderation audit trail", () => {
+  test("returns empty list when no moderation actions taken", async () => {
+    const plugin = makePlugin();
+    pluginsStore.push(plugin);
+
+    const res = await invokeRoute(adminPluginsRouter, "get", "/:pluginId/events", {
+      params: { pluginId: plugin.id },
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual([]);
+  });
+
+  test("records APPROVED event when plugin is approved", async () => {
+    const plugin = makePlugin();
+    pluginsStore.push(plugin);
+
+    await invokeRoute(adminPluginsRouter, "post", "/:pluginId/approve", {
+      params: { pluginId: plugin.id },
+    });
+
+    const res = await invokeRoute(adminPluginsRouter, "get", "/:pluginId/events", {
+      params: { pluginId: plugin.id },
+    });
+    expect(res.statusCode).toBe(200);
+    const events = res.body as EventRow[];
+    expect(events.length).toBe(1);
+    expect(events[0].action).toBe(ModerationStatus.APPROVED);
+    expect(events[0].actorId).toBe("admin-1");
+    expect(events[0].targetType).toBe("plugin");
+    expect(events[0].targetId).toBe(plugin.id);
+  });
+
+  test("records REJECTED event with reason when plugin is rejected", async () => {
+    const plugin = makePlugin();
+    pluginsStore.push(plugin);
+
+    await invokeRoute(adminPluginsRouter, "post", "/:pluginId/reject", {
+      params: { pluginId: plugin.id },
+      body: { reason: "Violates terms" },
+    });
+
+    const res = await invokeRoute(adminPluginsRouter, "get", "/:pluginId/events", {
+      params: { pluginId: plugin.id },
+    });
+    const events = res.body as EventRow[];
+    expect(events.length).toBe(1);
+    expect(events[0].action).toBe(ModerationStatus.REJECTED);
+    expect(events[0].reason).toBe("Violates terms");
+  });
+
+  test("records version-level events under the plugin's audit trail", async () => {
+    const plugin = makePlugin();
+    pluginsStore.push(plugin);
+    const version = makeVersion(plugin.id);
+    versionsStore.push(version);
+
+    await invokeRoute(adminPluginsRouter, "post", "/:pluginId/versions/:versionId/approve", {
+      params: { pluginId: plugin.id, versionId: version.id },
+    });
+
+    const res = await invokeRoute(adminPluginsRouter, "get", "/:pluginId/events", {
+      params: { pluginId: plugin.id },
+    });
+    const events = res.body as EventRow[];
+    expect(events.length).toBe(1);
+    expect(events[0].targetType).toBe("pluginVersion");
+    expect(events[0].targetId).toBe(version.id);
+    expect(events[0].action).toBe(ModerationStatus.APPROVED);
+  });
+
+  test("full audit trail: approve plugin, reject version, re-approve version", async () => {
+    const plugin = makePlugin();
+    pluginsStore.push(plugin);
+    const version = makeVersion(plugin.id);
+    versionsStore.push(version);
+
+    await invokeRoute(adminPluginsRouter, "post", "/:pluginId/approve", {
+      params: { pluginId: plugin.id },
+    });
+    await invokeRoute(adminPluginsRouter, "post", "/:pluginId/versions/:versionId/reject", {
+      params: { pluginId: plugin.id, versionId: version.id },
+      body: { reason: "Needs fixes" },
+    });
+    await invokeRoute(adminPluginsRouter, "post", "/:pluginId/versions/:versionId/approve", {
+      params: { pluginId: plugin.id, versionId: version.id },
+    });
+
+    const res = await invokeRoute(adminPluginsRouter, "get", "/:pluginId/events", {
+      params: { pluginId: plugin.id },
+    });
+    const events = res.body as EventRow[];
+    expect(events.length).toBe(3);
   });
 });
