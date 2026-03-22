@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   AppState,
   Easing,
@@ -26,6 +25,11 @@ import {
   unlockDisplayOrientation,
 } from "../services/orientation";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
+import {
+  WidgetHeader,
+  WidgetState,
+  WidgetSurface,
+} from "../../../shared/ui/widgets";
 import {
   getEffectivePollingIntervalMs,
   getDisplayFrameModel,
@@ -745,17 +749,38 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   const content = useMemo(() => {
     if (loadingLayout && !hasAnyDashboardWidgets) {
       const model = getDisplayStatusModel("loadingWidgets", null);
-      return <DisplayStatusCard title={model.title} message={model.message} showSpinner />;
+      return (
+        <DisplayStatusContent
+          icon="refresh"
+          title={model.title}
+          message={model.message}
+          type="loading"
+        />
+      );
     }
 
     if (!hasAnyDashboardWidgets && error) {
       const model = getDisplayStatusModel("error", error);
-      return <DisplayStatusCard title={model.title} message={model.message} />;
+      return (
+        <DisplayStatusContent
+          icon="close"
+          title={model.title}
+          message={model.message}
+          type="error"
+        />
+      );
     }
 
     if (!hasAnyDashboardWidgets) {
       const model = getDisplayStatusModel("empty", null);
-      return <DisplayStatusCard title={model.title} message={model.message} />;
+      return (
+        <DisplayStatusContent
+          icon="grid"
+          title={model.title}
+          message={model.message}
+          type="empty"
+        />
+      );
     }
 
     return (
@@ -822,7 +847,8 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         </View>
       ) : null}
       <View style={styles.editModeButtonContainer}>
-        <View style={styles.sharedSessionPanel}>
+        <WidgetSurface style={styles.sharedSessionPanel}>
+          <WidgetHeader icon="grid" title="Shared Session" />
           <View style={styles.sharedSessionRow}>
             <Text style={styles.sharedSessionLabel}>
               {isSharedMode
@@ -893,7 +919,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             Connection: {sharedSessionConnectionState}
             {loadingSharedSessions || loadingSharedSessionState ? " • syncing..." : ""}
           </Text>
-        </View>
+        </WidgetSurface>
         <View style={styles.profileTabsRow}>
           {profiles.map((profile) => {
             const selected = profile.id === effectiveActiveProfileId;
@@ -920,9 +946,10 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             );
           })}
         </View>
-        <View style={styles.slideshowPanel}>
+        <WidgetSurface style={styles.slideshowPanel}>
+          <WidgetHeader icon="refresh" title="Slideshow" />
           <View style={styles.slideshowRow}>
-            <Text style={styles.slideshowLabel}>Slideshow</Text>
+            <Text style={styles.slideshowLabel}>Enabled</Text>
             <Switch
               value={slideshowEnabled}
               onValueChange={setSlideshowEnabled}
@@ -968,7 +995,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             </Pressable>
           </View>
           {slideshowSaveError ? <Text style={styles.slideshowError}>{slideshowSaveError}</Text> : null}
-        </View>
+        </WidgetSurface>
         <Pressable
           accessibilityRole="button"
           style={[styles.editModeButton, editMode ? styles.editModeButtonActive : null]}
@@ -1027,26 +1054,25 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   );
 }
 
-interface DisplayStatusCardProps {
+interface DisplayStatusContentProps {
+  icon: "refresh" | "close" | "grid";
   title: string;
   message: string;
-  showSpinner?: boolean;
+  type: "loading" | "error" | "empty";
 }
 
-function DisplayStatusCard({ title, message, showSpinner = false }: DisplayStatusCardProps) {
+function DisplayStatusContent({
+  icon,
+  title,
+  message,
+  type,
+}: DisplayStatusContentProps) {
   return (
     <View style={styles.centered}>
-      <View style={styles.statusCard}>
-        {showSpinner ? (
-          <ActivityIndicator size="large" color="#fff" />
-        ) : (
-          <View style={[styles.statusBadge, styles.statusBadgeNeutral]}>
-            <Text style={styles.statusBadgeText}>!</Text>
-          </View>
-        )}
-        <Text style={styles.statusTitle}>{title}</Text>
-        <Text style={styles.statusMessage}>{message}</Text>
-      </View>
+      <WidgetSurface style={styles.statusCard}>
+        <WidgetHeader icon={icon} title={title} />
+        <WidgetState type={type} message={message} />
+      </WidgetSurface>
     </View>
   );
 }
@@ -1179,7 +1205,6 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   sharedSessionPanel: {
-    borderWidth: 1,
     borderColor: "#2f2f2f",
     borderRadius: 14,
     padding: 10,
@@ -1324,7 +1349,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   slideshowPanel: {
-    borderWidth: 1,
     borderColor: "#2f2f2f",
     borderRadius: 14,
     padding: 10,

@@ -5,21 +5,24 @@ import type {
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
 import { colors, spacing } from "../../shared/ui/theme";
+import { WidgetHeader, WidgetState, WidgetSurface } from "../../shared/ui/widgets";
 
 export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetData>) {
   if (!data) {
     return (
       <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.loadingText}>No clock data available.</Text>
-        </View>
+        <WidgetSurface style={styles.card}>
+          <WidgetHeader icon="clock" title="Clock" />
+          <WidgetState type="empty" message="No clock data available." />
+        </WidgetSurface>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
+      <WidgetSurface style={styles.card}>
+        <WidgetHeader icon="clock" title="Clock" />
         <Text style={styles.time}>{data.formattedTime}</Text>
         {data.weekdayLabel ? (
           <Text style={styles.weekday}>{data.weekdayLabel}</Text>
@@ -27,7 +30,7 @@ export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetD
         {data.formattedDate ? (
           <Text style={styles.date}>{data.formattedDate}</Text>
         ) : null}
-      </View>
+      </WidgetSurface>
     </View>
   );
 }
@@ -44,10 +47,6 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 720,
-    borderWidth: 1,
-    borderColor: colors.surface,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 28,
@@ -71,11 +70,6 @@ const styles = StyleSheet.create({
   date: {
     marginTop: 10,
     fontSize: 28,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-  loadingText: {
-    fontSize: 22,
     color: colors.textSecondary,
     textAlign: "center",
   },

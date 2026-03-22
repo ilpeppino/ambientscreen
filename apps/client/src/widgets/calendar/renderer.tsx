@@ -5,22 +5,24 @@ import type {
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
 import { colors, spacing } from "../../shared/ui/theme";
+import { WidgetHeader, WidgetState, WidgetSurface } from "../../shared/ui/widgets";
 
 export function CalendarRenderer({ data }: WidgetRendererProps<CalendarWidgetData>) {
   if (!data) {
     return (
       <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.statusTitle}>Calendar unavailable</Text>
-          <Text style={styles.statusMessage}>No calendar data was returned.</Text>
-        </View>
+        <WidgetSurface style={styles.card}>
+          <WidgetHeader icon="calendar" title="Calendar" />
+          <WidgetState type="empty" message="No calendar data was returned." />
+        </WidgetSurface>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <View style={styles.card}>
+      <WidgetSurface style={styles.card}>
+        <WidgetHeader icon="calendar" title="Calendar" />
         <Text style={styles.count}>{data.upcomingCount} upcoming</Text>
         {data.events.length > 0 ? (
           <View style={styles.eventsList}>
@@ -35,9 +37,9 @@ export function CalendarRenderer({ data }: WidgetRendererProps<CalendarWidgetDat
             ))}
           </View>
         ) : (
-          <Text style={styles.statusMessage}>No upcoming events.</Text>
+          <WidgetState type="empty" message="No upcoming events." />
         )}
-      </View>
+      </WidgetSurface>
     </View>
   );
 }
@@ -54,26 +56,8 @@ const styles = StyleSheet.create({
   card: {
     width: "100%",
     maxWidth: 900,
-    borderWidth: 1,
-    borderColor: colors.surface,
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    borderRadius: 24,
     paddingHorizontal: 24,
     paddingVertical: 24,
-  },
-  statusTitle: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: "700",
-    color: colors.textPrimary,
-    textAlign: "center",
-  },
-  statusMessage: {
-    marginTop: 10,
-    fontSize: 18,
-    lineHeight: 24,
-    color: colors.textSecondary,
-    textAlign: "center",
   },
   count: {
     fontSize: 36,
