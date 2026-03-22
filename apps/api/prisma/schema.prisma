@@ -20,6 +20,7 @@ model User {
   devices            Device[]
   sharedSessions     SharedScreenSession[]
   activeProfile      Profile?            @relation("UserActiveProfile", fields: [activeProfileId], references: [id], onDelete: SetNull)
+  installedPlugins   InstalledPlugin[]
 
   @@index([activeProfileId])
 }
@@ -120,4 +121,49 @@ model SharedScreenParticipant {
 
   @@unique([sessionId, deviceId])
   @@index([sessionId])
+}
+
+model Plugin {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String
+  category    String
+  isPremium   Boolean  @default(false)
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions          PluginVersion[]
+  installedByUsers  InstalledPlugin[]
+}
+
+model InstalledPlugin {
+  id          String   @id @default(uuid())
+  userId      String
+  pluginId    String
+  isEnabled   Boolean  @default(true)
+  installedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plugin Plugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pluginId])
+  @@index([userId])
+}
+
+model PluginVersion {
+  id           String   @id @default(uuid())
+  pluginId     String
+  version      String
+  manifestJson Json
+  changelog    String?
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  plugin Plugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, version])
+  @@index([pluginId])
 }
