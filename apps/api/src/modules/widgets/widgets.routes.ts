@@ -82,7 +82,6 @@ widgetsRouter.post(
 
     await pluginInstallationService.assertPluginInstalledAndEnabled(userId, type);
 
-
     const plugin = getWidgetPlugin(type);
     if (plugin?.manifest.premium) {
       const user = await usersService.findUserById(userId);
