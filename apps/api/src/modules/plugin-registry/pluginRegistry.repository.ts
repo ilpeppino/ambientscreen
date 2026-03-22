@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { ModerationStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../core/db/prisma";
 
 export interface PluginRecord {
@@ -9,6 +9,9 @@ export interface PluginRecord {
   category: string;
   isPremium: boolean;
   isApproved: boolean;
+  approvedAt: Date | null;
+  approvedBy: string | null;
+  status: ModerationStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +23,8 @@ export interface PluginVersionRecord {
   manifestJson: Prisma.JsonValue;
   changelog: string | null;
   isActive: boolean;
+  isApproved: boolean;
+  status: ModerationStatus;
   createdAt: Date;
 }
 
@@ -30,10 +35,13 @@ export interface PluginWithActiveVersion extends PluginRecord {
 export const pluginRegistryRepository = {
   async findAllApproved(): Promise<PluginWithActiveVersion[]> {
     const plugins = await prisma.plugin.findMany({
-      where: { isApproved: true },
+      where: {
+        isApproved: true,
+        versions: { some: { isApproved: true, isActive: true } },
+      },
       include: {
         versions: {
-          where: { isActive: true },
+          where: { isApproved: true, isActive: true },
           take: 1,
         },
       },
@@ -51,7 +59,7 @@ export const pluginRegistryRepository = {
       where: { key },
       include: {
         versions: {
-          where: { isActive: true },
+          where: { isApproved: true, isActive: true },
           take: 1,
         },
       },
@@ -82,7 +90,13 @@ export const pluginRegistryRepository = {
   async setApproved(id: string, isApproved: boolean): Promise<PluginRecord | null> {
     const existing = await prisma.plugin.findUnique({ where: { id } });
     if (!existing) return null;
-    return prisma.plugin.update({ where: { id }, data: { isApproved } });
+    return prisma.plugin.update({
+      where: { id },
+      data: {
+        isApproved,
+        status: isApproved ? ModerationStatus.APPROVED : ModerationStatus.REJECTED,
+      },
+    });
   },
 
   async createVersion(data: {

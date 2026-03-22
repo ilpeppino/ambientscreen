@@ -7,11 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
   passwordHash String
   plan         String    @default("free")
+  isAdmin      Boolean   @default(false)
   createdAt    DateTime  @default(now())
   activeProfileId String?
 
@@ -131,10 +138,13 @@ model Plugin {
   description String
   category    String
   authorId    String?
-  isPremium   Boolean  @default(false)
-  isApproved  Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isPremium   Boolean          @default(false)
+  isApproved  Boolean          @default(false)
+  approvedAt  DateTime?
+  approvedBy  String?
+  status      ModerationStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   author            User?           @relation("AuthoredPlugins", fields: [authorId], references: [id], onDelete: SetNull)
   versions          PluginVersion[]
@@ -165,8 +175,12 @@ model PluginVersion {
   manifestJson Json
   entryPoint   String?
   changelog    String?
-  isActive     Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  isActive     Boolean          @default(false)
+  isApproved   Boolean          @default(false)
+  approvedAt   DateTime?
+  approvedBy   String?
+  status       ModerationStatus @default(PENDING)
+  createdAt    DateTime         @default(now())
 
   plugin Plugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
 
