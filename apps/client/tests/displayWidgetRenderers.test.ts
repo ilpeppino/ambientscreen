@@ -1,5 +1,6 @@
 import React from "react";
 import TestRenderer from "react-test-renderer";
+import type { WidgetDataByKey, WidgetKey } from "@ambient/shared-contracts";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 
 vi.mock("react-native", () => {
@@ -19,6 +20,7 @@ vi.mock("../src/shared/ui/components", () => {
 
   return {
     AppIcon: (props: Record<string, unknown>) => ReactRuntime.createElement("app-icon", props),
+    Text: (props: Record<string, unknown>) => ReactRuntime.createElement("text", props, props.children),
   };
 });
 
@@ -43,15 +45,29 @@ beforeAll(async () => {
 });
 
 describe("display widget renderers", () => {
+  function buildProps<TKey extends WidgetKey>(
+    widgetKey: TKey,
+    data: WidgetDataByKey[TKey] | null,
+    state: "ready" | "stale" | "empty" | "error" = "ready",
+  ) {
+    return {
+      widgetInstanceId: `test-${widgetKey}`,
+      widgetKey,
+      state,
+      data,
+      config: {},
+    };
+  }
+
   test("renderers use shared WidgetHeader in display mode", () => {
     const tree = TestRenderer.create(
       React.createElement(ClockDateRenderer, {
-        data: {
+        ...buildProps("clockDate", {
           nowIso: "2026-03-22T10:00:00.000Z",
           formattedTime: "10:00",
           formattedDate: "March 22",
           weekdayLabel: "Sunday",
-        },
+        }),
       }),
     );
 
@@ -62,7 +78,7 @@ describe("display widget renderers", () => {
   test("empty widget payloads render shared WidgetState", () => {
     const weather = TestRenderer.create(
       React.createElement(WeatherRenderer, {
-        data: null,
+        ...buildProps("weather", null),
       }),
     );
 
@@ -74,7 +90,7 @@ describe("display widget renderers", () => {
   test("calendar renderer limits content density for distance readability", () => {
     const tree = TestRenderer.create(
       React.createElement(CalendarRenderer, {
-        data: {
+        ...buildProps("calendar", {
           upcomingCount: 5,
           events: [
             {
@@ -110,14 +126,28 @@ describe("display widget renderers", () => {
               location: null,
             },
           ],
-        },
+        }),
       }),
     );
 
     const moreLabels = tree.root.findAllByType("text").filter((node: { props: { children?: unknown } }) => {
-      return typeof node.props.children === "string" && node.props.children.includes("more events");
+      const children = node.props.children;
+      const textValue = Array.isArray(children) ? children.join("") : children;
+      return typeof textValue === "string" && textValue.includes("more events");
     });
 
     expect(moreLabels.length).toBe(1);
+  });
+
+  test("renderer error states use shared WidgetState", () => {
+    const tree = TestRenderer.create(
+      React.createElement(ClockDateRenderer, {
+        ...buildProps("clockDate", null, "error"),
+      }),
+    );
+
+    const stateNode = tree.root.findByType("widget-state" as any);
+    expect(stateNode.props.type).toBe("error");
+    expect(stateNode.props.compact).toBe(true);
   });
 });

@@ -1,66 +1,50 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type {
-  ClockDateWidgetData,
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
+import { Text } from "../../shared/ui/components";
 import { colors, spacing } from "../../shared/ui/theme";
-import { WidgetHeader, WidgetState, WidgetSurface } from "../../shared/ui/widgets";
+import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
-export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetData>) {
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <WidgetSurface style={styles.card}>
-          <WidgetHeader mode="display" icon="clock" title="Clock" />
-          <WidgetState type="empty" compact message="No clock data available." />
-        </WidgetSurface>
-      </View>
-    );
-  }
+export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDate">) {
+  const hasData = Boolean(data?.formattedTime);
 
   return (
-    <View style={styles.container}>
-      <WidgetSurface style={styles.card}>
-        <WidgetHeader mode="display" icon="clock" title="Clock" />
-        <Text style={styles.time}>{data.formattedTime}</Text>
-        <View style={styles.metaGroup}>
-          {data.weekdayLabel ? (
-            <Text style={styles.weekday}>{data.weekdayLabel}</Text>
-          ) : null}
-          {data.formattedDate ? (
-            <Text style={styles.date}>{data.formattedDate}</Text>
-          ) : null}
-        </View>
-      </WidgetSurface>
-    </View>
+    <BaseWidgetFrame
+      title="Clock"
+      icon="clock"
+      state={state}
+      hasData={hasData}
+      emptyMessage="No clock data available."
+      contentStyle={styles.content}
+    >
+      <Text style={styles.time}>{data?.formattedTime}</Text>
+      <View style={styles.metaGroup}>
+        {data?.weekdayLabel ? (
+          <Text style={styles.weekday}>{data.weekdayLabel}</Text>
+        ) : null}
+        {data?.formattedDate ? (
+          <Text style={styles.date}>{data.formattedDate}</Text>
+        ) : null}
+      </View>
+    </BaseWidgetFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-    backgroundColor: "transparent",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 760,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xxl,
-    paddingVertical: spacing.xxl,
   },
   time: {
-    fontSize: 118,
+    fontSize: 112,
     fontWeight: "700",
     color: colors.textPrimary,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
     textAlign: "center",
-    lineHeight: 126,
+    lineHeight: 118,
   },
   metaGroup: {
     marginTop: spacing.md,

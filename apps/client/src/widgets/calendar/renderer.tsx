@@ -1,69 +1,54 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import type {
-  CalendarWidgetData,
-  WidgetRendererProps,
-} from "@ambient/shared-contracts";
-import { colors, spacing } from "../../shared/ui/theme";
-import { WidgetHeader, WidgetState, WidgetSurface } from "../../shared/ui/widgets";
+import { StyleSheet, View } from "react-native";
+import type { WidgetRendererProps } from "@ambient/shared-contracts";
+import { AppIcon, Text } from "../../shared/ui/components";
+import { colors, radius, spacing } from "../../shared/ui/theme";
+import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
 const MAX_VISIBLE_EVENTS = 3;
 
-export function CalendarRenderer({ data }: WidgetRendererProps<CalendarWidgetData>) {
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <WidgetSurface style={styles.card}>
-          <WidgetHeader mode="display" icon="calendar" title="Calendar" />
-          <WidgetState type="empty" compact message="No calendar data was returned." />
-        </WidgetSurface>
-      </View>
-    );
-  }
+export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar">) {
+  const hasData = Boolean(data && data.events.length > 0);
 
-  const visibleEvents = data.events.slice(0, MAX_VISIBLE_EVENTS);
-  const remainingEvents = Math.max(data.events.length - visibleEvents.length, 0);
+  const visibleEvents = data?.events.slice(0, MAX_VISIBLE_EVENTS) ?? [];
+  const remainingEvents = Math.max((data?.events.length ?? 0) - visibleEvents.length, 0);
 
   return (
-    <View style={styles.container}>
-      <WidgetSurface style={styles.card}>
-        <WidgetHeader mode="display" icon="calendar" title="Calendar" />
-        <Text style={styles.count}>{data.upcomingCount} upcoming</Text>
-        {visibleEvents.length > 0 ? (
-          <View style={styles.eventsList}>
-            {visibleEvents.map((event) => (
-              <View key={event.id} style={styles.eventRow}>
-                <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
-                <Text style={styles.eventMeta} numberOfLines={1}>{formatEventTime(event.startIso, event.allDay)}</Text>
-                {event.location ? <Text style={styles.eventMeta} numberOfLines={1}>{event.location}</Text> : null}
-              </View>
-            ))}
-            {remainingEvents > 0 ? (
-              <Text style={styles.moreLabel}>+{remainingEvents} more events</Text>
+    <BaseWidgetFrame
+      title="Calendar"
+      icon="calendar"
+      state={state}
+      hasData={hasData}
+      emptyMessage="No upcoming events."
+      contentStyle={styles.content}
+    >
+      <Text style={styles.count}>{data?.upcomingCount ?? 0} upcoming</Text>
+      <View style={styles.eventsList}>
+        {visibleEvents.map((event) => (
+          <View key={event.id} style={styles.eventRow}>
+            <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+            <View style={styles.metaRow}>
+              <AppIcon name="clock" size="sm" color="textSecondary" />
+              <Text style={styles.eventMeta} numberOfLines={1}>
+                {formatEventTime(event.startIso, event.allDay)}
+              </Text>
+            </View>
+            {event.location ? (
+              <Text style={styles.eventMeta} numberOfLines={1}>{event.location}</Text>
             ) : null}
           </View>
-        ) : (
-          <WidgetState type="empty" compact message="No upcoming events." />
-        )}
-      </WidgetSurface>
-    </View>
+        ))}
+        {remainingEvents > 0 ? (
+          <Text style={styles.moreLabel}>+{remainingEvents} more events</Text>
+        ) : null}
+      </View>
+    </BaseWidgetFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  content: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
-    backgroundColor: "transparent",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 900,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.xl,
   },
   count: {
     fontSize: 40,
@@ -77,13 +62,19 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   eventRow: {
-    borderRadius: 12,
+    borderRadius: radius.md,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.08)",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     alignItems: "center",
+  },
+  metaRow: {
+    marginTop: spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
   },
   eventTitle: {
     fontSize: 22,
@@ -94,7 +85,6 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   eventMeta: {
-    marginTop: spacing.xs,
     fontSize: 17,
     lineHeight: 22,
     color: colors.textSecondary,
