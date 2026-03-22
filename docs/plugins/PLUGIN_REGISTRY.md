@@ -1,12 +1,23 @@
 # Plugin Registry Architecture
 
-This document explains how plugins are registered and resolved in both the API (Node.js) and client (React Native) processes. Each process maintains its own registry — they are independent but structurally identical.
+This document explains how plugins are registered and resolved across the full Ambient Screen system. There are two distinct registries that serve different purposes: the **runtime plugin registry** and the **marketplace metadata registry**.
 
 ---
 
-## Overview
+## Two Registries — Different Concerns
 
-The plugin registry is a `Map<WidgetKey, PluginModule>` on each side of the system. Plugins are registered at startup and looked up at runtime during data resolution (API) and rendering (client).
+| Registry | Where | Purpose |
+|---|---|---|
+| Runtime registry | In-memory `Map` in each process | Resolve widget data (API) and render widgets (client) |
+| Marketplace metadata registry | PostgreSQL `Plugin` / `PluginVersion` tables | Track plugin catalog, approval state, versions, and user installs |
+
+These registries are independent. A plugin can exist in the marketplace registry (approved, installable) before its runtime code is deployed. A built-in plugin can exist in the runtime registry without any marketplace entry.
+
+---
+
+## Runtime Plugin Registry
+
+The runtime registry is a `Map<WidgetKey, PluginModule>` on each side of the system. Plugins are registered at startup and looked up at runtime during data resolution (API) and rendering (client).
 
 ```
 Startup:
@@ -246,11 +257,76 @@ Same idempotency pattern as the API side. Called lazily when the plugin registry
 
 ---
 
+## Marketplace Metadata Registry
+
+**Source:** `apps/api/src/modules/plugin-registry/` and `apps/api/src/modules/plugin-installation/`
+
+The marketplace metadata registry tracks plugins and their lifecycle states in the database. This is separate from the in-memory runtime registry.
+
+### Database models
+
+**Plugin** — top-level record for a marketplace plugin
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | string (UUID) | Internal identifier |
+| `key` | string | Unique plugin key (matches `WidgetKey` at runtime) |
+| `name` | string | Display name in marketplace |
+| `description` | string | Short description |
+| `category` | string | Grouping category |
+| `isPremium` | boolean | Whether the plugin requires a premium plan |
+| `isApproved` | boolean | Whether admin has approved this plugin for marketplace visibility |
+| `status` | `ModerationStatus` | `PENDING` \| `APPROVED` \| `REJECTED` |
+| `approvedAt` | Date \| null | Timestamp of approval |
+| `approvedBy` | string \| null | Admin user ID who approved |
+
+**PluginVersion** — a specific published version of a plugin
+
+| Field | Type | Description |
+|---|---|---|
+| `pluginId` | string | Foreign key to `Plugin` |
+| `version` | string | SemVer version string |
+| `manifestJson` | JSON | Full manifest payload (key, layout, refresh policy, etc.) |
+| `entryPoint` | string | URL or path to the deployable plugin bundle |
+| `changelog` | string \| null | Release notes |
+| `isActive` | boolean | Whether this is the currently deployed version |
+| `isApproved` | boolean | Whether admin has approved this version |
+| `status` | `ModerationStatus` | `PENDING` \| `APPROVED` \| `REJECTED` |
+
+**InstalledPlugin** — a user's installation of a marketplace plugin
+
+| Field | Type | Description |
+|---|---|---|
+| `userId` | string | Owner of the installation |
+| `pluginId` | string | Foreign key to `Plugin` |
+| `isEnabled` | boolean | Whether the user has enabled or disabled this plugin |
+
+### Plugin approval states
+
+A plugin must pass through two independent approval checks before it is usable:
+
+1. **Plugin approval** (`Plugin.isApproved`) — the plugin entry itself is approved. Controls marketplace visibility.
+2. **Version approval** (`PluginVersion.isApproved` + `isActive`) — a specific version is approved and set as active. Controls which version is served.
+
+A plugin is visible in the marketplace only when both `Plugin.isApproved = true` and at least one `PluginVersion` has `isApproved = true` and `isActive = true`.
+
+### Install and enabled states
+
+After a user installs a plugin (`POST /me/plugins/:pluginId`):
+
+- `InstalledPlugin` is created with `isEnabled: true` by default
+- The user can toggle `isEnabled` via `PATCH /me/plugins/:pluginId`
+- The API enforces that only installed and enabled plugins can be used at runtime
+
+Built-in plugins (registered only in the in-memory registry, not in the DB) bypass the installation check — they are available to all users by default.
+
+---
+
 ## Safety
 
 ### Duplicate keys
 
-Both registries throw `Error` on duplicate key registration:
+Both runtime registries throw `Error` on duplicate key registration:
 
 ```
 Error: Duplicate widget plugin key: clockDate
@@ -271,9 +347,13 @@ This means a single missing plugin only affects its own widget instance. Other w
 
 Invalid config is caught by `validateWidgetConfig()` in the API service before the plugin's resolver is called. The resolver never receives invalid config. Invalid config returns an `error` state envelope with `errorCode: "INVALID_WIDGET_CONFIG"`.
 
+### Unapproved / uninstalled plugin runtime check
+
+For marketplace plugins (those with a `Plugin` DB record), the API enforces installation and enabled status via `assertPluginInstalledAndEnabled()` before resolving widget data. This prevents users from accessing marketplace plugin data without a valid installation.
+
 ### Test isolation
 
-Both registries expose `resetWidgetPluginRegistryForTests()` which clears the internal map. Tests that register plugins must call this in `beforeEach` and `afterEach` to prevent cross-test pollution.
+Both runtime registries expose `resetWidgetPluginRegistryForTests()` which clears the internal map. Tests that register plugins must call this in `beforeEach` and `afterEach` to prevent cross-test pollution.
 
 The API also exposes `resetBuiltinWidgetPluginRegistrationForTests()` to reset the idempotency flag, allowing tests to re-trigger built-in registration.
 
@@ -288,7 +368,7 @@ packages/shared-contracts
   ├── weather:   { manifest, configSchema, defaultConfig }
   └── calendar:  { manifest, configSchema, defaultConfig }
 
-apps/api
+apps/api (runtime registry)
   registerBuiltinWidgetPlugins()
   ├── clockDateWidgetPlugin  →  registerWidgetPlugin()  →  pluginsByKey["clockDate"]
   ├── weatherWidgetPlugin    →  registerWidgetPlugin()  →  pluginsByKey["weather"]
@@ -299,7 +379,17 @@ apps/api
       ├── found  → plugin.api.resolveData(input) → WidgetDataEnvelope
       └── null   → error envelope { errorCode: "UNSUPPORTED_WIDGET_TYPE" }
 
-apps/client
+apps/api (marketplace metadata registry — PostgreSQL)
+  Plugin            { key, name, isPremium, isApproved, status }
+  PluginVersion     { version, manifestJson, entryPoint, isActive, isApproved }
+  InstalledPlugin   { userId, pluginId, isEnabled }
+
+  pluginInstallationService.assertPluginInstalledAndEnabled(userId, pluginKey)
+  └── only enforced for DB-registered (marketplace) plugins
+      ├── not installed → 403 Forbidden
+      └── disabled      → 403 Forbidden
+
+apps/client (runtime registry)
   registerBuiltinWidgetPlugins()
   ├── clockDateWidgetPlugin  →  registerWidgetPlugin()  →  pluginsByKey["clockDate"]
   ├── weatherWidgetPlugin    →  registerWidgetPlugin()  →  pluginsByKey["weather"]

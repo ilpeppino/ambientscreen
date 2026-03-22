@@ -43,6 +43,8 @@ manifest: {
 
 - `refreshPolicy: { intervalMs: 1000 }` — The client polls for fresh data every 1 second. This is appropriate for a clock because the time changes every second. A weather widget, by contrast, refreshes every 5 minutes.
 
+- No `premium` field — this widget is available on all plans.
+
 ---
 
 ## 2. Config Schema
@@ -183,7 +185,7 @@ export async function resolveClockDateWidgetData(input: {
 
 - **`widgetConfig: unknown` input** — The resolver receives config as `unknown` because it performs its own normalization via `toClockDateConfig()`. The service layer has already run schema validation before calling the resolver, but the resolver normalizes defensively to handle type coercions.
 
-- **`Intl.DateTimeFormat`** — The resolver uses the standard `Intl` API for locale-aware formatting. This means time formatting honors locale conventions (e.g. comma vs period as decimal separator) and timezone offsets without any third-party library.
+- **`Intl.DateTimeFormat`** — The resolver uses the standard `Intl` API for locale-aware formatting. This means time formatting honors locale conventions and timezone offsets without any third-party library.
 
 - **`createDateTimeFormat` with fallback** — If an invalid timezone is passed, `Intl.DateTimeFormat` throws. The `createDateTimeFormat` helper catches this and retries without the `timeZone` option, falling back to local time.
 
@@ -243,7 +245,7 @@ export const clockDateWidgetPlugin: WidgetClientPluginModule<"clockDate", JSX.El
   configSchema: definition.configSchema,
   defaultConfig: definition.defaultConfig,
   client: {
-    Renderer: ({ data }) => <ClockDateRenderer data={data} />,
+    Renderer: (props) => <ClockDateRenderer {...props} />,
   },
 };
 ```
@@ -261,44 +263,111 @@ The clockDate plugin has no `SettingsForm` because the initial implementation do
 ```typescript
 // apps/client/src/widgets/clockDate/renderer.tsx
 
-export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetData>) {
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.loadingText}>No clock data available.</Text>
-        </View>
-      </View>
-    );
-  }
+import React from "react";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import type { WidgetRendererProps } from "@ambient/shared-contracts";
+import { Text } from "../../shared/ui/components";
+import { colors, spacing } from "../../shared/ui/theme";
+import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
+
+export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDate">) {
+  const hasData = Boolean(data?.formattedTime);
+  const { width } = useWindowDimensions();
+  const scale = clamp(width / 1280, 0.5, 1);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.time}>{data.formattedTime}</Text>
-        {data.weekdayLabel ? (
-          <Text style={styles.weekday}>{data.weekdayLabel}</Text>
+    <BaseWidgetFrame
+      title="Clock"
+      icon="clock"
+      state={state}
+      hasData={hasData}
+      emptyMessage="No clock data available."
+      contentStyle={styles.content}
+    >
+      <Text
+        style={[
+          styles.time,
+          {
+            fontSize: Math.round(112 * scale),
+            lineHeight: Math.round(118 * scale),
+          },
+        ]}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        minimumFontScale={0.5}
+      >
+        {data?.formattedTime}
+      </Text>
+      <View style={styles.metaGroup}>
+        {data?.weekdayLabel ? (
+          <Text style={[styles.weekday, { fontSize: Math.round(28 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {data.weekdayLabel}
+          </Text>
         ) : null}
-        {data.formattedDate ? (
-          <Text style={styles.date}>{data.formattedDate}</Text>
+        {data?.formattedDate ? (
+          <Text style={[styles.date, { fontSize: Math.round(24 * scale), lineHeight: Math.round(30 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {data.formattedDate}
+          </Text>
         ) : null}
       </View>
-    </View>
+    </BaseWidgetFrame>
   );
 }
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
+
+const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  time: {
+    fontSize: 112,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    letterSpacing: 0.8,
+    textAlign: "center",
+    lineHeight: 118,
+  },
+  metaGroup: {
+    marginTop: spacing.md,
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  weekday: {
+    fontSize: 28,
+    color: colors.textPrimary,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+    textAlign: "center",
+  },
+  date: {
+    fontSize: 24,
+    color: colors.textSecondary,
+    lineHeight: 30,
+    textAlign: "center",
+  },
+});
 ```
 
-**Why the renderer is this simple:**
+**Why the renderer is structured this way:**
 
-- **Null guard first** — The renderer always checks `if (!data)` before accessing data fields. This handles `state: "empty"` and `state: "error"` gracefully without crashing.
+- **`BaseWidgetFrame` as the outer wrapper** — All renderers use `BaseWidgetFrame` instead of composing `WidgetSurface`, `WidgetHeader`, and state handling manually. The frame receives `title`, `icon`, `state`, and `hasData` and handles surface styling, header rendering, and state routing automatically. Pass `emptyMessage` and `errorMessage` to customize fallback text.
 
-- **No formatting logic** — The renderer displays `data.formattedTime` directly. The API already formatted the time string — the renderer does not parse, transform, or format it.
+- **`hasData = Boolean(data?.formattedTime)`** — Rather than checking `data === null`, the renderer checks whether the specific field it cares about is present. This is more precise and handles partially populated data gracefully.
 
-- **Conditional rendering of optional fields** — `weekdayLabel` and `formattedDate` may be absent if the resolver returns them as empty strings. The null checks prevent empty `<Text>` elements from affecting layout.
+- **No null guard in the outer return** — Because `BaseWidgetFrame` handles the empty/error states, the renderer does not need an explicit `if (!data) return ...` guard at the top level. The children are only rendered when `hasData` is true and `state` is `"ready"` or `"stale"`.
 
-- **StyleSheet with large typography** — The time is displayed at 108px font size. This is intentional for an ambient display meant to be read from across a room.
+- **Responsive font scaling** — The time is displayed at up to 112px, scaled by the screen width relative to a 1280px reference. `clamp` keeps the scale between 0.5 and 1.0 so the widget reads well on both small and large screens.
 
-- **Dark theme** — All colors are hardcoded for the dark display background (`#fff`, `#efefef`, `#bfbfbf`). The ambient display always uses a dark background.
+- **Theme tokens, not hardcoded colors** — The renderer uses `colors.textPrimary` and `colors.textSecondary` from the theme system rather than raw hex strings. This ensures the widget adapts if the theme changes.
+
+- **`adjustsFontSizeToFit` + `numberOfLines={1}`** — Prevents the time string from overflowing or wrapping at unusual screen widths.
+
+- **Pre-formatted strings** — `data.formattedTime`, `data.weekdayLabel`, and `data.formattedDate` are displayed directly. The API resolver performs all formatting — the renderer does not parse or transform these values.
 
 ---
 
@@ -327,5 +396,7 @@ export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetD
    b. Merges defaultConfig with stored config
    c. Calls plugin.client.Renderer with { state, data, config, meta }
 
-7. ClockDateRenderer: displays formattedTime, weekdayLabel, formattedDate
+7. ClockDateRenderer:
+   a. Wraps in BaseWidgetFrame (handles surface, header, state routing)
+   b. Displays formattedTime, weekdayLabel, formattedDate with responsive font scaling
 ```
