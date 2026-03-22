@@ -1,7 +1,17 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, PanResponder, Pressable, StyleSheet, Text, View } from "react-native";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
+import { AppIcon } from "../../../shared/ui/components";
+import { Text } from "../../../shared/ui/components/Text";
+import { colors, radius, spacing } from "../../../shared/ui/theme";
 import type { AnimatedItemPhase } from "../animations/transitionManager";
 import { renderWidgetFromKey } from "../../../widgets/pluginRegistry";
 import { computeWidgetScale, getWidgetErrorLabel } from "./WidgetContainer.logic";
@@ -12,6 +22,9 @@ import {
   DISPLAY_GRID_COLUMNS,
   type WidgetLayout,
 } from "./LayoutGrid.logic";
+import { shouldShowWidgetAffordances } from "./editMode.logic";
+import { WidgetContextActions } from "./WidgetContextActions";
+import { WidgetEditHandles } from "./WidgetEditHandles";
 
 interface WidgetContainerProps {
   widget: DisplayLayoutWidgetEnvelope;
@@ -19,10 +32,15 @@ interface WidgetContainerProps {
   animationPhase?: AnimatedItemPhase;
   editMode?: boolean;
   isSelected?: boolean;
+  hasSelectedWidget?: boolean;
   containerSize?: { width: number; height: number };
   onSelectWidget?: (widgetId: string) => void;
   onWidgetLayoutChange?: (widgetId: string, layout: WidgetLayout) => void;
   onOpenWidgetSettings?: (widgetId: string) => void;
+}
+
+function clampValue(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
 }
 
 function WidgetContainerBase({
@@ -31,6 +49,7 @@ function WidgetContainerBase({
   animationPhase = "stable",
   editMode = false,
   isSelected = false,
+  hasSelectedWidget = false,
   containerSize = { width: 0, height: 0 },
   onSelectWidget,
   onWidgetLayoutChange,
@@ -39,151 +58,188 @@ function WidgetContainerBase({
   const frame = frameStyle as ViewStyle;
   const width = typeof frame.width === "number" ? frame.width : 0;
   const height = typeof frame.height === "number" ? frame.height : 0;
+  const left = typeof frame.left === "number" ? frame.left : 0;
+  const top = typeof frame.top === "number" ? frame.top : 0;
   const scale = computeWidgetScale(width, height);
-  const [dragPreview, setDragPreview] = useState({ dx: 0, dy: 0 });
-  const [resizePreview, setResizePreview] = useState({ dw: 0, dh: 0 });
-  const isResizingRef = useRef(false);
-  const mountOpacity = useRef(new Animated.Value(animationPhase === "enter" ? 0 : 1)).current;
-  const mountScale = useRef(new Animated.Value(animationPhase === "enter" ? 0.97 : 1)).current;
+
+  const [snapLabel, setSnapLabel] = useState<string | null>(null);
 
   const layoutRef = useRef(widget.layout);
   useEffect(() => {
     layoutRef.current = widget.layout;
   }, [widget.layout]);
 
-  useEffect(() => {
-    let toValueOpacity = 1;
-    let toValueScale = 1;
+  const mountOpacity = useSharedValue(animationPhase === "enter" ? 0 : 1);
+  const mountScale = useSharedValue(animationPhase === "enter" ? 0.98 : 1);
+  const dragTranslateX = useSharedValue(0);
+  const dragTranslateY = useSharedValue(0);
+  const resizePreviewX = useSharedValue(0);
+  const resizePreviewY = useSharedValue(0);
 
+  useEffect(() => {
     if (animationPhase === "exit") {
-      toValueOpacity = 0;
-      toValueScale = 0.98;
-    } else if (animationPhase === "enter") {
-      mountOpacity.setValue(0);
-      mountScale.setValue(0.97);
+      mountOpacity.value = withTiming(0, { duration: 220 });
+      mountScale.value = withTiming(0.98, { duration: 220 });
+      return;
     }
 
-    const animation = Animated.parallel([
-      Animated.timing(mountOpacity, {
-        toValue: toValueOpacity,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-      Animated.timing(mountScale, {
-        toValue: toValueScale,
-        duration: 280,
-        useNativeDriver: true,
-      }),
-    ]);
+    if (animationPhase === "enter") {
+      mountOpacity.value = 0;
+      mountScale.value = 0.98;
+    }
 
-    animation.start();
-
-    return () => {
-      animation.stop();
-    };
+    mountOpacity.value = withTiming(1, { duration: 240 });
+    mountScale.value = withTiming(1, { duration: 240 });
   }, [animationPhase, mountOpacity, mountScale]);
+
+  useEffect(() => {
+    if (editMode) {
+      return;
+    }
+
+    dragTranslateX.value = withTiming(0, { duration: 120 });
+    dragTranslateY.value = withTiming(0, { duration: 120 });
+    resizePreviewX.value = withTiming(0, { duration: 120 });
+    resizePreviewY.value = withTiming(0, { duration: 120 });
+    setSnapLabel(null);
+  }, [dragTranslateX, dragTranslateY, editMode, resizePreviewX, resizePreviewY]);
 
   const columnWidth = containerSize.width > 0 ? containerSize.width / DISPLAY_GRID_COLUMNS : 0;
   const rowHeight = containerSize.height > 0 ? containerSize.height / DISPLAY_GRID_BASE_ROWS : 0;
 
-  const dragResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: () => editMode && !isResizingRef.current,
-    onPanResponderGrant: () => {
-      onSelectWidget?.(widget.widgetInstanceId);
-      setDragPreview({ dx: 0, dy: 0 });
-    },
-    onPanResponderMove: (_, gestureState) => {
-      if (!editMode || isResizingRef.current) {
-        return;
-      }
+  const canEditSelectedWidget = shouldShowWidgetAffordances(editMode, isSelected);
+  const maxPreviewWidth = Math.max(48, containerSize.width - left);
+  const maxPreviewHeight = Math.max(48, containerSize.height - top);
 
-      setDragPreview({
-        dx: gestureState.dx,
-        dy: gestureState.dy,
-      });
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      if (!editMode || isResizingRef.current) {
-        return;
-      }
-
-      const layout = layoutRef.current;
-      const dxCols = columnWidth > 0 ? Math.round(gestureState.dx / columnWidth) : 0;
-      const dyRows = rowHeight > 0 ? Math.round(gestureState.dy / rowHeight) : 0;
-      const nextLayout = applyDragDelta({
-        layout,
-        deltaX: dxCols,
-        deltaY: dyRows,
-      });
-
-      setDragPreview({ dx: 0, dy: 0 });
-      onWidgetLayoutChange?.(widget.widgetInstanceId, nextLayout);
-    },
-    onPanResponderTerminate: () => {
-      setDragPreview({ dx: 0, dy: 0 });
-    },
-  }), [columnWidth, editMode, onSelectWidget, onWidgetLayoutChange, rowHeight, widget.widgetInstanceId]);
-
-  const resizeResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: () => editMode,
-    onPanResponderGrant: () => {
-      isResizingRef.current = true;
-      onSelectWidget?.(widget.widgetInstanceId);
-      setResizePreview({ dw: 0, dh: 0 });
-    },
-    onPanResponderMove: (_, gestureState) => {
-      if (!editMode) {
-        return;
-      }
-
-      setResizePreview({
-        dw: gestureState.dx,
-        dh: gestureState.dy,
-      });
-    },
-    onPanResponderRelease: (_, gestureState) => {
-      if (!editMode) {
-        return;
-      }
-
-      const layout = layoutRef.current;
-      const dwCols = columnWidth > 0 ? Math.round(gestureState.dx / columnWidth) : 0;
-      const dhRows = rowHeight > 0 ? Math.round(gestureState.dy / rowHeight) : 0;
-      const nextLayout = applyResizeDelta({
-        layout,
-        deltaX: dwCols,
-        deltaY: dhRows,
-      });
-
-      isResizingRef.current = false;
-      setResizePreview({ dw: 0, dh: 0 });
-      onWidgetLayoutChange?.(widget.widgetInstanceId, nextLayout);
-    },
-    onPanResponderTerminate: () => {
-      isResizingRef.current = false;
-      setResizePreview({ dw: 0, dh: 0 });
-    },
-  }), [columnWidth, editMode, onSelectWidget, onWidgetLayoutChange, rowHeight, widget.widgetInstanceId]);
-
-  const previewStyle = useMemo<StyleProp<ViewStyle>>(() => {
-    if (!editMode) {
-      return null;
-    }
-
-    const maxWidthDelta = containerSize.width - width;
-    const maxHeightDelta = containerSize.height - height;
+  const animatedContainerStyle = useAnimatedStyle(() => {
+    const previewWidth = editMode
+      ? clampValue(width + resizePreviewX.value, 48, maxPreviewWidth)
+      : width;
+    const previewHeight = editMode
+      ? clampValue(height + resizePreviewY.value, 48, maxPreviewHeight)
+      : height;
 
     return {
-      width: clampValue(width + resizePreview.dw, 48, Math.max(48, width + maxWidthDelta)),
-      height: clampValue(height + resizePreview.dh, 48, Math.max(48, height + maxHeightDelta)),
+      width: previewWidth,
+      height: previewHeight,
+      opacity: mountOpacity.value,
+      transform: [
+        { translateX: dragTranslateX.value },
+        { translateY: dragTranslateY.value },
+        { scale: mountScale.value },
+      ],
     };
-  }, [containerSize.height, containerSize.width, dragPreview.dx, dragPreview.dy, editMode, height, resizePreview.dh, resizePreview.dw, width]);
+  }, [editMode, height, maxPreviewHeight, maxPreviewWidth, mountOpacity, mountScale, resizePreviewX, resizePreviewY, width, dragTranslateX, dragTranslateY]);
+
+  const commitDragLayout = useCallback((translationX: number, translationY: number) => {
+    if (columnWidth <= 0 || rowHeight <= 0) {
+      return;
+    }
+
+    const nextLayout = applyDragDelta({
+      layout: layoutRef.current,
+      deltaX: Math.round(translationX / columnWidth),
+      deltaY: Math.round(translationY / rowHeight),
+    });
+
+    onWidgetLayoutChange?.(widget.widgetInstanceId, nextLayout);
+  }, [columnWidth, onWidgetLayoutChange, rowHeight, widget.widgetInstanceId]);
+
+  const commitResizeLayout = useCallback((translationX: number, translationY: number) => {
+    if (columnWidth <= 0 || rowHeight <= 0) {
+      return;
+    }
+
+    const nextLayout = applyResizeDelta({
+      layout: layoutRef.current,
+      deltaX: Math.round(translationX / columnWidth),
+      deltaY: Math.round(translationY / rowHeight),
+    });
+
+    onWidgetLayoutChange?.(widget.widgetInstanceId, nextLayout);
+  }, [columnWidth, onWidgetLayoutChange, rowHeight, widget.widgetInstanceId]);
+
+  const updateDragSnap = useCallback((translationX: number, translationY: number) => {
+    if (columnWidth <= 0 || rowHeight <= 0) {
+      setSnapLabel(null);
+      return;
+    }
+
+    const deltaX = Math.round(translationX / columnWidth);
+    const deltaY = Math.round(translationY / rowHeight);
+    setSnapLabel(`Move ${deltaX >= 0 ? "+" : ""}${deltaX} col, ${deltaY >= 0 ? "+" : ""}${deltaY} row`);
+  }, [columnWidth, rowHeight]);
+
+  const updateResizeSnap = useCallback((translationX: number, translationY: number) => {
+    if (columnWidth <= 0 || rowHeight <= 0) {
+      setSnapLabel(null);
+      return;
+    }
+
+    const deltaW = Math.round(translationX / columnWidth);
+    const deltaH = Math.round(translationY / rowHeight);
+    setSnapLabel(`Resize ${deltaW >= 0 ? "+" : ""}${deltaW} col, ${deltaH >= 0 ? "+" : ""}${deltaH} row`);
+  }, [columnWidth, rowHeight]);
+
+  const clearPreview = useCallback(() => {
+    setSnapLabel(null);
+  }, []);
+
+  const dragGesture = useMemo(() => Gesture.Pan()
+    .enabled(canEditSelectedWidget)
+    .onBegin(() => {
+      if (onSelectWidget) {
+        runOnJS(onSelectWidget)(widget.widgetInstanceId);
+      }
+    })
+    .onUpdate((event) => {
+      dragTranslateX.value = event.translationX;
+      dragTranslateY.value = event.translationY;
+      runOnJS(updateDragSnap)(event.translationX, event.translationY);
+    })
+    .onEnd((event) => {
+      runOnJS(commitDragLayout)(event.translationX, event.translationY);
+      dragTranslateX.value = withTiming(0, { duration: 150 });
+      dragTranslateY.value = withTiming(0, { duration: 150 });
+      runOnJS(clearPreview)();
+    })
+    .onFinalize(() => {
+      dragTranslateX.value = withTiming(0, { duration: 100 });
+      dragTranslateY.value = withTiming(0, { duration: 100 });
+      runOnJS(clearPreview)();
+    }),
+  [canEditSelectedWidget, onSelectWidget, widget.widgetInstanceId, dragTranslateX, dragTranslateY, updateDragSnap, commitDragLayout, clearPreview]);
+
+  const resizeGesture = useMemo(() => Gesture.Pan()
+    .enabled(canEditSelectedWidget)
+    .onBegin(() => {
+      if (onSelectWidget) {
+        runOnJS(onSelectWidget)(widget.widgetInstanceId);
+      }
+    })
+    .onUpdate((event) => {
+      resizePreviewX.value = event.translationX;
+      resizePreviewY.value = event.translationY;
+      runOnJS(updateResizeSnap)(event.translationX, event.translationY);
+    })
+    .onEnd((event) => {
+      runOnJS(commitResizeLayout)(event.translationX, event.translationY);
+      resizePreviewX.value = withTiming(0, { duration: 150 });
+      resizePreviewY.value = withTiming(0, { duration: 150 });
+      runOnJS(clearPreview)();
+    })
+    .onFinalize(() => {
+      resizePreviewX.value = withTiming(0, { duration: 100 });
+      resizePreviewY.value = withTiming(0, { duration: 100 });
+      runOnJS(clearPreview)();
+    }),
+  [canEditSelectedWidget, onSelectWidget, widget.widgetInstanceId, resizePreviewX, resizePreviewY, updateResizeSnap, commitResizeLayout, clearPreview]);
 
   const content = useMemo(() => {
     if (widget.state === "loading") {
       return (
         <View style={styles.centered}>
-          <ActivityIndicator size="small" color="#d8d8d8" />
+          <ActivityIndicator size="small" color={colors.textPrimary} />
         </View>
       );
     }
@@ -191,7 +247,9 @@ function WidgetContainerBase({
     if (widget.state === "error") {
       return (
         <View style={styles.centered}>
-          <Text style={styles.errorText}>{getWidgetErrorLabel(widget)}</Text>
+          <Text variant="caption" color="error">
+            {getWidgetErrorLabel(widget)}
+          </Text>
         </View>
       );
     }
@@ -199,14 +257,16 @@ function WidgetContainerBase({
     if (widget.state === "empty") {
       return (
         <View style={styles.centered}>
-          <Text style={styles.emptyText}>No data</Text>
+          <Text variant="caption" color="textSecondary">
+            No data
+          </Text>
         </View>
       );
     }
 
     return (
       <View style={styles.readyViewport}>
-        <View style={[styles.readyCanvas, { transform: [{ scale }] }]}>
+        <View style={[styles.readyCanvas, { transform: [{ scale }] }]}> 
           {renderWidgetFromKey(widget.widgetKey, {
             widgetInstanceId: widget.widgetInstanceId,
             state: widget.state,
@@ -215,7 +275,9 @@ function WidgetContainerBase({
             meta: widget.meta,
           }) ?? (
             <View style={styles.centered}>
-              <Text style={styles.emptyText}>Unsupported widget plugin</Text>
+              <Text variant="caption" color="textSecondary">
+                Unsupported widget plugin
+              </Text>
             </View>
           )}
         </View>
@@ -223,53 +285,51 @@ function WidgetContainerBase({
     );
   }, [scale, widget]);
 
+  const AnimatedView = Animated.View as unknown as React.ComponentType<any>;
+
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        frameStyle,
-        previewStyle,
-        editMode ? styles.editModeContainer : null,
-        editMode && isSelected ? styles.selectedContainer : null,
-        {
-          opacity: mountOpacity,
-          transform: [
-            { translateX: editMode ? dragPreview.dx : 0 },
-            { translateY: editMode ? dragPreview.dy : 0 },
-            { scale: mountScale },
-          ],
-        },
-      ]}
-      {...(editMode ? dragResponder.panHandlers : {})}
-    >
-      <View style={styles.contentPressArea}>
+    <GestureDetector gesture={dragGesture}>
+      <AnimatedView
+        style={[
+          styles.container,
+          frameStyle,
+          animatedContainerStyle,
+          editMode ? styles.editModeContainer : null,
+          canEditSelectedWidget ? styles.selectedContainer : null,
+          editMode && hasSelectedWidget && isSelected === false ? styles.secondaryInEditMode : null,
+        ] as any}
+      >
         <Pressable
-          disabled={!editMode}
+          accessibilityRole={editMode ? "button" : undefined}
+          disabled={editMode === false}
           style={styles.contentPressArea}
           onPress={() => {
-            if (editMode) {
-              onSelectWidget?.(widget.widgetInstanceId);
+            if (editMode && onSelectWidget) {
+              onSelectWidget(widget.widgetInstanceId);
             }
           }}
         >
           {content}
         </Pressable>
-        {editMode ? (
-          <Pressable
-            accessibilityRole="button"
-            style={styles.settingsButton}
-            onPress={() => onOpenWidgetSettings?.(widget.widgetInstanceId)}
-          >
-            <Text style={styles.settingsButtonLabel}>Settings</Text>
-          </Pressable>
-        ) : null}
-        {editMode ? (
-          <View style={styles.resizeHandle} {...resizeResponder.panHandlers}>
-            <View style={styles.resizeHandleGlyph} />
-          </View>
-        ) : null}
-      </View>
-    </Animated.View>
+
+        <WidgetContextActions
+          visible={canEditSelectedWidget}
+          onSettings={
+            onOpenWidgetSettings
+              ? () => onOpenWidgetSettings(widget.widgetInstanceId)
+              : undefined
+          }
+        />
+
+        <WidgetEditHandles visible={canEditSelectedWidget} snapLabel={snapLabel}>
+          <GestureDetector gesture={resizeGesture}>
+            <View style={styles.resizeHandle}>
+              <AppIcon name="plus" size="sm" color="textPrimary" />
+            </View>
+          </GestureDetector>
+        </WidgetEditHandles>
+      </AnimatedView>
+    </GestureDetector>
   );
 }
 
@@ -289,6 +349,7 @@ export const WidgetContainer = memo(WidgetContainerBase, (prevProps, nextProps) 
     && prevProps.animationPhase === nextProps.animationPhase
     && prevProps.editMode === nextProps.editMode
     && prevProps.isSelected === nextProps.isSelected
+    && prevProps.hasSelectedWidget === nextProps.hasSelectedWidget
     && prevFrame.left === nextFrame.left
     && prevFrame.top === nextFrame.top
     && prevFrame.width === nextFrame.width
@@ -299,30 +360,32 @@ export const WidgetContainer = memo(WidgetContainerBase, (prevProps, nextProps) 
 const styles = StyleSheet.create({
   container: {
     position: "absolute",
-    borderRadius: 18,
+    borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    borderColor: `${colors.surface}CC`,
+    backgroundColor: `${colors.textPrimary}08`,
     overflow: "hidden",
-    padding: 12,
+    padding: spacing.md,
   },
   contentPressArea: {
     flex: 1,
   },
   editModeContainer: {
-    borderColor: "rgba(93, 174, 255, 0.5)",
-    borderStyle: "dashed",
-    backgroundColor: "rgba(26, 53, 84, 0.2)",
+    borderColor: `${colors.textSecondary}AA`,
+    backgroundColor: `${colors.surface}66`,
   },
   selectedContainer: {
-    borderColor: "rgba(93, 174, 255, 0.95)",
-    shadowColor: "#5DAEFF",
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    borderColor: `${colors.accent}EE`,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 0,
     },
+  },
+  secondaryInEditMode: {
+    opacity: 0.72,
   },
   centered: {
     flex: 1,
@@ -333,59 +396,23 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   readyCanvas: {
     width: 640,
     height: 360,
   },
-  errorText: {
-    color: "#ff9b9b",
-    fontSize: 12,
-    textAlign: "center",
-  },
-  emptyText: {
-    color: "#9a9a9a",
-    fontSize: 12,
-    textAlign: "center",
-  },
   resizeHandle: {
     position: "absolute",
-    right: 4,
-    bottom: 4,
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(93, 174, 255, 0.9)",
-    backgroundColor: "rgba(14, 28, 43, 0.95)",
+    right: spacing.sm,
+    bottom: spacing.sm,
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
-  },
-  resizeHandleGlyph: {
-    width: 12,
-    height: 12,
-    borderRightWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: "#b0d8ff",
-  },
-  settingsButton: {
-    position: "absolute",
-    top: 6,
-    left: 6,
-    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(93, 174, 255, 0.9)",
-    backgroundColor: "rgba(14, 28, 43, 0.95)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  settingsButtonLabel: {
-    color: "#d7ecff",
-    fontSize: 11,
-    fontWeight: "700",
+    borderColor: `${colors.accent}AA`,
+    borderRadius: radius.sm,
+    backgroundColor: `${colors.backgroundPrimary}CC`,
   },
 });
-
-function clampValue(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}

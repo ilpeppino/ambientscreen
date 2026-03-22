@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import type { LayoutChangeEvent, ViewStyle } from "react-native";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import {
@@ -15,6 +15,8 @@ import {
   DISPLAY_GRID_COLUMNS,
   type WidgetLayout,
 } from "./LayoutGrid.logic";
+import { GridOverlay } from "./GridOverlay";
+import { shouldShowGridOverlay } from "./editMode.logic";
 import { WidgetContainer } from "./WidgetContainer";
 
 interface LayoutGridProps {
@@ -22,6 +24,7 @@ interface LayoutGridProps {
   editMode?: boolean;
   selectedWidgetId?: string | null;
   onSelectWidget?: (widgetId: string) => void;
+  onClearWidgetSelection?: () => void;
   onWidgetLayoutChange?: (widgetId: string, layout: WidgetLayout) => void;
   onOpenWidgetSettings?: (widgetId: string) => void;
 }
@@ -36,6 +39,7 @@ export function LayoutGrid({
   editMode = false,
   selectedWidgetId = null,
   onSelectWidget,
+  onClearWidgetSelection,
   onWidgetLayoutChange,
   onOpenWidgetSettings,
 }: LayoutGridProps) {
@@ -63,7 +67,8 @@ export function LayoutGrid({
   }, [widgets]);
 
   useEffect(() => {
-    if (!animatedWidgetEntries.some((entry) => entry.phase !== "stable")) {
+    const hasTransitioningWidgets = animatedWidgetEntries.some((entry) => entry.phase !== "stable");
+    if (hasTransitioningWidgets === false) {
       return () => undefined;
     }
 
@@ -127,6 +132,13 @@ export function LayoutGrid({
 
   return (
     <View style={styles.container} onLayout={handleLayout}>
+      {editMode ? (
+        <Pressable
+          accessibilityRole="button"
+          style={styles.backgroundSelectionLayer}
+          onPress={onClearWidgetSelection}
+        />
+      ) : null}
       {positionedWidgets.map(({ widgetEntry, frameStyle }) => (
         <WidgetContainer
           key={widgetEntry.key}
@@ -134,6 +146,7 @@ export function LayoutGrid({
           frameStyle={frameStyle}
           animationPhase={widgetEntry.phase}
           editMode={editMode}
+          hasSelectedWidget={selectedWidgetId !== null}
           isSelected={widgetEntry.item.widgetInstanceId === selectedWidgetId}
           containerSize={containerSize}
           onSelectWidget={onSelectWidget}
@@ -141,36 +154,11 @@ export function LayoutGrid({
           onOpenWidgetSettings={onOpenWidgetSettings}
         />
       ))}
-      {editMode ? <GridOverlay /> : null}
-    </View>
-  );
-}
-
-function GridOverlay() {
-  return (
-    <View pointerEvents="none" style={styles.gridOverlay}>
-      {Array.from({ length: DISPLAY_GRID_COLUMNS - 1 }).map((_, index) => (
-        <View
-          key={`col-${index + 1}`}
-          style={[
-            styles.verticalGridLine,
-            {
-              left: `${((index + 1) / DISPLAY_GRID_COLUMNS) * 100}%`,
-            },
-          ]}
-        />
-      ))}
-      {Array.from({ length: DISPLAY_GRID_BASE_ROWS - 1 }).map((_, index) => (
-        <View
-          key={`row-${index + 1}`}
-          style={[
-            styles.horizontalGridLine,
-            {
-              top: `${((index + 1) / DISPLAY_GRID_BASE_ROWS) * 100}%`,
-            },
-          ]}
-        />
-      ))}
+      <GridOverlay
+        visible={shouldShowGridOverlay(editMode)}
+        columns={DISPLAY_GRID_COLUMNS}
+        rows={DISPLAY_GRID_BASE_ROWS}
+      />
     </View>
   );
 }
@@ -180,21 +168,7 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative",
   },
-  gridOverlay: {
+  backgroundSelectionLayer: {
     ...StyleSheet.absoluteFillObject,
-  },
-  verticalGridLine: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-  },
-  horizontalGridLine: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
 });
