@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import type {
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
@@ -9,6 +9,8 @@ import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
 export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDate">) {
   const hasData = Boolean(data?.formattedTime);
+  const { width } = useWindowDimensions();
+  const scale = clamp(width / 1280, 0.5, 1);
 
   return (
     <BaseWidgetFrame
@@ -19,17 +21,38 @@ export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDat
       emptyMessage="No clock data available."
       contentStyle={styles.content}
     >
-      <Text style={styles.time}>{data?.formattedTime}</Text>
+      <Text
+        style={[
+          styles.time,
+          {
+            fontSize: Math.round(112 * scale),
+            lineHeight: Math.round(118 * scale),
+          },
+        ]}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        minimumFontScale={0.5}
+      >
+        {data?.formattedTime}
+      </Text>
       <View style={styles.metaGroup}>
         {data?.weekdayLabel ? (
-          <Text style={styles.weekday}>{data.weekdayLabel}</Text>
+          <Text style={[styles.weekday, { fontSize: Math.round(28 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {data.weekdayLabel}
+          </Text>
         ) : null}
         {data?.formattedDate ? (
-          <Text style={styles.date}>{data.formattedDate}</Text>
+          <Text style={[styles.date, { fontSize: Math.round(24 * scale), lineHeight: Math.round(30 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+            {data.formattedDate}
+          </Text>
         ) : null}
       </View>
     </BaseWidgetFrame>
   );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
 }
 
 const styles = StyleSheet.create({

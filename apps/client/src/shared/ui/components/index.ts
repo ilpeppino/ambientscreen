@@ -8,3 +8,4 @@ export {
 } from "./appIconTokens";
 export { Box } from "./Box";
 export { Text } from "./Text";
+export { TextInput } from "./TextInput";

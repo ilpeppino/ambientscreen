@@ -7,9 +7,9 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import {
   getDisplayLayout,
   type DisplayLayoutWidgetEnvelope,
@@ -898,10 +898,10 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             </View>
             {!isSharedMode ? (
               <View style={styles.sharedSessionRow}>
-                <TextInput
+                <AppTextInput
                   value={newSharedSessionName}
                   onChangeText={setNewSharedSessionName}
-                  style={styles.sharedSessionNameInput}
+                  inputStyle={styles.sharedSessionNameInput}
                   placeholder="Session name"
                   placeholderTextColor="#6b6b6b"
                 />
@@ -997,11 +997,11 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             </View>
             <View style={styles.slideshowRow}>
               <Text style={styles.slideshowLabel}>Interval (s)</Text>
-              <TextInput
+              <AppTextInput
                 value={slideshowIntervalSecInput}
                 onChangeText={setSlideshowIntervalSecInput}
                 keyboardType="numeric"
-                style={styles.slideshowIntervalInput}
+                inputStyle={styles.slideshowIntervalInput}
                 placeholder="60"
                 placeholderTextColor="#6b6b6b"
               />

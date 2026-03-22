@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, shadows, spacing } from "../theme";
 
 interface WidgetSurfaceProps {
   children?: React.ReactNode;
@@ -41,6 +41,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.08)",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
+    ...shadows.subtle,
   },
   surfaceEdit: {
     borderWidth: 1,
@@ -50,5 +51,6 @@ const styles = StyleSheet.create({
   surfaceSelected: {
     borderColor: colors.accent,
     backgroundColor: "rgba(245, 166, 35, 0.08)",
+    ...shadows.selected,
   },
 });

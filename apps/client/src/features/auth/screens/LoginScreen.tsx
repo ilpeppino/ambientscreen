@@ -5,10 +5,10 @@ import {
   SafeAreaView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import { useAuth } from "../auth.context";
+import { TextInput as AppTextInput } from "../../../shared/ui/components";
 
 type AuthMode = "login" | "register";
 
@@ -43,21 +43,21 @@ export function LoginScreen() {
     <SafeAreaView style={styles.root}>
       <View style={styles.card}>
         <Text style={styles.title}>{title}</Text>
-        <TextInput
+        <AppTextInput
           value={email}
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
           placeholder="Email"
-          style={styles.input}
+          inputStyle={styles.input}
         />
-        <TextInput
+        <AppTextInput
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           placeholder="Password"
-          style={styles.input}
+          inputStyle={styles.input}
         />
 
         {error ? <Text style={styles.error}>{error}</Text> : null}

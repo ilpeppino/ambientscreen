@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import type { WidgetRendererProps } from "@ambient/shared-contracts";
 import { AppIcon, Text } from "../../shared/ui/components";
 import { colors, radius, spacing } from "../../shared/ui/theme";
@@ -8,6 +8,8 @@ import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 const MAX_VISIBLE_EVENTS = 3;
 
 export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar">) {
+  const { width } = useWindowDimensions();
+  const scale = clamp(width / 1280, 0.6, 1);
   const hasData = Boolean(data && data.events.length > 0);
 
   const visibleEvents = data?.events.slice(0, MAX_VISIBLE_EVENTS) ?? [];
@@ -22,19 +24,36 @@ export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar"
       emptyMessage="No upcoming events."
       contentStyle={styles.content}
     >
-      <Text style={styles.count}>{data?.upcomingCount ?? 0} upcoming</Text>
+      <Text
+        style={[
+          styles.count,
+          {
+            fontSize: Math.round(40 * scale),
+            lineHeight: Math.round(46 * scale),
+          },
+        ]}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        minimumFontScale={0.65}
+      >
+        {data?.upcomingCount ?? 0} upcoming
+      </Text>
       <View style={styles.eventsList}>
         {visibleEvents.map((event) => (
           <View key={event.id} style={styles.eventRow}>
-            <Text style={styles.eventTitle} numberOfLines={1}>{event.title}</Text>
+            <Text style={[styles.eventTitle, { fontSize: Math.round(22 * scale), lineHeight: Math.round(28 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {event.title}
+            </Text>
             <View style={styles.metaRow}>
               <AppIcon name="clock" size="sm" color="textSecondary" />
-              <Text style={styles.eventMeta} numberOfLines={1}>
+              <Text style={[styles.eventMeta, { fontSize: Math.round(17 * scale), lineHeight: Math.round(22 * scale) }]} numberOfLines={1}>
                 {formatEventTime(event.startIso, event.allDay)}
               </Text>
             </View>
             {event.location ? (
-              <Text style={styles.eventMeta} numberOfLines={1}>{event.location}</Text>
+              <Text style={[styles.eventMeta, { fontSize: Math.round(17 * scale), lineHeight: Math.round(22 * scale) }]} numberOfLines={1}>
+                {event.location}
+              </Text>
             ) : null}
           </View>
         ))}
@@ -44,6 +63,10 @@ export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar"
       </View>
     </BaseWidgetFrame>
   );
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
 }
 
 const styles = StyleSheet.create({
