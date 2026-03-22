@@ -37,6 +37,7 @@ import {
   getDisplayStatusModel,
 } from "../displayScreen.logic";
 import { LayoutGrid } from "../components/LayoutGrid";
+import { EditModeHint } from "../components/EditModeHint";
 import { WidgetSettingsModal } from "../components/WidgetSettingsModal";
 import { applyWidgetConfigUpdate } from "../components/WidgetSettingsModal.logic";
 import {
@@ -45,6 +46,7 @@ import {
   resolveWidgetLayoutCollision,
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
+import { shouldShowEditModeHint } from "../components/editMode.logic";
 import {
   getWidgetPlugin,
 } from "../../../widgets/pluginRegistry";
@@ -799,6 +801,9 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             editMode={editMode}
             selectedWidgetId={selectedWidgetId}
             onSelectWidget={setSelectedWidgetId}
+            onClearWidgetSelection={() => {
+              setSelectedWidgetId(null);
+            }}
             onWidgetLayoutChange={handleWidgetLayoutChange}
             onOpenWidgetSettings={handleOpenWidgetSettings}
           />
@@ -816,6 +821,9 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             <LayoutGrid widgets={outgoingWidgets} />
           </Animated.View>
         ) : null}
+        <EditModeHint
+          visible={shouldShowEditModeHint(editMode, selectedWidgetId)}
+        />
       </View>
     );
   }, [
