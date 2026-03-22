@@ -42,6 +42,7 @@ interface AdminHomeScreenProps {
   currentDeviceId: string | null;
   onEnterDisplayMode: () => void;
   onEnterRemoteControlMode: () => void;
+  onEnterMarketplace: () => void;
   onLogout: () => void;
 }
 
@@ -58,6 +59,7 @@ export function AdminHomeScreen({
   currentDeviceId,
   onEnterDisplayMode,
   onEnterRemoteControlMode,
+  onEnterMarketplace,
   onLogout,
 }: AdminHomeScreenProps) {
   const { plan, hasFeature } = useEntitlements();
@@ -693,6 +695,13 @@ export function AdminHomeScreen({
       <View style={styles.footer}>
         <Pressable
           accessibilityRole="button"
+          style={styles.marketplaceButton}
+          onPress={onEnterMarketplace}
+        >
+          <Text style={styles.marketplaceButtonLabel}>Plugin Marketplace</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           style={styles.displayButton}
           onPress={onEnterDisplayMode}
         >
@@ -1015,6 +1024,19 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     paddingTop: 8,
     gap: 10,
+  },
+  marketplaceButton: {
+    backgroundColor: "#1a2a1a",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2d5c2d",
+  },
+  marketplaceButtonLabel: {
+    color: "#4caf50",
+    fontWeight: "700",
+    fontSize: 15,
   },
   displayButton: {
     backgroundColor: "#fff",
