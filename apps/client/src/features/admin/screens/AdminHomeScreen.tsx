@@ -3,12 +3,13 @@ import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
 import {
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import {
   ActionRow,
   EmptyPanel,
@@ -31,6 +32,7 @@ import {
 } from "../../../services/api/devicesApi";
 import type { Device } from "@ambient/shared-contracts";
 import { useCloudProfiles } from "../../profiles/useCloudProfiles";
+import { DeviceCard } from "../../devices/DeviceCard";
 import {
   buildCreateWidgetInput,
   CALENDAR_PROVIDERS,
@@ -50,15 +52,6 @@ interface AdminHomeScreenProps {
   onEnterRemoteControlMode: () => void;
   onEnterMarketplace: () => void;
   onLogout: () => void;
-}
-
-function formatLastSeenAt(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
-
-  return date.toLocaleString();
 }
 
 export function AdminHomeScreen({
@@ -379,7 +372,7 @@ export function AdminHomeScreen({
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen}>
       <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
         <SectionHeader
           icon="settings"
@@ -411,13 +404,12 @@ export function AdminHomeScreen({
           />
 
           <View style={styles.inlineFields}>
-            <TextInput
+            <AppTextInput
               accessibilityLabel="New profile name"
               style={[styles.textInput, styles.growInput]}
               value={newProfileName}
               onChangeText={setNewProfileName}
               placeholder="New profile name"
-              placeholderTextColor="#7f7f7f"
             />
             <ManagementActionButton
               label="Create"
@@ -429,13 +421,12 @@ export function AdminHomeScreen({
           </View>
 
           <View style={styles.inlineFields}>
-            <TextInput
+            <AppTextInput
               accessibilityLabel="Rename active profile"
               style={[styles.textInput, styles.growInput]}
               value={renameProfileName}
               onChangeText={setRenameProfileName}
               placeholder="Rename active profile"
-              placeholderTextColor="#7f7f7f"
             />
             <ManagementActionButton
               label="Rename"
@@ -469,25 +460,13 @@ export function AdminHomeScreen({
                 const isDeleting = deletingDeviceId === device.id;
 
                 return (
-                  <ManagementCard
+                  <DeviceCard
                     key={device.id}
-                    title={device.name}
-                    subtitle={`${device.platform} / ${device.deviceType}`}
-                    icon="grid"
-                    badges={
-                      <View style={styles.badgesRow}>
-                        <InlineStatusBadge
-                          label={device.connectionStatus === "online" ? "Online" : "Offline"}
-                          tone={device.connectionStatus === "online" ? "success" : "warning"}
-                          icon={device.connectionStatus === "online" ? "check" : "close"}
-                        />
-                        {isCurrentDevice ? <InlineStatusBadge label="This device" tone="info" icon="star" /> : null}
-                      </View>
-                    }
+                    device={device}
+                    isCurrentDevice={isCurrentDevice}
                   >
-                    <Text style={styles.deviceMeta}>Last seen: {formatLastSeenAt(device.lastSeenAt)}</Text>
                     <View style={styles.inlineFields}>
-                      <TextInput
+                      <AppTextInput
                         accessibilityLabel={`Rename device ${device.name}`}
                         style={[styles.textInput, styles.growInput]}
                         value={renameDraftByDeviceId[device.id] ?? ""}
@@ -498,7 +477,6 @@ export function AdminHomeScreen({
                           }));
                         }}
                         placeholder="Device name"
-                        placeholderTextColor="#7f7f7f"
                       />
                       <ManagementActionButton
                         label="Rename"
@@ -519,7 +497,7 @@ export function AdminHomeScreen({
                         }}
                       />
                     </View>
-                  </ManagementCard>
+                  </DeviceCard>
                 );
               })}
             </View>
@@ -564,7 +542,7 @@ export function AdminHomeScreen({
           {selectedWidgetType === "weather" ? (
             <View style={styles.stack}>
               <Text style={styles.fieldLabel}>Location</Text>
-              <TextInput
+              <AppTextInput
                 accessibilityLabel="Weather location"
                 autoCapitalize="words"
                 autoCorrect={false}
@@ -572,7 +550,6 @@ export function AdminHomeScreen({
                 value={weatherLocation}
                 onChangeText={setWeatherLocation}
                 placeholder="City or location"
-                placeholderTextColor="#7f7f7f"
               />
               <Text style={styles.fieldLabel}>Units</Text>
               <FilterChips
@@ -590,7 +567,7 @@ export function AdminHomeScreen({
                 onChange={(next) => setCalendarProvider(next as CalendarProvider)}
               />
               <Text style={styles.fieldLabel}>Account (iCal URL)</Text>
-              <TextInput
+              <AppTextInput
                 accessibilityLabel="Calendar account"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -598,7 +575,6 @@ export function AdminHomeScreen({
                 value={calendarAccount}
                 onChangeText={setCalendarAccount}
                 placeholder="https://calendar.example.com/feed.ics"
-                placeholderTextColor="#7f7f7f"
               />
               <Text style={styles.fieldLabel}>Time window</Text>
               <FilterChips
@@ -670,7 +646,7 @@ export function AdminHomeScreen({
       </ScrollView>
 
       <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -678,7 +654,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#090c13",
-    paddingTop: 24,
   },
   content: {
     flex: 1,
@@ -710,15 +685,6 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: 10,
-  },
-  badgesRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  deviceMeta: {
-    color: "#a3a3a3",
-    fontSize: 12,
   },
   fieldLabel: {
     color: "#d1d5db",

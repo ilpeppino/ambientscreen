@@ -9,6 +9,7 @@ vi.mock("react-native", () => {
   return {
     View: (props: Record<string, unknown>) => ReactRuntime.createElement("view", props, props.children),
     Text: (props: Record<string, unknown>) => ReactRuntime.createElement("text", props, props.children),
+    useWindowDimensions: () => ({ width: 1280, height: 720, scale: 1, fontScale: 1 }),
     StyleSheet: {
       create: <T extends Record<string, unknown>>(styles: T) => styles,
     },

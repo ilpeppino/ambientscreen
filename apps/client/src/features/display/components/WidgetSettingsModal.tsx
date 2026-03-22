@@ -6,10 +6,10 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
 import type { WidgetConfigSchema } from "@ambient/shared-contracts";
+import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import {
   buildConfigDraft,
   buildFieldDescriptors,
@@ -211,13 +211,13 @@ function FieldEditor({
 
   if (descriptor.kind === "number") {
     return (
-      <TextInput
+      <AppTextInput
         value={typeof value === "number" && Number.isFinite(value) ? String(value) : ""}
         onChangeText={(nextValue) => {
           const parsed = Number.parseInt(nextValue, 10);
           onNumberChange(Number.isNaN(parsed) ? 0 : parsed);
         }}
-        style={styles.textInput}
+        inputStyle={styles.textInput}
         autoCorrect={false}
         autoCapitalize="none"
         keyboardType="numeric"
@@ -226,10 +226,10 @@ function FieldEditor({
   }
 
   return (
-    <TextInput
+    <AppTextInput
       value={typeof value === "string" ? value : ""}
       onChangeText={onStringChange}
-      style={styles.textInput}
+      inputStyle={styles.textInput}
       autoCorrect={false}
       autoCapitalize="none"
     />

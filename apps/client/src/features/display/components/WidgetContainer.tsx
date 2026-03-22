@@ -11,7 +11,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import { AppIcon } from "../../../shared/ui/components";
 import { Text } from "../../../shared/ui/components/Text";
-import { colors, radius, spacing } from "../../../shared/ui/theme";
+import { colors, radius, shadows, spacing } from "../../../shared/ui/theme";
 import { WidgetState } from "../../../shared/ui/widgets";
 import type { AnimatedItemPhase } from "../animations/transitionManager";
 import { renderWidgetFromKey } from "../../../widgets/pluginRegistry";
@@ -390,13 +390,7 @@ const styles = StyleSheet.create({
   },
   selectedContainer: {
     borderColor: `${colors.accent}EE`,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.28,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
+    ...shadows.selected,
   },
   secondaryInEditMode: {
     opacity: 0.72,

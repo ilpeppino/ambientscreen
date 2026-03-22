@@ -7,6 +7,7 @@ import {
   ManagementCard,
 } from "../../../shared/ui/management";
 import type { MarketplacePlugin } from "../marketplace.types";
+import { InstallActionButton } from "./InstallActionButton";
 
 interface PluginCardProps {
   plugin: MarketplacePlugin;
@@ -64,25 +65,14 @@ export function PluginCard({
       disabled={anyLocked}
       footer={
         <ActionRow>
-          {!isInstallationLocked && !isPremiumLocked && !plugin.isInstalled ? (
-            <ManagementActionButton
-              label="Install"
-              tone="primary"
-              icon="plus"
-              loading={actionInProgress}
-              onPress={onInstall}
-            />
-          ) : null}
-
-          {plugin.isInstalled && !isInstallationLocked && !isPremiumLocked ? (
-            <ManagementActionButton
-              label="Uninstall"
-              tone="destructive"
-              icon="trash"
-              loading={actionInProgress}
-              onPress={onUninstall}
-            />
-          ) : null}
+          <InstallActionButton
+            isInstalled={plugin.isInstalled}
+            isPremiumLocked={isPremiumLocked}
+            isInstallationLocked={isInstallationLocked}
+            loading={actionInProgress}
+            onInstall={onInstall}
+            onUninstall={onUninstall}
+          />
 
           <ManagementActionButton
             label="View details"
