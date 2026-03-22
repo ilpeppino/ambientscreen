@@ -10,6 +10,7 @@ import {
 } from "../../../shared/ui/management";
 import { getRegistryPluginByKey, type RegistryPluginDetail } from "../../../services/api/pluginRegistryApi";
 import type { MarketplacePlugin } from "../marketplace.types";
+import { InstallActionButton } from "./InstallActionButton";
 
 interface PluginDetailModalProps {
   plugin: MarketplacePlugin | null;
@@ -166,24 +167,14 @@ export function PluginDetailModal({
             ) : null}
 
             <ActionRow>
-              {!isInstallationLocked && !isPremiumLocked && !plugin.isInstalled ? (
-                <ManagementActionButton
-                  label="Install"
-                  tone="primary"
-                  icon="plus"
-                  loading={actionInProgress}
-                  onPress={onInstall}
-                />
-              ) : null}
-              {plugin.isInstalled ? (
-                <ManagementActionButton
-                  label="Uninstall"
-                  tone="destructive"
-                  icon="trash"
-                  loading={actionInProgress}
-                  onPress={onUninstall}
-                />
-              ) : null}
+              <InstallActionButton
+                isInstalled={plugin.isInstalled}
+                isPremiumLocked={isPremiumLocked}
+                isInstallationLocked={isInstallationLocked}
+                loading={actionInProgress}
+                onInstall={onInstall}
+                onUninstall={onUninstall}
+              />
               <ManagementActionButton label="Back" tone="passive" icon="chevronLeft" onPress={onClose} />
             </ActionRow>
           </ScrollView>

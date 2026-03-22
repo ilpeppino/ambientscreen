@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
+    "@shopify/flash-list": "^2.3.0",
     "expo": "~54.0.0",
     "expo-keep-awake": "~14.0.2",
     "expo-screen-orientation": "~8.0.4",

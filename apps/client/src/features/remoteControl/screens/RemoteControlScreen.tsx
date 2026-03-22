@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ScrollView, StyleSheet, Switch, View } from "react-native";
+import { SafeAreaView, ScrollView, StyleSheet, Switch, View } from "react-native";
 import type { Device } from "@ambient/shared-contracts";
 import { Text } from "../../../shared/ui/components";
 import {
@@ -12,38 +12,11 @@ import {
 } from "../../../shared/ui/management";
 import { getDevices, sendDeviceCommand } from "../../../services/api/devicesApi";
 import { useCloudProfiles } from "../../profiles/useCloudProfiles";
+import { DeviceCard } from "../../devices/DeviceCard";
 
 interface RemoteControlScreenProps {
   currentDeviceId: string | null;
   onBack: () => void;
-}
-
-function formatPresence(device: Device): "online" | "offline" | "unknown" {
-  const explicitStatus = device.connectionStatus;
-  if (explicitStatus === "online") {
-    return "online";
-  }
-
-  if (explicitStatus === "offline") {
-    return "offline";
-  }
-
-  const lastSeenDate = new Date(device.lastSeenAt);
-  if (Number.isNaN(lastSeenDate.getTime())) {
-    return "unknown";
-  }
-
-  const isLikelyOnline = Date.now() - lastSeenDate.getTime() < 5 * 60 * 1000;
-  return isLikelyOnline ? "online" : "offline";
-}
-
-function formatLastSeen(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Unknown";
-  }
-
-  return date.toLocaleString();
 }
 
 export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlScreenProps) {
@@ -140,7 +113,7 @@ export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlSc
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
         <ManagementActionButton label="Back" tone="passive" icon="chevronLeft" onPress={onBack} />
       </View>
@@ -183,31 +156,15 @@ export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlSc
             <ScrollView style={styles.devicesList} contentContainerStyle={styles.devicesContent}>
               {devices.map((device) => {
                 const selected = device.id === selectedDeviceId;
-                const presence = formatPresence(device);
 
                 return (
-                  <ManagementCard
+                  <DeviceCard
                     key={device.id}
-                    title={device.name}
-                    subtitle={`${device.platform} / ${device.deviceType}`}
-                    icon="grid"
+                    device={device}
+                    selected={selected}
+                    isCurrentDevice={device.id === currentDeviceId}
                     onPress={() => setSelectedDeviceId(device.id)}
-                    badges={
-                      <>
-                        <InlineStatusBadge
-                          label={presence}
-                          tone={presence === "online" ? "success" : presence === "offline" ? "warning" : "neutral"}
-                          icon={presence === "online" ? "check" : "close"}
-                        />
-                        {device.id === currentDeviceId ? (
-                          <InlineStatusBadge label="This device" tone="info" icon="star" />
-                        ) : null}
-                        {selected ? <InlineStatusBadge label="Selected" tone="info" icon="check" /> : null}
-                      </>
-                    }
-                  >
-                    <Text style={styles.deviceMeta}>Last seen: {formatLastSeen(device.lastSeenAt)}</Text>
-                  </ManagementCard>
+                  />
                 );
               })}
             </ScrollView>
@@ -257,7 +214,7 @@ export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlSc
 
         {error ? <EmptyPanel variant="error" title="Remote control error" message={error} /> : null}
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -265,7 +222,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#090c13",
-    paddingTop: 24,
   },
   topBar: {
     paddingHorizontal: 20,
@@ -283,10 +239,6 @@ const styles = StyleSheet.create({
   },
   devicesContent: {
     gap: 10,
-  },
-  deviceMeta: {
-    color: "#a3a3a3",
-    fontSize: 12,
   },
   toggleRow: {
     marginTop: 6,

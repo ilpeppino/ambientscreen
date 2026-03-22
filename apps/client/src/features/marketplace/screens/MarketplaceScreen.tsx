@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { SafeAreaView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import { Text } from "../../../shared/ui/components";
 import {
   EmptyPanel,
@@ -131,7 +132,7 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
   }
 
   return (
-    <View style={styles.screen}>
+    <SafeAreaView style={styles.screen}>
       <View style={styles.topBar}>
         <ManagementActionButton label="Back" icon="chevronLeft" tone="passive" onPress={onBack} />
       </View>
@@ -211,30 +212,34 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
             }
           />
         ) : (
-          <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-            <View style={styles.cardsRow}>
-              {visiblePlugins.map((plugin) => {
-                const locked = isPremiumLocked(plugin);
-                const installLocked = isInstallationLocked();
-                const busy = actionInProgress === plugin.id;
+          <FlashList
+            data={visiblePlugins}
+            numColumns={columns}
+            key={columns}
+            style={styles.list}
+            contentContainerStyle={styles.listContent}
+            keyExtractor={(plugin) => plugin.id}
+            renderItem={({ item: plugin }) => {
+              const locked = isPremiumLocked(plugin);
+              const installLocked = isInstallationLocked();
+              const busy = actionInProgress === plugin.id;
 
-                return (
-                  <View key={plugin.id} style={[styles.cardWrap, { width: `${100 / columns}%` }]}>
-                    <PluginCard
-                      plugin={plugin}
-                      actionInProgress={busy}
-                      isPremiumLocked={locked}
-                      isInstallationLocked={installLocked}
-                      onInstall={() => void handleInstall(plugin)}
-                      onUninstall={() => void handleUninstall(plugin)}
-                      onToggleEnabled={(enabled) => void handleToggleEnabled(plugin, enabled)}
-                      onViewDetails={() => setSelectedPlugin(plugin)}
-                    />
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
+              return (
+                <View style={styles.cardWrap}>
+                  <PluginCard
+                    plugin={plugin}
+                    actionInProgress={busy}
+                    isPremiumLocked={locked}
+                    isInstallationLocked={installLocked}
+                    onInstall={() => void handleInstall(plugin)}
+                    onUninstall={() => void handleUninstall(plugin)}
+                    onToggleEnabled={(enabled) => void handleToggleEnabled(plugin, enabled)}
+                    onViewDetails={() => setSelectedPlugin(plugin)}
+                  />
+                </View>
+              );
+            }}
+          />
         )}
       </View>
 
@@ -252,7 +257,7 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
           onToggleEnabled={(enabled) => void handleToggleEnabled(selectedPlugin, enabled)}
         />
       ) : null}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -260,7 +265,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#090c13",
-    paddingTop: 24,
   },
   topBar: {
     paddingHorizontal: 20,
@@ -294,12 +298,8 @@ const styles = StyleSheet.create({
   listContent: {
     paddingBottom: 24,
   },
-  cardsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginHorizontal: -6,
-  },
   cardWrap: {
+    flex: 1,
     paddingHorizontal: 6,
     marginBottom: 12,
   },
