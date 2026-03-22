@@ -33,6 +33,7 @@ const createVersionSchema = z.object({
       intervalMs: z.number().nullable(),
     }),
   }).passthrough(),
+  entryPoint: z.string().min(1),
   changelog: z.string().optional(),
   setActive: z.boolean().optional().default(false),
 });
@@ -81,7 +82,7 @@ export const pluginRegistryService = {
       throw apiErrors.validation("Invalid version payload", parsed.error.format());
     }
 
-    const { version, manifestJson, changelog, setActive } = parsed.data;
+    const { version, manifestJson, entryPoint, changelog, setActive } = parsed.data;
 
     const existingVersion = await pluginRegistryRepository.findVersionByPluginAndVersion(pluginId, version);
     if (existingVersion) {
@@ -92,6 +93,7 @@ export const pluginRegistryService = {
       pluginId,
       version,
       manifestJson: manifestJson as Prisma.InputJsonValue,
+      entryPoint,
       changelog,
     });
 

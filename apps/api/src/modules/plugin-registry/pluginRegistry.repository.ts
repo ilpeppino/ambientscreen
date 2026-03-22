@@ -21,6 +21,7 @@ export interface PluginVersionRecord {
   pluginId: string;
   version: string;
   manifestJson: Prisma.JsonValue;
+  entryPoint: string;
   changelog: string | null;
   isActive: boolean;
   isApproved: boolean;
@@ -103,6 +104,7 @@ export const pluginRegistryRepository = {
     pluginId: string;
     version: string;
     manifestJson: Prisma.InputJsonValue;
+    entryPoint: string;
     changelog?: string;
   }): Promise<PluginVersionRecord> {
     return prisma.pluginVersion.create({ data });

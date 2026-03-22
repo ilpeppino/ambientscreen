@@ -184,7 +184,7 @@ model PluginVersion {
   pluginId     String
   version      String
   manifestJson Json
-  entryPoint   String?
+  entryPoint   String
   changelog    String?
   isActive        Boolean          @default(false)
   isApproved      Boolean          @default(false)

@@ -102,6 +102,7 @@ interface VersionRow {
   pluginId: string;
   version: string;
   manifestJson: Record<string, unknown>;
+  entryPoint: string;
   changelog: string | null;
   isActive: boolean;
   createdAt: Date;
@@ -182,6 +183,7 @@ beforeEach(() => {
       pluginId: data.pluginId,
       version: data.version,
       manifestJson: data.manifestJson as Record<string, unknown>,
+      entryPoint: data.entryPoint,
       changelog: data.changelog ?? null,
       isActive: false,
       createdAt: new Date(),
@@ -236,6 +238,7 @@ const pluginBody = {
 const versionBody = {
   version: "1.0.0",
   manifestJson: validManifest,
+  entryPoint: "dist/index.js",
   setActive: true,
 };
 
@@ -329,6 +332,30 @@ describe("POST /plugins/:id/versions — add version", () => {
       params: { id: plugin.id },
     });
     expect(res.statusCode).toBe(400);
+  });
+
+  test("returns 400 when entryPoint is missing", async () => {
+    const createRes = await invokeRoute(pluginRegistryRouter, "post", "/", { body: pluginBody });
+    const plugin = createRes.body as PluginRow;
+
+    const { entryPoint: _, ...bodyWithoutEntry } = versionBody;
+    const res = await invokeRoute(pluginRegistryRouter, "post", "/:id/versions", {
+      body: bodyWithoutEntry,
+      params: { id: plugin.id },
+    });
+    expect(res.statusCode).toBe(400);
+  });
+
+  test("stores entryPoint on created version", async () => {
+    const createRes = await invokeRoute(pluginRegistryRouter, "post", "/", { body: pluginBody });
+    const plugin = createRes.body as PluginRow;
+
+    const res = await invokeRoute(pluginRegistryRouter, "post", "/:id/versions", {
+      body: versionBody,
+      params: { id: plugin.id },
+    });
+    expect(res.statusCode).toBe(201);
+    expect((res.body as VersionRow).entryPoint).toBe("dist/index.js");
   });
 });
 
