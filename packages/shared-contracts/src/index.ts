@@ -278,7 +278,7 @@ export interface WidgetDataEnvelope<
   meta?: WidgetDataMeta;
 }
 
-export interface WidgetRendererProps<TData> {
+export interface LegacyWidgetRendererProps<TData> {
   data: TData | null;
 }
 
