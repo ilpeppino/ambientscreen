@@ -1,5 +1,6 @@
 import React from "react";
 import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { colors, spacing, typography } from "../theme";
 
 interface DisplayFrameProps {
   title?: string;
@@ -37,12 +38,12 @@ export function DisplayFrame({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: colors.backgroundPrimary,
   },
   container: {
     flex: 1,
-    backgroundColor: "#000",
-    paddingHorizontal: 20,
+    backgroundColor: colors.backgroundPrimary,
+    paddingHorizontal: spacing.xl,
   },
   backgroundGlowTop: {
     position: "absolute",
@@ -64,20 +65,20 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    paddingTop: 24,
+    paddingTop: spacing.xl,
     paddingBottom: 14,
   },
   title: {
-    color: "#fff",
-    fontSize: 30,
+    color: colors.textPrimary,
+    fontSize: typography.title.fontSize,
     fontWeight: "700",
     letterSpacing: 0.8,
     textAlign: "center",
   },
   subtitle: {
     marginTop: 6,
-    color: "#9a9a9a",
-    fontSize: 16,
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
     textAlign: "center",
   },
   content: {
@@ -86,6 +87,6 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     paddingBottom: 18,
-    paddingTop: 10,
+    paddingTop: spacing.sm,
   },
 });
