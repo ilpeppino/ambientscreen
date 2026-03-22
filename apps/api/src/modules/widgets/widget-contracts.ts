@@ -2,21 +2,20 @@ import type { Prisma } from "@prisma/client";
 import type {
   WidgetConfigByKey,
   WidgetConfigFieldSchema,
+  WidgetConfigSchema,
   WidgetKey,
-  WidgetManifest,
-  WidgetRefreshPolicy,
+  WidgetPluginManifest,
 } from "@ambient/shared-contracts";
 import { z } from "zod";
+import { registerBuiltinWidgetPlugins } from "./registerBuiltinPlugins";
 import {
-  getWidgetConfigSchema,
-  getWidgetDefaultConfig,
-  SUPPORTED_WIDGET_TYPES,
-  type SupportedWidgetType,
-  widgetRegistry,
-} from "./widget.registry";
+  getWidgetPlugin,
+  listWidgetPlugins,
+} from "./widgetPluginRegistry";
 
-export { SUPPORTED_WIDGET_TYPES, type SupportedWidgetType };
-export { getWidgetConfigSchema };
+registerBuiltinWidgetPlugins();
+
+export type SupportedWidgetType = WidgetKey;
 export const DISPLAY_GRID_COLUMNS = 12;
 export const DISPLAY_GRID_BASE_ROWS = 6;
 
@@ -57,29 +56,32 @@ export const updateWidgetConfigPayloadSchema = z
   })
   .strict();
 
-const refreshPolicyByWidget: { [TKey in WidgetKey]: WidgetRefreshPolicy } = {
-  clockDate: { intervalMs: 1000 },
-  weather: { intervalMs: 300000 },
-  calendar: { intervalMs: 60000 },
-};
+const pluginIndex = listWidgetPlugins();
 
-export const widgetManifests: { [TKey in WidgetKey]: WidgetManifest<TKey> } = {
-  clockDate: {
-    key: "clockDate",
-    name: "Clock & Date",
-    refreshPolicy: refreshPolicyByWidget.clockDate,
-  },
-  weather: {
-    key: "weather",
-    name: "Weather",
-    refreshPolicy: refreshPolicyByWidget.weather,
-  },
-  calendar: {
-    key: "calendar",
-    name: "Calendar",
-    refreshPolicy: refreshPolicyByWidget.calendar,
-  },
-};
+export const SUPPORTED_WIDGET_TYPES = pluginIndex
+  .map((plugin) => plugin.manifest.key) as SupportedWidgetType[];
+
+function getRequiredPlugin(widgetType: SupportedWidgetType) {
+  const plugin = getWidgetPlugin(widgetType);
+  if (!plugin) {
+    throw new Error(`Widget plugin not registered: ${widgetType}`);
+  }
+  return plugin;
+}
+
+export function getWidgetConfigSchema(widgetType: SupportedWidgetType): WidgetConfigSchema {
+  return getRequiredPlugin(widgetType).configSchema;
+}
+
+export function getWidgetDefaultConfig(widgetType: SupportedWidgetType): WidgetConfigByKey[SupportedWidgetType] {
+  return getRequiredPlugin(widgetType).defaultConfig;
+}
+
+export const widgetManifests = SUPPORTED_WIDGET_TYPES.reduce((accumulator, widgetType) => {
+  const plugin = getRequiredPlugin(widgetType);
+  accumulator[widgetType] = plugin.manifest;
+  return accumulator;
+}, {} as Record<SupportedWidgetType, WidgetPluginManifest<SupportedWidgetType>>);
 
 function toZodConfigFieldSchema(schema: WidgetConfigFieldSchema) {
   if (Array.isArray(schema)) {
@@ -108,28 +110,27 @@ function createWidgetConfigSchema(widgetType: SupportedWidgetType) {
   return z.object(shape).strict();
 }
 
-const configSchemasByWidget: {
-  [TKey in SupportedWidgetType]: z.ZodType<WidgetConfigByKey[TKey]>;
-} = {
-  clockDate: createWidgetConfigSchema("clockDate"),
-  weather: createWidgetConfigSchema("weather"),
-  calendar: createWidgetConfigSchema("calendar"),
+const configSchemasByWidget = SUPPORTED_WIDGET_TYPES.reduce((accumulator, widgetType) => {
+  accumulator[widgetType] = createWidgetConfigSchema(widgetType);
+  return accumulator;
+}, {} as Record<SupportedWidgetType, z.ZodTypeAny>);
+
+const createWidgetConfigSchemaByType: Record<SupportedWidgetType, z.ZodTypeAny> = {
+  ...configSchemasByWidget,
+  clockDate: (configSchemasByWidget.clockDate as z.ZodObject<Record<string, z.ZodTypeAny>>)
+    .extend({
+      hour12: z.boolean().optional(),
+      locale: z.string().optional(),
+    })
+    .strict(),
+  calendar: (configSchemasByWidget.calendar as z.ZodObject<Record<string, z.ZodTypeAny>>)
+    .extend({
+      sourceType: z.literal("ical").optional(),
+      feedUrl: z.string().url().optional(),
+      lookAheadDays: z.number().int().min(1).max(31).optional(),
+    })
+    .strict(),
 };
-
-const createClockDateConfigSchema = createWidgetConfigSchema("clockDate")
-  .extend({
-    hour12: z.boolean().optional(),
-    locale: z.string().optional(),
-  })
-  .strict();
-
-const createCalendarConfigSchema = createWidgetConfigSchema("calendar")
-  .extend({
-    sourceType: z.literal("ical").optional(),
-    feedUrl: z.string().url().optional(),
-    lookAheadDays: z.number().int().min(1).max(31).optional(),
-  })
-  .strict();
 
 export function getDefaultWidgetConfig(
   widgetType: SupportedWidgetType,
@@ -137,29 +138,18 @@ export function getDefaultWidgetConfig(
   return getWidgetDefaultConfig(widgetType) as Prisma.InputJsonValue;
 }
 
-export const createWidgetSchema = z.discriminatedUnion("type", [
-  z.object({
+export const createWidgetSchema = z.discriminatedUnion(
+  "type",
+  SUPPORTED_WIDGET_TYPES.map((widgetType) => z.object({
     profileId: z.string().min(1).optional(),
-    type: z.literal("clockDate"),
-    config: createClockDateConfigSchema.optional(),
+    type: z.literal(widgetType),
+    config: createWidgetConfigSchemaByType[widgetType].optional(),
     layout: widgetLayoutSchema.optional(),
-  }),
-  z.object({
-    profileId: z.string().min(1).optional(),
-    type: z.literal("weather"),
-    config: configSchemasByWidget.weather.optional(),
-    layout: widgetLayoutSchema.optional(),
-  }),
-  z.object({
-    profileId: z.string().min(1).optional(),
-    type: z.literal("calendar"),
-    config: createCalendarConfigSchema.optional(),
-    layout: widgetLayoutSchema.optional(),
-  }),
-]);
+  })) as unknown as [z.ZodDiscriminatedUnionOption<"type">, ...z.ZodDiscriminatedUnionOption<"type">[]],
+);
 
 export function getWidgetRegistryEntry(widgetType: SupportedWidgetType) {
-  return widgetRegistry[widgetType];
+  return getRequiredPlugin(widgetType);
 }
 
 function mapLegacyConfig(

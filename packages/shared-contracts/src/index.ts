@@ -268,3 +268,5 @@ export interface WidgetDataEnvelope<
 export interface WidgetRendererProps<TData> {
   data: TData | null;
 }
+
+export * from "./widgets/plugin-sdk";

@@ -3,7 +3,7 @@ import { ActivityIndicator, Animated, PanResponder, Pressable, StyleSheet, Text,
 import type { StyleProp, ViewStyle } from "react-native";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import type { AnimatedItemPhase } from "../animations/transitionManager";
-import { renderWidgetFromKey } from "../../../widgets/widget.registry";
+import { renderWidgetFromKey } from "../../../widgets/pluginRegistry";
 import { computeWidgetScale, getWidgetErrorLabel } from "./WidgetContainer.logic";
 import {
   applyDragDelta,
@@ -207,7 +207,17 @@ function WidgetContainerBase({
     return (
       <View style={styles.readyViewport}>
         <View style={[styles.readyCanvas, { transform: [{ scale }] }]}>
-          {renderWidgetFromKey(widget.widgetKey, widget.data)}
+          {renderWidgetFromKey(widget.widgetKey, {
+            widgetInstanceId: widget.widgetInstanceId,
+            state: widget.state,
+            data: widget.data,
+            config: widget.config,
+            meta: widget.meta,
+          }) ?? (
+            <View style={styles.centered}>
+              <Text style={styles.emptyText}>Unsupported widget plugin</Text>
+            </View>
+          )}
         </View>
       </View>
     );

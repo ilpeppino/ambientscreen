@@ -232,7 +232,7 @@ export const widgetsService = {
     const validationResult = validateWidgetConfig(widgetType, nextConfig);
     if (!validationResult.success) {
       throw apiErrors.validation(
-        `Invalid config for widget type ${getWidgetRegistryEntry(widgetType).name}`,
+        `Invalid config for widget type ${getWidgetRegistryEntry(widgetType).manifest.name}`,
         validationResult.error.format(),
       );
     }

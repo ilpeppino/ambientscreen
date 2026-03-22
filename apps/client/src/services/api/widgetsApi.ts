@@ -5,9 +5,10 @@ import type {
   WidgetInstance,
   WidgetKey,
 } from "@ambient/shared-contracts";
+import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 
 export type { CreateWidgetInput, WidgetInstance, WidgetKey };
-export const WIDGET_TYPES: WidgetKey[] = ["clockDate", "weather", "calendar"];
+export const WIDGET_TYPES: WidgetKey[] = Object.keys(widgetBuiltinDefinitions) as WidgetKey[];
 const WIDGETS_TIMEOUT_MS = 8000;
 
 export async function getWidgets(profileId?: string): Promise<WidgetInstance[]> {

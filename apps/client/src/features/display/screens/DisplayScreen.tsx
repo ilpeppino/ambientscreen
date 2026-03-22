@@ -41,7 +41,10 @@ import {
   resolveWidgetLayoutCollision,
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
-import { widgetRegistry } from "../../../widgets/widget.registry";
+import {
+  getWidgetPlugin,
+} from "../../../widgets/pluginRegistry";
+import { registerBuiltinWidgetPlugins } from "../../../widgets/registerBuiltinPlugins";
 import { useCloudProfiles } from "../../profiles/useCloudProfiles";
 import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
 import { useSharedScreenSession } from "../hooks/useSharedScreenSession";
@@ -69,6 +72,8 @@ const DISPLAY_TRANSITION_TYPE: TransitionType = "fade";
 const WIDGET_TRANSITION_LIBRARY = "react-native Animated API";
 
 export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProps) {
+  registerBuiltinWidgetPlugins();
+
   const {
     profiles,
     activeProfileId,
@@ -1009,7 +1014,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
       {settingsWidget ? (
         <WidgetSettingsModal
           visible={Boolean(settingsWidget)}
-          widgetName={widgetRegistry[settingsWidget.widgetKey].name}
+          widgetName={getWidgetPlugin(settingsWidget.widgetKey)?.manifest.name ?? settingsWidget.widgetKey}
           schema={settingsWidget.configSchema}
           config={settingsWidget.config}
           saving={savingWidgetConfig}
