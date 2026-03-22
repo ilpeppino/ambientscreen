@@ -167,6 +167,19 @@ async function resolveHandshake(request: IncomingMessage): Promise<RealtimeHands
   };
 }
 
+/**
+ * Interval between WebSocket ping frames sent to each connected client.
+ * Clients that do not respond with a pong within one interval are terminated.
+ * This bounds memory by evicting ghost connections and ensures stale entries
+ * are cleaned up promptly.
+ *
+ * SCALE NOTE: This server is single-process and holds all state in memory.
+ * For a NAS single-node deployment, a few hundred concurrent connections is
+ * the practical ceiling before memory becomes a concern. For horizontal scale,
+ * replace in-memory Maps with a shared pub/sub broker (e.g., Redis Pub/Sub).
+ */
+const PING_INTERVAL_MS = 30_000;
+
 export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
   const websocketServer = new WebSocketServer({ noServer: true });
   const subscriptionByClient = new Map<WebSocket, ClientSubscription>();
@@ -175,6 +188,24 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
   const clientsBySession = new Map<string, Set<WebSocket>>();
   const clientsByDevice = new Map<string, Set<WebSocket>>();
   const lastDeviceConnectionAtById = new Map<string, Date>();
+
+  // Track which clients have responded to the last ping.
+  // Clients absent from this set when the next ping fires are terminated.
+  const aliveClients = new WeakSet<WebSocket>();
+
+  const pingInterval = setInterval(() => {
+    for (const client of websocketServer.clients) {
+      if (!aliveClients.has(client)) {
+        // No pong since the last ping — terminate the ghost connection.
+        client.terminate();
+        continue;
+      }
+      aliveClients.delete(client);
+      client.ping();
+    }
+  }, PING_INTERVAL_MS);
+
+  pingInterval.unref();
 
   function removeClientFromProfile(client: WebSocket, profileId: string | null) {
     if (!profileId) {
@@ -221,6 +252,10 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
     deviceClients.delete(client);
     if (deviceClients.size === 0) {
       clientsByDevice.delete(deviceId);
+      // Evict the connection timestamp so deleted devices do not accumulate
+      // entries in lastDeviceConnectionAtById indefinitely. The timestamp will
+      // be refreshed on the next connection.
+      lastDeviceConnectionAtById.delete(deviceId);
     }
   }
 
@@ -312,6 +347,10 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
       client.close();
       return;
     }
+
+    // Mark the client alive immediately so it is not terminated on the first ping.
+    aliveClients.add(client);
+    client.on("pong", () => { aliveClients.add(client); });
 
     subscriptionByClient.set(client, {
       userId: resolvedHandshake.userId,
@@ -452,6 +491,7 @@ export function createRealtimeServer(httpServer: HttpServer): RealtimeServer {
       };
     },
     async close() {
+      clearInterval(pingInterval);
       await new Promise<void>((resolve) => {
         websocketServer.close(() => {
           resolve();
