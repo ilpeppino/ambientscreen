@@ -4,6 +4,7 @@ import { usersService } from "./users.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 import { authService } from "../auth/auth.service";
+import { getRequestUserId } from "../auth/auth.middleware";
 
 export const usersRouter = Router();
 
@@ -12,14 +13,47 @@ const createUserSchema = z.object({
   password: z.string().min(8).max(128),
 });
 
+/**
+ * GET /users
+ * Returns only the authenticated user's own profile.
+ * Does NOT return all users — prevents user enumeration.
+ */
 usersRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const users = await usersService.getAllUsers();
-    res.json(users);
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
+    const user = await usersService.findUserById(userId);
+    if (!user) {
+      throw apiErrors.notFound("User not found");
+    }
+
+    res.json([{ id: user.id, email: user.email }]);
   })
 );
 
+/**
+ * GET /users/me
+ * Returns the authenticated user's own profile as a single object.
+ */
+usersRouter.get(
+  "/me",
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
+    const user = await usersService.findUserById(userId);
+    if (!user) {
+      throw apiErrors.notFound("User not found");
+    }
+
+    res.json({ id: user.id, email: user.email });
+  })
+);
+
+/**
+ * POST /users
+ * Creates a new user account. Protected by requireAuth at the app level —
+ * callers must be authenticated. For unauthenticated registration, use
+ * POST /auth/register instead.
+ */
 usersRouter.post(
   "/",
   asyncHandler(async (req, res) => {

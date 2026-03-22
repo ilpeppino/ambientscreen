@@ -57,6 +57,9 @@ beforeEach(() => {
   }) as never);
 
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(usersRepository, "findById").mockImplementation(async (id: string) => {
+    return (usersStore.find((user) => user.id === id) ?? null) as never;
+  });
   vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
   });

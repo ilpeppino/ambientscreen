@@ -3,6 +3,7 @@ export type ApiErrorCode =
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
   | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "DUPLICATE_RESOURCE"
   | "INTERNAL_ERROR";
 
@@ -68,6 +69,15 @@ export const apiErrors = {
     return new ApiError({
       code: "UNAUTHORIZED",
       status: 401,
+      message,
+      details
+    });
+  },
+
+  forbidden(message: string, details?: unknown) {
+    return new ApiError({
+      code: "FORBIDDEN",
+      status: 403,
       message,
       details
     });

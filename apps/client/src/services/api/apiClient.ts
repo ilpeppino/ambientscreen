@@ -2,8 +2,33 @@ const DEFAULT_TIMEOUT_MS = 8000;
 
 interface ApiErrorResponse {
   error?: {
+    code?: string;
     message?: string;
   };
+}
+
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(message: string, status: number, code: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+
+  get isUnauthorized() {
+    return this.status === 401;
+  }
+
+  get isForbidden() {
+    return this.status === 403;
+  }
+
+  get isNotFound() {
+    return this.status === 404;
+  }
 }
 
 let authToken: string | null = null;
@@ -27,17 +52,21 @@ export function withAuthHeaders(headers?: HeadersInit): HeadersInit {
   };
 }
 
-export async function toApiErrorMessage(response: Response): Promise<string> {
+export async function toApiError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as ApiErrorResponse;
-    if (body.error?.message) {
-      return body.error.message;
-    }
+    const message = body.error?.message ?? `Request failed with status ${response.status}`;
+    const code = body.error?.code ?? "UNKNOWN_ERROR";
+    return new ApiError(message, response.status, code);
   } catch {
-    // Fallback to status-based message when response is not JSON.
+    return new ApiError(`Request failed with status ${response.status}`, response.status, "UNKNOWN_ERROR");
   }
+}
 
-  return `Request failed with status ${response.status}`;
+/** @deprecated Use toApiError for structured error handling */
+export async function toApiErrorMessage(response: Response): Promise<string> {
+  const error = await toApiError(response);
+  return error.message;
 }
 
 export async function apiFetchWithTimeout(

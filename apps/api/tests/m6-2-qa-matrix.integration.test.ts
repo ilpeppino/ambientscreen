@@ -1,18 +1,10 @@
 import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
-import { usersRepository } from "../src/modules/users/users.repository";
-import { usersRouter } from "../src/modules/users/users.routes";
 import { widgetDataRouter } from "../src/modules/widgetData/widget-data.routes";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
 import { profilesService } from "../src/modules/profiles/profiles.service";
-
-interface TestUser {
-  id: string;
-  email: string;
-  createdAt: Date;
-}
 
 interface TestWidget {
   id: string;
@@ -37,9 +29,7 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
-let userCounter = 0;
 let widgetCounter = 0;
 
 const originalFetch = globalThis.fetch;
@@ -76,9 +66,7 @@ function buildCalendarIcsFixture(): string {
 }
 
 beforeEach(() => {
-  usersStore = [];
   widgetsStore = [];
-  userCounter = 0;
   widgetCounter = 0;
 
   vi.spyOn(profilesService, "resolveProfileForUser").mockImplementation(async ({ userId }) => ({
@@ -88,21 +76,6 @@ beforeEach(() => {
     isDefault: true,
     createdAt: new Date(),
   }) as never);
-
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
-  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
-    return (usersStore.find((user) => user.email === email) ?? null) as never;
-  });
-  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
-    userCounter += 1;
-    const newUser: TestUser = {
-      id: `user-${userCounter}`,
-      email,
-      createdAt: new Date(),
-    };
-    usersStore.push(newUser);
-    return newUser as never;
-  });
 
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore
@@ -273,11 +246,6 @@ async function invokeRoute(
 }
 
 test("M6-2: critical admin and display flows pass for clockDate, weather, and calendar", async () => {
-  const userCreateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev", password: "password123" },
-  });
-  expect(userCreateResponse.statusCode).toBe(201);
-
   const clockCreateResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
       type: "clockDate",
