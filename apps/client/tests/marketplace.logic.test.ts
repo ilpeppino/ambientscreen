@@ -142,6 +142,29 @@ describe("applyMarketplaceFilter", () => {
     expect(result.every((p) => !p.isPremium)).toBe(true);
     expect(result).toHaveLength(2);
   });
+
+  test("'enabled' returns only installed and enabled plugins", () => {
+    const result = applyMarketplaceFilter(plugins, "enabled");
+    expect(result.every((p) => p.isInstalled && p.isEnabled)).toBe(true);
+    expect(result).toHaveLength(1);
+    expect(result[0]?.key).toBe("weather");
+  });
+
+  test("'disabled' returns only installed and disabled plugins", () => {
+    const disabledInstallation = makeInstallation({
+      key: "calendar",
+      pluginId: "plugin-2",
+      isEnabled: false,
+    });
+    const mixedPlugins = buildMarketplacePlugins(registryPlugins, [
+      makeInstallation({ key: "weather", pluginId: "plugin-1", isEnabled: true }),
+      disabledInstallation,
+    ]);
+    const result = applyMarketplaceFilter(mixedPlugins, "disabled");
+    expect(result).toHaveLength(1);
+    expect(result[0]?.key).toBe("calendar");
+    expect(result[0]?.isEnabled).toBe(false);
+  });
 });
 
 // ── applyMarketplaceSearch ─────────────────────────────────────────────────

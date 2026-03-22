@@ -1,17 +1,23 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import { useEntitlements } from "../../entitlements/entitlements.context";
-import { PremiumLock } from "../../../shared/ui/PremiumLock";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
 import {
-  ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import {
+  ActionRow,
+  EmptyPanel,
+  FilterChips,
+  InlineStatusBadge,
+  ManagementActionButton,
+  ManagementCard,
+  SectionHeader,
+} from "../../../shared/ui/management";
 import {
   createWidget,
   getWidgets,
@@ -347,8 +353,11 @@ export function AdminHomeScreen({
   if (loading) {
     return (
       <View style={styles.screen}>
-        <ActivityIndicator size="large" color="#fff" />
-        <Text style={styles.message}>Loading widgets...</Text>
+        <EmptyPanel
+          variant="loading"
+          title="Loading management workspace"
+          message="Fetching widgets and profile data."
+        />
       </View>
     );
   }
@@ -356,372 +365,311 @@ export function AdminHomeScreen({
   if (error) {
     return (
       <View style={styles.screen}>
-        <Text style={styles.error}>{error}</Text>
+        <EmptyPanel
+          variant="error"
+          title="Unable to load widgets"
+          message={error}
+          actionLabel="Retry"
+          onAction={() => {
+            void loadWidgets();
+          }}
+        />
       </View>
     );
   }
 
   return (
     <View style={styles.screen}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Admin Home</Text>
-        <Text style={styles.subtitle}>
-          Active profile: {profiles.find((profile) => profile.id === activeProfileId)?.name ?? "none"}
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.profileTabs}>
-          {profiles.map((profile) => {
-            const selected = profile.id === activeProfileId;
-            return (
-              <Pressable
-                key={profile.id}
-                accessibilityRole="button"
-                style={[styles.profileTab, selected && styles.profileTabSelected]}
-                onPress={async () => {
-                  await activateProfile(profile.id);
-                }}
-              >
-                <Text style={[styles.profileTabLabel, selected && styles.profileTabLabelSelected]}>
-                  {profile.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-        <View style={styles.profileActions}>
-          <TextInput
-            accessibilityLabel="New profile name"
-            style={[styles.textInput, styles.profileInput]}
-            value={newProfileName}
-            onChangeText={setNewProfileName}
-            placeholder="New profile name"
-            placeholderTextColor="#7f7f7f"
+      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer}>
+        <SectionHeader
+          icon="settings"
+          title="Admin Home"
+          subtitle={`Active profile: ${profiles.find((profile) => profile.id === activeProfileId)?.name ?? "none"}`}
+          rightAction={
+            <InlineStatusBadge
+              label={plan === "pro" ? "Pro plan" : "Free plan"}
+              tone={plan === "pro" ? "premium" : "neutral"}
+              icon={plan === "pro" ? "star" : "grid"}
+            />
+          }
+        />
+
+        <ManagementCard
+          title="Profile Management"
+          subtitle={`Active widget: ${activeWidget ? `${activeWidget.type} (${activeWidget.id})` : "none"}`}
+          icon="calendar"
+          badges={activeProfileId ? <InlineStatusBadge label="Active profile selected" tone="info" icon="check" /> : null}
+        >
+          <FilterChips
+            items={profiles.map((profile) => ({ key: profile.id, label: profile.name, icon: "calendar" }))}
+            activeKey={activeProfileId}
+            onChange={(next) => {
+              if (next) {
+                void activateProfile(next);
+              }
+            }}
           />
-          <Pressable
-            accessibilityRole="button"
-            style={[styles.profileActionButton, creatingProfile && styles.createButtonDisabled]}
-            onPress={handleCreateProfile}
-            disabled={creatingProfile}
-          >
-            <Text style={styles.profileActionButtonLabel}>
-              {creatingProfile ? "Creating..." : "New Profile"}
-            </Text>
-          </Pressable>
-          <TextInput
-            accessibilityLabel="Rename active profile"
-            style={[styles.textInput, styles.profileInput]}
-            value={renameProfileName}
-            onChangeText={setRenameProfileName}
-            placeholder="Rename active profile"
-            placeholderTextColor="#7f7f7f"
+
+          <View style={styles.inlineFields}>
+            <TextInput
+              accessibilityLabel="New profile name"
+              style={[styles.textInput, styles.growInput]}
+              value={newProfileName}
+              onChangeText={setNewProfileName}
+              placeholder="New profile name"
+              placeholderTextColor="#7f7f7f"
+            />
+            <ManagementActionButton
+              label="Create"
+              tone="primary"
+              icon="plus"
+              loading={creatingProfile}
+              onPress={handleCreateProfile}
+            />
+          </View>
+
+          <View style={styles.inlineFields}>
+            <TextInput
+              accessibilityLabel="Rename active profile"
+              style={[styles.textInput, styles.growInput]}
+              value={renameProfileName}
+              onChangeText={setRenameProfileName}
+              placeholder="Rename active profile"
+              placeholderTextColor="#7f7f7f"
+            />
+            <ManagementActionButton
+              label="Rename"
+              tone="secondary"
+              loading={renamingProfile}
+              onPress={handleRenameActiveProfile}
+            />
+            <ManagementActionButton
+              label="Delete"
+              tone="destructive"
+              icon="trash"
+              disabled={profiles.length <= 1}
+              loading={deletingProfile}
+              onPress={handleDeleteActiveProfile}
+            />
+          </View>
+
+          {profileError ? <EmptyPanel variant="error" title="Profile error" message={profileError} /> : null}
+        </ManagementCard>
+
+        <ManagementCard title="Device Management" subtitle="Rename devices and remove old registrations." icon="grid">
+          {loadingDevices ? (
+            <EmptyPanel variant="loading" title="Loading devices" message="Fetching registered devices." />
+          ) : devices.length === 0 ? (
+            <EmptyPanel title="No devices registered" message="Open display mode on a device to register it." />
+          ) : (
+            <View style={styles.stack}>
+              {devices.map((device) => {
+                const isCurrentDevice = currentDeviceId === device.id;
+                const isRenaming = renamingDeviceId === device.id;
+                const isDeleting = deletingDeviceId === device.id;
+
+                return (
+                  <ManagementCard
+                    key={device.id}
+                    title={device.name}
+                    subtitle={`${device.platform} / ${device.deviceType}`}
+                    icon="grid"
+                    badges={
+                      <View style={styles.badgesRow}>
+                        <InlineStatusBadge
+                          label={device.connectionStatus === "online" ? "Online" : "Offline"}
+                          tone={device.connectionStatus === "online" ? "success" : "warning"}
+                          icon={device.connectionStatus === "online" ? "check" : "close"}
+                        />
+                        {isCurrentDevice ? <InlineStatusBadge label="This device" tone="info" icon="star" /> : null}
+                      </View>
+                    }
+                  >
+                    <Text style={styles.deviceMeta}>Last seen: {formatLastSeenAt(device.lastSeenAt)}</Text>
+                    <View style={styles.inlineFields}>
+                      <TextInput
+                        accessibilityLabel={`Rename device ${device.name}`}
+                        style={[styles.textInput, styles.growInput]}
+                        value={renameDraftByDeviceId[device.id] ?? ""}
+                        onChangeText={(value) => {
+                          setRenameDraftByDeviceId((current) => ({
+                            ...current,
+                            [device.id]: value,
+                          }));
+                        }}
+                        placeholder="Device name"
+                        placeholderTextColor="#7f7f7f"
+                      />
+                      <ManagementActionButton
+                        label="Rename"
+                        tone="secondary"
+                        loading={isRenaming}
+                        onPress={() => {
+                          void handleRenameDevice(device.id);
+                        }}
+                      />
+                      <ManagementActionButton
+                        label="Delete"
+                        tone="destructive"
+                        icon="trash"
+                        disabled={isCurrentDevice}
+                        loading={isDeleting}
+                        onPress={() => {
+                          void handleDeleteDevice(device.id);
+                        }}
+                      />
+                    </View>
+                  </ManagementCard>
+                );
+              })}
+            </View>
+          )}
+          {devicesError ? <EmptyPanel variant="error" title="Device error" message={devicesError} /> : null}
+        </ManagementCard>
+
+        <ManagementCard
+          title="Widget Library"
+          subtitle="Create widgets and define an active widget for the selected profile."
+          icon="grid"
+          badges={
+            plan === "free" ? (
+              <ManagementActionButton
+                label="Upgrade to Pro"
+                tone="secondary"
+                icon="star"
+                onPress={() => setUpgradeModalVisible(true)}
+              />
+            ) : (
+              <InlineStatusBadge label="Pro unlocked" tone="premium" icon="star" />
+            )
+          }
+        >
+          <FilterChips
+            items={CREATABLE_WIDGET_TYPES.map((widgetType) => ({
+              key: widgetType,
+              label: widgetType,
+              icon: widgetType === "calendar" ? "calendar" : widgetType === "weather" ? "weather" : "clock",
+            }))}
+            activeKey={selectedWidgetType}
+            onChange={(next) => {
+              const isPremium = widgetBuiltinDefinitions[next as CreatableWidgetType]?.manifest?.premium === true;
+              if (isPremium && !hasFeature("premium_widgets")) {
+                setUpgradeModalVisible(true);
+                return;
+              }
+              setSelectedWidgetType(next as CreatableWidgetType);
+            }}
           />
-          <Pressable
-            accessibilityRole="button"
-            style={[styles.profileActionButton, renamingProfile && styles.createButtonDisabled]}
-            onPress={handleRenameActiveProfile}
-            disabled={renamingProfile}
-          >
-            <Text style={styles.profileActionButtonLabel}>
-              {renamingProfile ? "Renaming..." : "Rename"}
-            </Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            style={[
-              styles.profileDeleteButton,
-              (profiles.length <= 1 || deletingProfile) && styles.createButtonDisabled,
-            ]}
-            onPress={handleDeleteActiveProfile}
-            disabled={profiles.length <= 1 || deletingProfile}
-          >
-            <Text style={styles.profileDeleteButtonLabel}>
-              {deletingProfile ? "Deleting..." : "Delete Profile"}
-            </Text>
-          </Pressable>
-        </View>
-        <Text style={styles.subtitle}>
-          Active widget: {activeWidget ? `${activeWidget.type} (${activeWidget.id})` : "none"}
-        </Text>
-        {profileError ? <Text style={styles.error}>{profileError}</Text> : null}
-      </View>
 
-      <View style={styles.devicesSection}>
-        <Text style={styles.createLabel}>Devices</Text>
-        {loadingDevices ? (
-          <Text style={styles.deviceMeta}>Loading devices...</Text>
-        ) : devices.length === 0 ? (
-          <Text style={styles.deviceMeta}>No registered devices yet.</Text>
-        ) : (
-          devices.map((device) => {
-            const isCurrentDevice = currentDeviceId === device.id;
-            const isRenaming = renamingDeviceId === device.id;
-            const isDeleting = deletingDeviceId === device.id;
+          {selectedWidgetType === "weather" ? (
+            <View style={styles.stack}>
+              <Text style={styles.fieldLabel}>Location</Text>
+              <TextInput
+                accessibilityLabel="Weather location"
+                autoCapitalize="words"
+                autoCorrect={false}
+                style={styles.textInput}
+                value={weatherLocation}
+                onChangeText={setWeatherLocation}
+                placeholder="City or location"
+                placeholderTextColor="#7f7f7f"
+              />
+              <Text style={styles.fieldLabel}>Units</Text>
+              <FilterChips
+                items={WEATHER_UNITS.map((unit) => ({ key: unit, label: unit, icon: "weather" }))}
+                activeKey={weatherUnits}
+                onChange={(next) => setWeatherUnits(next as WeatherUnit)}
+              />
+            </View>
+          ) : selectedWidgetType === "calendar" ? (
+            <View style={styles.stack}>
+              <Text style={styles.fieldLabel}>Provider</Text>
+              <FilterChips
+                items={CALENDAR_PROVIDERS.map((provider) => ({ key: provider, label: provider, icon: "calendar" }))}
+                activeKey={calendarProvider}
+                onChange={(next) => setCalendarProvider(next as CalendarProvider)}
+              />
+              <Text style={styles.fieldLabel}>Account (iCal URL)</Text>
+              <TextInput
+                accessibilityLabel="Calendar account"
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={styles.textInput}
+                value={calendarAccount}
+                onChangeText={setCalendarAccount}
+                placeholder="https://calendar.example.com/feed.ics"
+                placeholderTextColor="#7f7f7f"
+              />
+              <Text style={styles.fieldLabel}>Time window</Text>
+              <FilterChips
+                items={CALENDAR_TIME_WINDOWS.map((window) => ({ key: window, label: window, icon: "calendar" }))}
+                activeKey={calendarTimeWindow}
+                onChange={(next) => setCalendarTimeWindow(next as CalendarTimeWindow)}
+              />
+            </View>
+          ) : null}
 
-            return (
-              <View key={device.id} style={styles.deviceCard}>
-                <Text style={styles.deviceName}>
-                  {device.name}
-                  {isCurrentDevice ? " (This Device)" : ""}
-                </Text>
-                <Text style={styles.deviceMeta}>
-                  {device.platform} / {device.deviceType}
-                </Text>
-                <Text style={styles.deviceMeta}>Last seen: {formatLastSeenAt(device.lastSeenAt)}</Text>
-                <View style={styles.deviceActions}>
-                  <TextInput
-                    accessibilityLabel={`Rename device ${device.name}`}
-                    style={[styles.textInput, styles.deviceRenameInput]}
-                    value={renameDraftByDeviceId[device.id] ?? ""}
-                    onChangeText={(value) => {
-                      setRenameDraftByDeviceId((current) => ({
-                        ...current,
-                        [device.id]: value,
-                      }));
-                    }}
-                    placeholder="Device name"
-                    placeholderTextColor="#7f7f7f"
-                  />
-                  <Pressable
-                    accessibilityRole="button"
-                    style={[styles.profileActionButton, isRenaming && styles.createButtonDisabled]}
-                    disabled={isRenaming}
-                    onPress={() => {
-                      void handleRenameDevice(device.id);
-                    }}
-                  >
-                    <Text style={styles.profileActionButtonLabel}>
-                      {isRenaming ? "Renaming..." : "Rename"}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    style={[styles.profileDeleteButton, isDeleting && styles.createButtonDisabled]}
-                    disabled={isDeleting || isCurrentDevice}
-                    onPress={() => {
-                      void handleDeleteDevice(device.id);
-                    }}
-                  >
-                    <Text style={styles.profileDeleteButtonLabel}>
-                      {isDeleting ? "Deleting..." : "Delete"}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })
-        )}
-        {devicesError ? <Text style={styles.error}>{devicesError}</Text> : null}
-      </View>
+          <ActionRow>
+            <ManagementActionButton
+              label="Create Widget"
+              tone="primary"
+              icon="plus"
+              loading={creatingWidget}
+              onPress={handleCreateWidget}
+            />
+          </ActionRow>
+          {createError ? <EmptyPanel variant="error" title="Create widget failed" message={createError} /> : null}
+        </ManagementCard>
 
-      <View style={styles.createSection}>
-        {plan === "free" ? (
-          <View style={styles.planBanner}>
-            <Text style={styles.planBannerText}>Free Plan</Text>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.upgradeInlineCta}
-              onPress={() => setUpgradeModalVisible(true)}
-            >
-              <Text style={styles.upgradeInlineCtaLabel}>Upgrade to Pro</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.planBanner}>
-            <Text style={styles.planBannerTextPro}>Pro Plan</Text>
-          </View>
-        )}
-        <Text style={styles.createLabel}>Create widget</Text>
-        <View style={styles.typeGrid}>
-          {CREATABLE_WIDGET_TYPES.map((widgetType) => {
-            const selected = widgetType === selectedWidgetType;
-            const isPremium = widgetBuiltinDefinitions[widgetType]?.manifest?.premium === true;
-            const isLocked = isPremium && !hasFeature("premium_widgets");
-
-            return (
-              <Pressable
-                key={widgetType}
-                accessibilityRole="button"
-                style={[styles.typeButton, selected && styles.typeButtonSelected, isLocked && styles.typeButtonLocked]}
-                onPress={() => {
-                  if (isLocked) {
-                    setUpgradeModalVisible(true);
-                    return;
+        <ManagementCard title="Configured Widgets" subtitle="Set which widget is active in the display." icon="clock">
+          {widgets.length === 0 ? (
+            <EmptyPanel title="No widgets configured" message="Create a widget to start building your screen." />
+          ) : (
+            <View style={styles.stack}>
+              {widgets.map((widget) => (
+                <ManagementCard
+                  key={widget.id}
+                  title={widget.type}
+                  subtitle={`Widget ID: ${widget.id}`}
+                  icon={widget.type === "calendar" ? "calendar" : widget.type === "weather" ? "weather" : "clock"}
+                  badges={
+                    widget.isActive ? (
+                      <InlineStatusBadge label="Active" tone="success" icon="check" />
+                    ) : (
+                      <InlineStatusBadge label="Inactive" tone="neutral" icon="close" />
+                    )
                   }
-                  setSelectedWidgetType(widgetType);
-                }}
-              >
-                <Text style={[styles.typeButtonLabel, selected && styles.typeButtonLabelSelected]}>
-                  {widgetType}
-                </Text>
-                {isPremium ? <PremiumLock compact /> : null}
-              </Pressable>
-            );
-          })}
-        </View>
-        {selectedWidgetType === "weather" ? (
-          <View style={styles.weatherConfig}>
-            <Text style={styles.weatherConfigLabel}>Location</Text>
-            <TextInput
-              accessibilityLabel="Weather location"
-              autoCapitalize="words"
-              autoCorrect={false}
-              style={styles.textInput}
-              value={weatherLocation}
-              onChangeText={setWeatherLocation}
-              placeholder="City or location"
-              placeholderTextColor="#7f7f7f"
-            />
-            <Text style={styles.weatherConfigLabel}>Units</Text>
-            <View style={styles.unitsRow}>
-              {WEATHER_UNITS.map((unit) => {
-                const selected = weatherUnits === unit;
-
-                return (
-                  <Pressable
-                    key={unit}
-                    accessibilityRole="button"
-                    style={[styles.unitButton, selected && styles.unitButtonSelected]}
-                    onPress={() => setWeatherUnits(unit)}
-                  >
-                    <Text style={[styles.unitButtonLabel, selected && styles.unitButtonLabelSelected]}>
-                      {unit}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                  footer={
+                    <ActionRow>
+                      <ManagementActionButton
+                        label="Set Active"
+                        tone="secondary"
+                        disabled={widget.isActive}
+                        loading={settingActiveWidgetId === widget.id}
+                        onPress={() => {
+                          void handleSetActiveWidget(widget.id);
+                        }}
+                      />
+                    </ActionRow>
+                  }
+                />
+              ))}
             </View>
-          </View>
-        ) : selectedWidgetType === "calendar" ? (
-          <View style={styles.calendarConfig}>
-            <Text style={styles.weatherConfigLabel}>Provider</Text>
-            <View style={styles.unitsRow}>
-              {CALENDAR_PROVIDERS.map((provider) => {
-                const selected = calendarProvider === provider;
+          )}
+          {activeError ? <EmptyPanel variant="error" title="Widget activation failed" message={activeError} /> : null}
+        </ManagementCard>
 
-                return (
-                  <Pressable
-                    key={provider}
-                    accessibilityRole="button"
-                    style={[styles.unitButton, selected && styles.unitButtonSelected]}
-                    onPress={() => setCalendarProvider(provider)}
-                  >
-                    <Text style={[styles.unitButtonLabel, selected && styles.unitButtonLabelSelected]}>
-                      {provider}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.weatherConfigLabel}>Account (iCal URL)</Text>
-            <TextInput
-              accessibilityLabel="Calendar account"
-              autoCapitalize="none"
-              autoCorrect={false}
-              style={styles.textInput}
-              value={calendarAccount}
-              onChangeText={setCalendarAccount}
-              placeholder="https://calendar.example.com/feed.ics"
-              placeholderTextColor="#7f7f7f"
-            />
-            <Text style={styles.weatherConfigLabel}>Time window</Text>
-            <View style={styles.unitsRow}>
-              {CALENDAR_TIME_WINDOWS.map((window) => {
-                const selected = calendarTimeWindow === window;
-
-                return (
-                  <Pressable
-                    key={window}
-                    accessibilityRole="button"
-                    style={[styles.unitButton, selected && styles.unitButtonSelected]}
-                    onPress={() => setCalendarTimeWindow(window)}
-                  >
-                    <Text style={[styles.unitButtonLabel, selected && styles.unitButtonLabelSelected]}>
-                      {window}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          style={[styles.createButton, creatingWidget && styles.createButtonDisabled]}
-          disabled={creatingWidget}
-          onPress={handleCreateWidget}
-        >
-          <Text style={styles.createButtonLabel}>
-            {creatingWidget ? "Creating..." : "Create Widget"}
-          </Text>
-        </Pressable>
-        {createError ? <Text style={styles.error}>{createError}</Text> : null}
-      </View>
-
-      <ScrollView style={styles.list} contentContainerStyle={styles.listContent}>
-        {widgets.length === 0 ? (
-          <Text style={styles.message}>No widgets configured yet.</Text>
-        ) : (
-          widgets.map((widget) => (
-            <View key={widget.id} style={styles.widgetCard}>
-              <Text style={styles.widgetType}>{widget.type}</Text>
-              <Text style={styles.widgetMeta}>Widget ID: {widget.id}</Text>
-              <Text style={styles.widgetMeta}>
-                Status: {widget.isActive ? "active" : "inactive"}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                style={[
-                  styles.setActiveButton,
-                  widget.isActive && styles.setActiveButtonDisabled,
-                  settingActiveWidgetId === widget.id && styles.setActiveButtonDisabled,
-                ]}
-                disabled={widget.isActive || settingActiveWidgetId === widget.id}
-                onPress={() => handleSetActiveWidget(widget.id)}
-              >
-                <Text style={styles.setActiveButtonLabel}>
-                  {settingActiveWidgetId === widget.id ? "Setting..." : "Set Active"}
-                </Text>
-              </Pressable>
-            </View>
-          ))
-        )}
+        <ManagementCard title="Navigation" subtitle="Switch product modes." icon="chevronRight">
+          <ActionRow>
+            <ManagementActionButton label="Plugin Marketplace" tone="primary" icon="star" onPress={onEnterMarketplace} />
+            <ManagementActionButton label="Display Mode" tone="secondary" icon="grid" onPress={onEnterDisplayMode} />
+            <ManagementActionButton label="Remote Control" tone="secondary" icon="refresh" onPress={onEnterRemoteControlMode} />
+            <ManagementActionButton label="Logout" tone="destructive" icon="close" onPress={onLogout} />
+          </ActionRow>
+        </ManagementCard>
       </ScrollView>
-      {activeError ? <Text style={styles.error}>{activeError}</Text> : null}
 
-      <UpgradeModal
-        visible={upgradeModalVisible}
-        onDismiss={() => setUpgradeModalVisible(false)}
-      />
-
-      <View style={styles.footer}>
-        <Pressable
-          accessibilityRole="button"
-          style={styles.marketplaceButton}
-          onPress={onEnterMarketplace}
-        >
-          <Text style={styles.marketplaceButtonLabel}>Plugin Marketplace</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          style={styles.displayButton}
-          onPress={onEnterDisplayMode}
-        >
-          <Text style={styles.displayButtonLabel}>Enter Display Mode</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          style={styles.remoteControlButton}
-          onPress={onEnterRemoteControlMode}
-        >
-          <Text style={styles.remoteControlButtonLabel}>Remote Control</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          style={styles.logoutButton}
-          onPress={onLogout}
-        >
-          <Text style={styles.logoutButtonLabel}>Logout</Text>
-        </Pressable>
-      </View>
+      <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
     </View>
   );
 }
@@ -729,346 +677,52 @@ export function AdminHomeScreen({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: "#090c13",
     paddingTop: 24,
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingBottom: 12,
-  },
-  profileTabs: {
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  profileTab: {
-    borderWidth: 1,
-    borderColor: "#555",
-    borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: "#111",
-    marginRight: 8,
-  },
-  profileTabSelected: {
-    borderColor: "#fff",
-    backgroundColor: "#1e1e1e",
-  },
-  profileTabLabel: {
-    color: "#d1d1d1",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  profileTabLabelSelected: {
-    color: "#fff",
-  },
-  profileActions: {
-    flexDirection: "row",
-    gap: 8,
-    marginBottom: 8,
-    alignItems: "center",
-  },
-  profileInput: {
+  content: {
     flex: 1,
   },
-  profileActionButton: {
-    backgroundColor: "#2d8cff",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  profileActionButtonLabel: {
-    color: "#fff",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  profileDeleteButton: {
-    backgroundColor: "#3d1b1b",
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-  },
-  profileDeleteButtonLabel: {
-    color: "#ffd4d4",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  createSection: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    gap: 10,
-  },
-  devicesSection: {
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    gap: 10,
-  },
-  deviceCard: {
-    borderWidth: 1,
-    borderColor: "#2d2d2d",
-    borderRadius: 10,
-    padding: 12,
-    backgroundColor: "#111",
-    gap: 6,
-  },
-  deviceName: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  deviceMeta: {
-    color: "#bbb",
-    fontSize: 13,
-  },
-  deviceActions: {
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-  },
-  deviceRenameInput: {
-    flex: 1,
-  },
-  createLabel: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  typeGrid: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  typeButton: {
-    borderWidth: 1,
-    borderColor: "#555",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: "#111",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  typeButtonLocked: {
-    opacity: 0.7,
-    borderColor: "#f5a62355",
-  },
-  planBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "#111",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: "#2d2d2d",
-  },
-  planBannerText: {
-    color: "#aaa",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  planBannerTextPro: {
-    color: "#f5a623",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  upgradeInlineCta: {
-    backgroundColor: "#f5a623",
-    borderRadius: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-  },
-  upgradeInlineCtaLabel: {
-    color: "#000",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  typeButtonSelected: {
-    borderColor: "#fff",
-    backgroundColor: "#1e1e1e",
-  },
-  typeButtonLabel: {
-    color: "#d1d1d1",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  typeButtonLabelSelected: {
-    color: "#fff",
-  },
-  createButton: {
-    backgroundColor: "#2d8cff",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  createButtonDisabled: {
-    opacity: 0.6,
-  },
-  weatherConfig: {
-    gap: 8,
-  },
-  calendarConfig: {
-    gap: 8,
-  },
-  weatherConfigLabel: {
-    color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  textInput: {
-    borderWidth: 1,
-    borderColor: "#555",
-    backgroundColor: "#111",
-    borderRadius: 8,
-    color: "#fff",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 14,
-  },
-  unitsRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  unitButton: {
-    borderWidth: 1,
-    borderColor: "#555",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "#111",
-  },
-  unitButtonSelected: {
-    borderColor: "#fff",
-    backgroundColor: "#1e1e1e",
-  },
-  unitButtonLabel: {
-    color: "#d1d1d1",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  unitButtonLabelSelected: {
-    color: "#fff",
-  },
-  createButtonLabel: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
-  },
-  title: {
-    color: "#fff",
-    fontSize: 28,
-    fontWeight: "700",
-  },
-  subtitle: {
-    marginTop: 6,
-    color: "#aaa",
-    fontSize: 14,
-  },
-  list: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: 24,
+  contentContainer: {
+    paddingHorizontal: 20,
     paddingBottom: 24,
     gap: 12,
   },
-  widgetCard: {
-    borderWidth: 1,
-    borderColor: "#2d2d2d",
-    borderRadius: 10,
-    padding: 14,
-    backgroundColor: "#111",
-  },
-  widgetType: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-  widgetMeta: {
-    marginTop: 4,
-    color: "#bbb",
-    fontSize: 13,
-  },
-  setActiveButton: {
-    marginTop: 10,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#555",
-    paddingVertical: 10,
+  inlineFields: {
+    flexDirection: "row",
+    gap: 8,
     alignItems: "center",
-    backgroundColor: "#1a1a1a",
+    flexWrap: "wrap",
   },
-  setActiveButtonDisabled: {
-    opacity: 0.6,
+  growInput: {
+    flex: 1,
+    minWidth: 180,
   },
-  setActiveButtonLabel: {
+  textInput: {
+    borderWidth: 1,
+    borderColor: "#2e3440",
+    backgroundColor: "#0f1318",
+    borderRadius: 10,
     color: "#fff",
-    fontSize: 13,
-    fontWeight: "600",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
   },
-  message: {
-    color: "#fff",
-    fontSize: 16,
-    textAlign: "center",
-    marginTop: 10,
-    paddingHorizontal: 24,
-  },
-  error: {
-    color: "#ff6b6b",
-    fontSize: 16,
-    textAlign: "center",
-    paddingHorizontal: 24,
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
-    paddingTop: 8,
+  stack: {
     gap: 10,
   },
-  marketplaceButton: {
-    backgroundColor: "#1a2a1a",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#2d5c2d",
+  badgesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
   },
-  marketplaceButtonLabel: {
-    color: "#4caf50",
-    fontWeight: "700",
-    fontSize: 15,
+  deviceMeta: {
+    color: "#a3a3a3",
+    fontSize: 12,
   },
-  displayButton: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-  },
-  displayButtonLabel: {
-    color: "#000",
-    fontWeight: "700",
-    fontSize: 16,
-  },
-  remoteControlButton: {
-    backgroundColor: "#3a3f51",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  remoteControlButtonLabel: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 15,
-  },
-  logoutButton: {
-    backgroundColor: "#2d2d2d",
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  logoutButtonLabel: {
-    color: "#fff",
-    fontWeight: "700",
-    fontSize: 14,
+  fieldLabel: {
+    color: "#d1d5db",
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

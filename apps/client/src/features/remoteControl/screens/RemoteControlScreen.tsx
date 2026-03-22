@@ -1,6 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import type { Device } from "@ambient/shared-contracts";
+import { Text } from "../../../shared/ui/components";
+import {
+  ActionRow,
+  EmptyPanel,
+  InlineStatusBadge,
+  ManagementActionButton,
+  ManagementCard,
+  SectionHeader,
+} from "../../../shared/ui/management";
 import { getDevices, sendDeviceCommand } from "../../../services/api/devicesApi";
 import { useCloudProfiles } from "../../profiles/useCloudProfiles";
 
@@ -9,7 +18,7 @@ interface RemoteControlScreenProps {
   onBack: () => void;
 }
 
-function formatPresence(device: Device): string {
+function formatPresence(device: Device): "online" | "offline" | "unknown" {
   const explicitStatus = device.connectionStatus;
   if (explicitStatus === "online") {
     return "online";
@@ -26,6 +35,15 @@ function formatPresence(device: Device): string {
 
   const isLikelyOnline = Date.now() - lastSeenDate.getTime() < 5 * 60 * 1000;
   return isLikelyOnline ? "online" : "offline";
+}
+
+function formatLastSeen(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "Unknown";
+  }
+
+  return date.toLocaleString();
 }
 
 export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlScreenProps) {
@@ -123,84 +141,122 @@ export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlSc
 
   return (
     <View style={styles.screen}>
-      <View style={styles.headerRow}>
-        <Text style={styles.title}>Remote Control</Text>
-        <Pressable onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backLabel}>Back</Text>
-        </Pressable>
+      <View style={styles.topBar}>
+        <ManagementActionButton label="Back" tone="passive" icon="chevronLeft" onPress={onBack} />
       </View>
 
-      {loading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.hint}>Loading devices...</Text>
-        </View>
-      ) : (
-        <>
-          <Text style={styles.sectionTitle}>Target Device</Text>
-          <ScrollView style={styles.devicesList}>
-            {devices.length === 0 ? <Text style={styles.hint}>No devices found.</Text> : null}
-            {devices.map((device) => {
-              const selected = device.id === selectedDeviceId;
-              const status = formatPresence(device);
+      <View style={styles.content}>
+        <SectionHeader
+          icon="settings"
+          title="Remote Control"
+          subtitle="Send profile and refresh commands to a selected device."
+          rightAction={
+            selectedDevice ? (
+              <InlineStatusBadge
+                label={`Controlling ${selectedDevice.name}`}
+                tone="info"
+                icon="grid"
+              />
+            ) : null
+          }
+        />
 
-              return (
-                <Pressable
-                  key={device.id}
-                  onPress={() => setSelectedDeviceId(device.id)}
-                  style={[styles.deviceItem, selected ? styles.deviceItemSelected : null]}
-                >
-                  <Text style={styles.deviceName}>{device.name}</Text>
-                  <Text style={styles.deviceMeta}>
-                    {device.platform} / {device.deviceType} / {status}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-
-          <Text style={styles.sectionTitle}>Actions</Text>
-          <Pressable
-            disabled={!selectedDevice || sending}
-            onPress={() => {
-              void handleRefreshTarget();
-            }}
-            style={[styles.actionButton, (!selectedDevice || sending) ? styles.actionButtonDisabled : null]}
-          >
-            <Text style={styles.actionButtonLabel}>{sending ? "Sending..." : "Refresh target"}</Text>
-          </Pressable>
-
-          <View style={styles.slideshowRow}>
-            <Text style={styles.actionLabel}>Slideshow</Text>
-            <Switch
-              value={slideshowEnabled}
-              onValueChange={(nextValue) => {
-                void handleToggleSlideshow(nextValue);
-              }}
-              disabled={!selectedDevice || sending}
+        {loading ? (
+          <EmptyPanel
+            variant="loading"
+            title="Loading devices"
+            message="Syncing available devices for remote control."
+          />
+        ) : devices.length === 0 ? (
+          <EmptyPanel
+            title="No devices registered"
+            message="Register a display device first, then return here to control it remotely."
+          />
+        ) : (
+          <>
+            <SectionHeader
+              title="Target Device"
+              subtitle="Choose which device should receive commands."
+              icon="grid"
             />
-          </View>
 
-          <Text style={styles.sectionTitle}>Switch Profile</Text>
-          <View style={styles.profileButtons}>
-            {profiles.map((profile) => (
-              <Pressable
-                key={profile.id}
-                disabled={!selectedDevice || sending}
-                onPress={() => {
-                  void handleSetProfile(profile.id);
-                }}
-                style={[styles.profileButton, (!selectedDevice || sending) ? styles.actionButtonDisabled : null]}
-              >
-                <Text style={styles.profileButtonLabel}>{profile.name}</Text>
-              </Pressable>
-            ))}
-          </View>
-        </>
-      )}
+            <ScrollView style={styles.devicesList} contentContainerStyle={styles.devicesContent}>
+              {devices.map((device) => {
+                const selected = device.id === selectedDeviceId;
+                const presence = formatPresence(device);
 
-      {selectedDevice ? <Text style={styles.hint}>Controlling: {selectedDevice.name}</Text> : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+                return (
+                  <ManagementCard
+                    key={device.id}
+                    title={device.name}
+                    subtitle={`${device.platform} / ${device.deviceType}`}
+                    icon="grid"
+                    onPress={() => setSelectedDeviceId(device.id)}
+                    badges={
+                      <>
+                        <InlineStatusBadge
+                          label={presence}
+                          tone={presence === "online" ? "success" : presence === "offline" ? "warning" : "neutral"}
+                          icon={presence === "online" ? "check" : "close"}
+                        />
+                        {device.id === currentDeviceId ? (
+                          <InlineStatusBadge label="This device" tone="info" icon="star" />
+                        ) : null}
+                        {selected ? <InlineStatusBadge label="Selected" tone="info" icon="check" /> : null}
+                      </>
+                    }
+                  >
+                    <Text style={styles.deviceMeta}>Last seen: {formatLastSeen(device.lastSeenAt)}</Text>
+                  </ManagementCard>
+                );
+              })}
+            </ScrollView>
+
+            <ManagementCard title="Actions" subtitle="Run commands on the selected device." icon="refresh">
+              <ActionRow>
+                <ManagementActionButton
+                  label="Refresh target"
+                  tone="primary"
+                  icon="refresh"
+                  disabled={!selectedDevice}
+                  loading={sending}
+                  onPress={() => {
+                    void handleRefreshTarget();
+                  }}
+                />
+              </ActionRow>
+              <View style={styles.toggleRow}>
+                <Text style={styles.toggleLabel}>Slideshow</Text>
+                <Switch
+                  value={slideshowEnabled}
+                  onValueChange={(nextValue) => {
+                    void handleToggleSlideshow(nextValue);
+                  }}
+                  disabled={!selectedDevice || sending}
+                />
+              </View>
+            </ManagementCard>
+
+            <ManagementCard title="Switch Profile" subtitle="Apply a profile to the selected device." icon="calendar">
+              <ActionRow>
+                {profiles.map((profile) => (
+                  <ManagementActionButton
+                    key={profile.id}
+                    label={profile.name}
+                    tone="secondary"
+                    disabled={!selectedDevice || sending}
+                    onPress={() => {
+                      void handleSetProfile(profile.id);
+                    }}
+                  />
+                ))}
+              </ActionRow>
+            </ManagementCard>
+          </>
+        )}
+
+        {error ? <EmptyPanel variant="error" title="Remote control error" message={error} /> : null}
+      </View>
     </View>
   );
 }
@@ -208,116 +264,40 @@ export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlSc
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#05070d",
-    padding: 20,
-    gap: 12,
+    backgroundColor: "#090c13",
+    paddingTop: 24,
   },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  topBar: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
   },
-  title: {
-    color: "#fff",
-    fontSize: 30,
-    fontWeight: "700",
-  },
-  backButton: {
-    backgroundColor: "#1c2535",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-  },
-  backLabel: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  sectionTitle: {
-    color: "#d7deea",
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 8,
+  content: {
+    flex: 1,
+    paddingHorizontal: 20,
+    gap: 10,
+    paddingBottom: 20,
   },
   devicesList: {
-    maxHeight: 220,
+    flexGrow: 0,
+    maxHeight: 260,
   },
-  deviceItem: {
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: "#0f1724",
-    marginBottom: 8,
-  },
-  deviceItemSelected: {
-    borderWidth: 1,
-    borderColor: "#69a8ff",
-  },
-  deviceName: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
+  devicesContent: {
+    gap: 10,
   },
   deviceMeta: {
-    color: "#95a4be",
-    fontSize: 13,
-    marginTop: 4,
+    color: "#a3a3a3",
+    fontSize: 12,
   },
-  actionButton: {
-    backgroundColor: "#2e67c8",
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  actionButtonDisabled: {
-    opacity: 0.55,
-  },
-  actionButtonLabel: {
-    color: "#fff",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-  actionLabel: {
-    color: "#d7deea",
-    fontSize: 15,
-    fontWeight: "600",
-  },
-  slideshowRow: {
+  toggleRow: {
+    marginTop: 6,
+    paddingVertical: 4,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#0f1724",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
   },
-  profileButtons: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  profileButton: {
-    backgroundColor: "#20314a",
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  profileButtonLabel: {
-    color: "#fff",
+  toggleLabel: {
+    color: "#d1d5db",
     fontSize: 13,
     fontWeight: "600",
-  },
-  error: {
-    color: "#ff7b7b",
-    fontSize: 14,
-  },
-  hint: {
-    color: "#95a4be",
-    fontSize: 13,
-  },
-  loadingContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
   },
 });
