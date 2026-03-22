@@ -3,19 +3,27 @@ import type {
   WidgetDataEnvelope,
   WidgetKey,
 } from "@ambient/shared-contracts";
-import { resolveCalendarWidgetData } from "./resolvers/calendar.resolver";
-import { resolveClockDateWidgetData } from "./resolvers/clockDate.resolver";
-import { resolveWeatherWidgetData } from "./resolvers/weather.resolver";
+import { registerBuiltinWidgetPlugins } from "../widgets/registerBuiltinPlugins";
+import { listWidgetPlugins } from "../widgets/widgetPluginRegistry";
+
+registerBuiltinWidgetPlugins();
 
 export type WidgetResolver<TKey extends WidgetKey> = (input: {
   widgetInstanceId: string;
   widgetConfig: unknown;
+  widgetKey: TKey;
 }) => Promise<WidgetDataEnvelope<WidgetDataByKey[TKey], TKey>>;
 
-export const widgetResolvers: {
-  [TKey in WidgetKey]: WidgetResolver<TKey>;
-} = {
-  clockDate: resolveClockDateWidgetData,
-  weather: resolveWeatherWidgetData,
-  calendar: resolveCalendarWidgetData,
-};
+export const widgetResolvers = listWidgetPlugins().reduce((accumulator, plugin) => {
+  if (!plugin.api?.resolveData) {
+    return accumulator;
+  }
+
+  accumulator[plugin.manifest.key] = plugin.api.resolveData as WidgetResolver<WidgetKey>;
+  return accumulator;
+}, {} as Partial<Record<WidgetKey, WidgetResolver<WidgetKey>>>);
+
+export function getWidgetResolver(widgetKey: WidgetKey): WidgetResolver<WidgetKey> | null {
+  const resolver = widgetResolvers[widgetKey];
+  return resolver ?? null;
+}

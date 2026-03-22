@@ -3,6 +3,7 @@ import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetDataService } from "../src/modules/widgetData/widget-data.service";
 import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/calendar.resolver";
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
+import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
 beforeEach(() => {
   vi.spyOn(widgetsRepository, "findByIdForUser").mockImplementation(async () => {
@@ -39,6 +40,33 @@ test("widgetDataService returns null for another user's widget", async () => {
 
   const result = await widgetDataService.getWidgetDataForUser("widget-clock", "user-2");
   expect(result).toBeNull();
+});
+
+test("widgetDataService returns safe error when plugin lookup fails", async () => {
+  vi.spyOn(widgetPluginRegistry, "getWidgetPlugin").mockImplementation(() => null);
+
+  const result = await widgetDataService.getWidgetDataForUser("widget-clock", "user-1");
+  expect(result?.state).toBe("error");
+  expect(result?.meta?.errorCode).toBe("UNSUPPORTED_WIDGET_TYPE");
+});
+
+test("widgetDataService returns safe error when config validation fails", async () => {
+  vi.spyOn(widgetsRepository, "findByIdForUser").mockResolvedValueOnce({
+    id: "widget-weather",
+    profileId: "user-1",
+    type: "weather",
+    config: {
+      units: "kelvin",
+    },
+    layout: { x: 0, y: 0, w: 1, h: 1 },
+    isActive: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as never);
+
+  const result = await widgetDataService.getWidgetDataForUser("widget-weather", "user-1");
+  expect(result?.state).toBe("error");
+  expect(result?.meta?.errorCode).toBe("INVALID_WIDGET_CONFIG");
 });
 
 test("weather resolver returns normalized ready payload from provider data", async () => {

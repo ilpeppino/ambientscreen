@@ -11,6 +11,7 @@ import { displayRouter } from "./modules/display/display.routes";
 import { orchestrationRouter } from "./modules/orchestration/orchestration.routes";
 import { sharedSessionsRouter } from "./modules/sharedSessions/sharedSessions.routes";
 import { devicesRouter } from "./modules/devices/devices.routes";
+import { registerBuiltinWidgetPlugins } from "./modules/widgets/registerBuiltinPlugins";
 import {
   globalErrorMiddleware,
   notFoundMiddleware
@@ -18,6 +19,8 @@ import {
 import { requestLoggingMiddleware } from "./core/http/request-logging-middleware";
 
 export function createApp() {
+  registerBuiltinWidgetPlugins();
+
   const app = express();
 
   app.use(cors());

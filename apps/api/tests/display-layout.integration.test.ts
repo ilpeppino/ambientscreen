@@ -3,8 +3,8 @@ import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { displayRouter } from "../src/modules/display/display.routes";
 import { profilesService } from "../src/modules/profiles/profiles.service";
-import { widgetResolvers } from "../src/modules/widgetData/widget-resolvers";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
+import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
 interface TestWidget {
   id: string;
@@ -59,36 +59,77 @@ beforeEach(() => {
     return widgetsStore.filter((widget) => widget.profileId === profileId) as never;
   });
 
-  vi.spyOn(widgetResolvers, "clockDate").mockImplementation(async ({ widgetInstanceId }) => {
-    return {
-      widgetInstanceId,
-      widgetKey: "clockDate",
-      state: "ready",
-      data: {
-        nowIso: "2026-03-21T10:00:00.000Z",
-        formattedTime: "10:00:00",
-        formattedDate: "21 March 2026",
-        weekdayLabel: "Saturday",
-      },
-      meta: {
-        source: "system",
-      },
-    } as never;
-  });
-  vi.spyOn(widgetResolvers, "weather").mockImplementation(async ({ widgetInstanceId }) => {
-    return {
-      widgetInstanceId,
-      widgetKey: "weather",
-      state: "ready",
-      data: {
-        location: "Amsterdam",
-        temperatureC: 9.1,
-        conditionLabel: "Rain",
-      },
-      meta: {
-        source: "open-meteo",
-      },
-    } as never;
+  vi.spyOn(widgetPluginRegistry, "getWidgetPlugin").mockImplementation((widgetKey) => {
+    if (widgetKey === "clockDate") {
+      return {
+        manifest: {
+          key: "clockDate",
+          version: "1.0.0",
+          name: "Clock & Date",
+          description: "",
+          category: "time",
+          defaultLayout: { w: 4, h: 2 },
+          refreshPolicy: { intervalMs: 1000 },
+        },
+        configSchema: {},
+        defaultConfig: {},
+        api: {
+          resolveData: async ({ widgetInstanceId }) => ({
+            widgetInstanceId,
+            widgetKey: "clockDate",
+            state: "ready",
+            data: {
+              nowIso: "2026-03-21T10:00:00.000Z",
+              formattedTime: "10:00:00",
+              formattedDate: "21 March 2026",
+              weekdayLabel: "Saturday",
+            },
+            meta: {
+              source: "system",
+            },
+          }),
+        },
+      } as never;
+    }
+
+    if (widgetKey === "weather") {
+      return {
+        manifest: {
+          key: "weather",
+          version: "1.0.0",
+          name: "Weather",
+          description: "",
+          category: "environment",
+          defaultLayout: { w: 4, h: 2 },
+          refreshPolicy: { intervalMs: 300000 },
+        },
+        configSchema: {
+          location: "string",
+          units: ["metric", "imperial"],
+        },
+        defaultConfig: {
+          location: "Amsterdam",
+          units: "metric",
+        },
+        api: {
+          resolveData: async ({ widgetInstanceId }) => ({
+            widgetInstanceId,
+            widgetKey: "weather",
+            state: "ready",
+            data: {
+              location: "Amsterdam",
+              temperatureC: 9.1,
+              conditionLabel: "Rain",
+            },
+            meta: {
+              source: "open-meteo",
+            },
+          }),
+        },
+      } as never;
+    }
+
+    return null;
   });
 });
 
@@ -183,8 +224,60 @@ test("GET /display-layout returns multiple layout-aware widget envelopes", async
 });
 
 test("GET /display-layout continues when one resolver fails", async () => {
-  vi.spyOn(widgetResolvers, "weather").mockImplementation(async () => {
-    throw new Error("weather unavailable");
+  vi.spyOn(widgetPluginRegistry, "getWidgetPlugin").mockImplementation((widgetKey) => {
+    if (widgetKey === "weather") {
+      return {
+        manifest: {
+          key: "weather",
+          version: "1.0.0",
+          name: "Weather",
+          description: "",
+          category: "environment",
+          defaultLayout: { w: 4, h: 2 },
+          refreshPolicy: { intervalMs: 300000 },
+        },
+        configSchema: {
+          location: "string",
+          units: ["metric", "imperial"],
+        },
+        defaultConfig: {
+          location: "Amsterdam",
+          units: "metric",
+        },
+        api: {
+          resolveData: async () => {
+            throw new Error("weather unavailable");
+          },
+        },
+      } as never;
+    }
+
+    return {
+      manifest: {
+        key: "clockDate",
+        version: "1.0.0",
+        name: "Clock & Date",
+        description: "",
+        category: "time",
+        defaultLayout: { w: 4, h: 2 },
+        refreshPolicy: { intervalMs: 1000 },
+      },
+      configSchema: {},
+      defaultConfig: {},
+      api: {
+        resolveData: async ({ widgetInstanceId }) => ({
+          widgetInstanceId,
+          widgetKey: "clockDate",
+          state: "ready",
+          data: {
+            nowIso: "2026-03-21T10:00:00.000Z",
+            formattedTime: "10:00:00",
+            formattedDate: "21 March 2026",
+            weekdayLabel: "Saturday",
+          },
+        }),
+      },
+    } as never;
   });
 
   const response = await invokeGetRoute(displayRouter, "/display-layout");

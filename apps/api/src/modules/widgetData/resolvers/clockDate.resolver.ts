@@ -3,14 +3,31 @@ import type {
   ClockDateWidgetData,
   WidgetDataEnvelope,
 } from "@ambient/shared-contracts";
-import { normalizeWidgetConfig } from "../../widgets/widget-contracts";
+
+function toClockDateConfig(config: unknown): WidgetConfigByKey["clockDate"] {
+  const raw = config && typeof config === "object" && !Array.isArray(config)
+    ? config as Record<string, unknown>
+    : {};
+
+  const format = raw.format === "12h" || raw.format === "24h"
+    ? raw.format
+    : "24h";
+
+  return {
+    format,
+    showSeconds: typeof raw.showSeconds === "boolean" ? raw.showSeconds : false,
+    timezone: typeof raw.timezone === "string" && raw.timezone.length > 0 ? raw.timezone : "local",
+    locale: typeof raw.locale === "string" && raw.locale.length > 0 ? raw.locale : undefined,
+    hour12: format === "12h",
+  };
+}
 
 export async function resolveClockDateWidgetData(input: {
   widgetInstanceId: string;
   widgetConfig: unknown;
 }): Promise<WidgetDataEnvelope<ClockDateWidgetData, "clockDate">> {
   const now = new Date();
-  const normalizedConfig = normalizeWidgetConfig("clockDate", input.widgetConfig) as WidgetConfigByKey["clockDate"];
+  const normalizedConfig = toClockDateConfig(input.widgetConfig);
   const format = normalizedConfig.format ?? (normalizedConfig.hour12 ? "12h" : "24h");
   const showSeconds = normalizedConfig.showSeconds ?? false;
   const timezone = normalizedConfig.timezone && normalizedConfig.timezone.length > 0

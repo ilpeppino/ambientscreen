@@ -3,11 +3,25 @@ import type {
   WeatherWidgetData,
   WidgetDataEnvelope,
 } from "@ambient/shared-contracts";
-import { normalizeWidgetConfig } from "../../widgets/widget-contracts";
 import {
   fetchOpenMeteoWeather,
   type OpenMeteoWeatherResult,
 } from "../providers/open-meteo.provider";
+
+function toWeatherConfig(config: unknown): WidgetConfigByKey["weather"] {
+  const raw = config && typeof config === "object" && !Array.isArray(config)
+    ? config as Record<string, unknown>
+    : {};
+
+  const units = raw.units === "metric" || raw.units === "imperial"
+    ? raw.units
+    : "metric";
+
+  return {
+    location: typeof raw.location === "string" && raw.location.length > 0 ? raw.location : "Amsterdam",
+    units,
+  };
+}
 
 function roundToSingleDecimal(value: number): number {
   return Math.round(value * 10) / 10;
@@ -43,10 +57,7 @@ export async function resolveWeatherWidgetData(input: {
     units: "metric" | "imperial";
   }) => Promise<OpenMeteoWeatherResult | null>;
 }): Promise<WidgetDataEnvelope<WeatherWidgetData, "weather">> {
-  const normalizedConfig = normalizeWidgetConfig(
-    "weather",
-    input.widgetConfig,
-  ) as WidgetConfigByKey["weather"];
+  const normalizedConfig = toWeatherConfig(input.widgetConfig);
   const locationQuery = normalizedConfig.location ?? "Amsterdam";
   const units = normalizedConfig.units ?? "metric";
   const fetchWeatherData = input.fetchWeatherData ?? fetchOpenMeteoWeather;

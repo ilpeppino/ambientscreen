@@ -1,7 +1,7 @@
 import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import { displayService } from "../src/modules/display/display.service";
-import { widgetResolvers } from "../src/modules/widgetData/widget-resolvers";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
+import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
 beforeEach(() => {
   vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => {
@@ -29,39 +29,78 @@ beforeEach(() => {
     ] as never;
   });
 
-  vi.spyOn(widgetResolvers, "clockDate").mockImplementation(async ({ widgetInstanceId }) => {
-    return {
-      widgetInstanceId,
-      widgetKey: "clockDate",
-      state: "ready",
-      data: {
-        nowIso: "2026-03-21T10:00:00.000Z",
-        formattedTime: "10:00:00",
-        formattedDate: "21 March 2026",
-        weekdayLabel: "Saturday",
-      },
-      meta: {
-        source: "system",
-        fetchedAt: "2026-03-21T10:00:00.000Z",
-      },
-    } as never;
-  });
+  vi.spyOn(widgetPluginRegistry, "getWidgetPlugin").mockImplementation((widgetKey) => {
+    if (widgetKey === "clockDate") {
+      return {
+        manifest: {
+          key: "clockDate",
+          version: "1.0.0",
+          name: "Clock & Date",
+          description: "",
+          category: "time",
+          defaultLayout: { w: 4, h: 2 },
+          refreshPolicy: { intervalMs: 1000 },
+        },
+        configSchema: {},
+        defaultConfig: {},
+        api: {
+          resolveData: async ({ widgetInstanceId }) => ({
+            widgetInstanceId,
+            widgetKey: "clockDate",
+            state: "ready",
+            data: {
+              nowIso: "2026-03-21T10:00:00.000Z",
+              formattedTime: "10:00:00",
+              formattedDate: "21 March 2026",
+              weekdayLabel: "Saturday",
+            },
+            meta: {
+              source: "system",
+              fetchedAt: "2026-03-21T10:00:00.000Z",
+            },
+          }),
+        },
+      } as never;
+    }
 
-  vi.spyOn(widgetResolvers, "weather").mockImplementation(async ({ widgetInstanceId }) => {
-    return {
-      widgetInstanceId,
-      widgetKey: "weather",
-      state: "ready",
-      data: {
-        location: "Amsterdam",
-        temperatureC: 10.1,
-        conditionLabel: "Rain",
-      },
-      meta: {
-        source: "open-meteo",
-        fetchedAt: "2026-03-21T10:01:00.000Z",
-      },
-    } as never;
+    if (widgetKey === "weather") {
+      return {
+        manifest: {
+          key: "weather",
+          version: "1.0.0",
+          name: "Weather",
+          description: "",
+          category: "environment",
+          defaultLayout: { w: 4, h: 2 },
+          refreshPolicy: { intervalMs: 300000 },
+        },
+        configSchema: {
+          location: "string",
+        },
+        defaultConfig: {
+          location: "Amsterdam",
+          units: "metric",
+        },
+        api: {
+          resolveData: async ({ widgetInstanceId }) => ({
+            widgetInstanceId,
+            widgetKey: "weather",
+            state: "ready",
+            data: {
+              location: "Amsterdam",
+              temperatureC: 10.1,
+              conditionLabel: "Rain",
+            },
+            meta: {
+              source: "open-meteo",
+              fetchedAt: "2026-03-21T10:01:00.000Z",
+            },
+          }),
+        },
+      } as never;
+    }
+
+    return null;
   });
 });
 
@@ -87,8 +126,60 @@ test("displayService resolves all widgets and attaches layout", async () => {
 });
 
 test("displayService continues when one resolver throws", async () => {
-  vi.spyOn(widgetResolvers, "weather").mockImplementation(async () => {
-    throw new Error("resolver failed");
+  vi.spyOn(widgetPluginRegistry, "getWidgetPlugin").mockImplementation((widgetKey) => {
+    if (widgetKey === "weather") {
+      return {
+        manifest: {
+          key: "weather",
+          version: "1.0.0",
+          name: "Weather",
+          description: "",
+          category: "environment",
+          defaultLayout: { w: 4, h: 2 },
+          refreshPolicy: { intervalMs: 300000 },
+        },
+        configSchema: {
+          location: "string",
+          units: ["metric", "imperial"],
+        },
+        defaultConfig: {
+          location: "Amsterdam",
+          units: "metric",
+        },
+        api: {
+          resolveData: async () => {
+            throw new Error("resolver failed");
+          },
+        },
+      } as never;
+    }
+
+    return {
+      manifest: {
+        key: "clockDate",
+        version: "1.0.0",
+        name: "Clock & Date",
+        description: "",
+        category: "time",
+        defaultLayout: { w: 4, h: 2 },
+        refreshPolicy: { intervalMs: 1000 },
+      },
+      configSchema: {},
+      defaultConfig: {},
+      api: {
+        resolveData: async ({ widgetInstanceId }) => ({
+          widgetInstanceId,
+          widgetKey: "clockDate",
+          state: "ready",
+          data: {
+            nowIso: "2026-03-21T10:00:00.000Z",
+            formattedTime: "10:00:00",
+            formattedDate: "21 March 2026",
+            weekdayLabel: "Saturday",
+          },
+        }),
+      },
+    } as never;
   });
 
   const result = await displayService.getDisplayLayout("user-1");

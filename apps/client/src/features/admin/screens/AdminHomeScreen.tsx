@@ -73,7 +73,7 @@ export function AdminHomeScreen({
   const [deletingProfile, setDeletingProfile] = useState(false);
   const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
   const [selectedWidgetType, setSelectedWidgetType] =
-    useState<CreatableWidgetType>(CREATABLE_WIDGET_TYPES[0]);
+    useState<CreatableWidgetType>(CREATABLE_WIDGET_TYPES[0] ?? "clockDate");
   const [weatherLocation, setWeatherLocation] = useState("Amsterdam");
   const [weatherUnits, setWeatherUnits] = useState<WeatherUnit>("metric");
   const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>("ical");

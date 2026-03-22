@@ -4,12 +4,15 @@ import type {
   WidgetDataEnvelope,
   WidgetKey,
 } from "@ambient/shared-contracts";
-import { widgetResolvers } from "./widget-resolvers";
+import {
+  normalizeWidgetConfig,
+  validateWidgetConfig,
+  type SupportedWidgetType,
+} from "../widgets/widget-contracts";
+import { getWidgetPlugin } from "../widgets/widgetPluginRegistry";
 
 type WidgetDataResult =
-  WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate"> |
-  WidgetDataEnvelope<WidgetDataByKey["weather"], "weather"> |
-  WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
+  WidgetDataEnvelope<WidgetDataByKey[WidgetKey], WidgetKey>;
 
 export const widgetDataService = {
   async getWidgetDataForUser(widgetId: string, userId: string): Promise<WidgetDataResult | null> {
@@ -19,23 +22,39 @@ export const widgetDataService = {
       return null;
     }
 
-    const resolver = widgetResolvers[widget.type as WidgetKey];
-    if (!resolver) {
+    const widgetType = widget.type as SupportedWidgetType;
+    const plugin = getWidgetPlugin(widgetType);
+    if (!plugin?.api?.resolveData) {
       return {
         widgetInstanceId: widget.id,
-        widgetKey: widget.type as WidgetKey,
+        widgetKey: widgetType,
         state: "error",
         data: null,
         meta: {
           errorCode: "UNSUPPORTED_WIDGET_TYPE",
           message: `Unsupported widget type: ${widget.type}`,
         },
-      } as WidgetDataResult;
+      };
     }
 
-    return resolver({
+    const validationResult = validateWidgetConfig(widgetType, widget.config);
+    if (!validationResult.success) {
+      return {
+        widgetInstanceId: widget.id,
+        widgetKey: widgetType,
+        state: "error",
+        data: null,
+        meta: {
+          errorCode: "INVALID_WIDGET_CONFIG",
+          message: `Invalid config for widget type: ${widget.type}`,
+        },
+      };
+    }
+
+    return plugin.api.resolveData({
       widgetInstanceId: widget.id,
-      widgetConfig: widget.config,
+      widgetKey: widgetType,
+      widgetConfig: normalizeWidgetConfig(widgetType, widget.config),
     });
   },
 };

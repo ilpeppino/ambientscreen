@@ -1,35 +1,17 @@
-import type { WidgetKey, WidgetManifest, WidgetRefreshPolicy } from "@ambient/shared-contracts";
+import type { WidgetKey, WidgetPluginManifest } from "@ambient/shared-contracts";
+import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 
-const refreshPolicyByWidget: { [TKey in WidgetKey]: WidgetRefreshPolicy } = {
-  clockDate: { intervalMs: 1000 },
-  weather: { intervalMs: 300000 },
-  calendar: { intervalMs: 60000 },
-};
-
-export const widgetManifests: { [TKey in WidgetKey]: WidgetManifest<TKey> } = {
-  clockDate: {
-    key: "clockDate",
-    name: "Clock & Date",
-    refreshPolicy: refreshPolicyByWidget.clockDate,
-  },
-  weather: {
-    key: "weather",
-    name: "Weather",
-    refreshPolicy: refreshPolicyByWidget.weather,
-  },
-  calendar: {
-    key: "calendar",
-    name: "Calendar",
-    refreshPolicy: refreshPolicyByWidget.calendar,
-  },
-};
+export const widgetManifests = Object.values(widgetBuiltinDefinitions).reduce((accumulator, definition) => {
+  accumulator[definition.manifest.key] = definition.manifest;
+  return accumulator;
+}, {} as Record<WidgetKey, WidgetPluginManifest<WidgetKey>>);
 
 export function getWidgetRefreshIntervalMs(widgetKey: WidgetKey | null | undefined): number | null {
   if (!widgetKey) {
     return null;
   }
 
-  return widgetManifests[widgetKey].refreshPolicy.intervalMs;
+  return widgetManifests[widgetKey]?.refreshPolicy.intervalMs ?? null;
 }
 
 export function formatRefreshIntervalLabel(intervalMs: number | null): string {

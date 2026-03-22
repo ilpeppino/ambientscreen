@@ -1,11 +1,11 @@
 import type { WidgetConfigSchema, WidgetDataState, WidgetKey } from "@ambient/shared-contracts";
 import { widgetsService } from "../widgets/widgets.service";
-import { widgetResolvers } from "../widgetData/widget-resolvers";
 import {
-  getWidgetConfigSchema,
   normalizeWidgetConfig,
+  validateWidgetConfig,
   type SupportedWidgetType,
 } from "../widgets/widget-contracts";
+import { getWidgetPlugin } from "../widgets/widgetPluginRegistry";
 
 type DisplayWidgetState = "ready" | "loading" | "error" | "empty";
 
@@ -51,17 +51,15 @@ export const displayService = {
 
     const resolvedWidgets = await Promise.all(widgets.map(async (widget) => {
       const resolvedAt = new Date().toISOString();
-      const resolver = widgetResolvers[widget.type as WidgetKey];
-      const normalizedConfig = normalizeWidgetConfig(
-        widget.type as SupportedWidgetType,
-        widget.config,
-      ) as Record<string, unknown>;
-      const configSchema = getWidgetConfigSchema(widget.type as SupportedWidgetType);
+      const widgetType = widget.type as SupportedWidgetType;
+      const plugin = getWidgetPlugin(widgetType);
+      const normalizedConfig = normalizeWidgetConfig(widgetType, widget.config) as Record<string, unknown>;
+      const configSchema = (plugin?.configSchema ?? {}) as WidgetConfigSchema;
 
-      if (!resolver) {
+      if (!plugin?.api?.resolveData) {
         return {
           widgetInstanceId: widget.id,
-          widgetKey: widget.type as WidgetKey,
+          widgetKey: widgetType,
           layout: widget.layout,
           state: "error" as const,
           config: normalizedConfig,
@@ -75,10 +73,29 @@ export const displayService = {
         };
       }
 
-      try {
-        const resolvedWidgetData = await resolver({
+      const validationResult = validateWidgetConfig(widgetType, widget.config);
+      if (!validationResult.success) {
+        return {
           widgetInstanceId: widget.id,
-          widgetConfig: widget.config,
+          widgetKey: widgetType,
+          layout: widget.layout,
+          state: "error" as const,
+          config: normalizedConfig,
+          configSchema,
+          data: null,
+          meta: {
+            resolvedAt,
+            errorCode: "INVALID_WIDGET_CONFIG",
+            message: "Widget config is invalid.",
+          },
+        };
+      }
+
+      try {
+        const resolvedWidgetData = await plugin.api.resolveData({
+          widgetInstanceId: widget.id,
+          widgetKey: widgetType,
+          widgetConfig: normalizedConfig,
         });
 
         return {

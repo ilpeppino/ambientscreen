@@ -1,22 +1,35 @@
 import type {
   CalendarWidgetConfig,
   CreateWidgetInput,
+  WidgetKey,
+  WidgetConfigSchema,
   WeatherWidgetConfig,
 } from "@ambient/shared-contracts";
+import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 
 interface ActiveWidgetCandidate {
   id: string;
   isActive: boolean;
 }
 
-export const CREATABLE_WIDGET_TYPES = ["clockDate", "weather", "calendar"] as const;
-export type CreatableWidgetType = (typeof CREATABLE_WIDGET_TYPES)[number];
-export const WEATHER_UNITS = ["metric", "imperial"] as const;
-export type WeatherUnit = (typeof WEATHER_UNITS)[number];
-export const CALENDAR_PROVIDERS = ["ical"] as const;
-export type CalendarProvider = (typeof CALENDAR_PROVIDERS)[number];
-export const CALENDAR_TIME_WINDOWS = ["today", "next24h", "next7d"] as const;
-export type CalendarTimeWindow = (typeof CALENDAR_TIME_WINDOWS)[number];
+export const CREATABLE_WIDGET_TYPES = Object.keys(widgetBuiltinDefinitions) as WidgetKey[];
+export type CreatableWidgetType = WidgetKey;
+export type WeatherUnit = "metric" | "imperial";
+export type CalendarProvider = "ical";
+export type CalendarTimeWindow = "today" | "next24h" | "next7d";
+
+function getEnumOptions(widgetKey: WidgetKey, field: string, fallback: readonly string[]) {
+  const schema = widgetBuiltinDefinitions[widgetKey].configSchema as WidgetConfigSchema;
+  const fieldSchema = schema[field];
+  if (Array.isArray(fieldSchema)) {
+    return fieldSchema;
+  }
+  return fallback;
+}
+
+export const WEATHER_UNITS = getEnumOptions("weather", "units", ["metric", "imperial"]) as readonly WeatherUnit[];
+export const CALENDAR_PROVIDERS = getEnumOptions("calendar", "provider", ["ical"]) as readonly CalendarProvider[];
+export const CALENDAR_TIME_WINDOWS = getEnumOptions("calendar", "timeWindow", ["today", "next24h", "next7d"]) as readonly CalendarTimeWindow[];
 
 export function buildCreateWidgetInput(input: {
   widgetType: CreatableWidgetType;

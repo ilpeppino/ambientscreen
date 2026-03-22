@@ -1,15 +1,9 @@
 import type { WidgetKey } from "@ambient/shared-contracts";
+import { getWidgetPlugin } from "./pluginRegistry";
 
 export type WidgetRendererKind = "clockDate" | "weather" | "calendar";
 
 export function resolveWidgetRendererKind(widgetKey: WidgetKey): WidgetRendererKind {
-  if (widgetKey === "clockDate") {
-    return "clockDate";
-  }
-
-  if (widgetKey === "weather") {
-    return "weather";
-  }
-
-  return "calendar";
+  const plugin = getWidgetPlugin(widgetKey);
+  return (plugin?.manifest.key ?? "calendar") as WidgetRendererKind;
 }

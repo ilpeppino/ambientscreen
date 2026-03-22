@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   createWidgetSchema,
   normalizeWidgetConfig,
+  type SupportedWidgetType,
   updateWidgetConfigPayloadSchema,
   updateWidgetsLayoutSchema,
 } from "./widget-contracts";
@@ -64,7 +65,16 @@ widgetsRouter.post(
       bodyProfileId ?? getQueryProfileId(req.query?.profileId),
     );
 
-    const { type, config, layout } = result.data;
+    const { type, config, layout } = result.data as {
+      type: SupportedWidgetType;
+      config?: unknown;
+      layout?: {
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+      };
+    };
     const widget = await widgetsService.createWidgetAtNextPosition({
       profileId,
       type,

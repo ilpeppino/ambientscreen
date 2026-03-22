@@ -4,72 +4,56 @@ import type {
   WidgetConfigSchema,
   WidgetKey,
 } from "@ambient/shared-contracts";
+import { registerBuiltinWidgetPlugins } from "./registerBuiltinPlugins";
+import {
+  getWidgetPlugin,
+  listWidgetPlugins,
+} from "./widgetPluginRegistry";
 
-export const widgetRegistry = {
-  clockDate: {
-    key: "clockDate",
-    name: "Clock & Date",
-    defaultConfig: {
-      format: "24h",
-      showSeconds: false,
-      timezone: "local",
-    },
-    configSchema: {
-      format: ["12h", "24h"] as const,
-      showSeconds: "boolean" as const,
-      timezone: "string" as const,
-    },
-  },
-  weather: {
-    key: "weather",
-    name: "Weather",
-    defaultConfig: {
-      location: "Amsterdam",
-      units: "metric",
-    },
-    configSchema: {
-      location: "string" as const,
-      units: ["metric", "imperial"] as const,
-    },
-  },
-  calendar: {
-    key: "calendar",
-    name: "Calendar",
-    defaultConfig: {
-      provider: "ical",
-      account: "",
-      timeWindow: "next7d",
-      maxEvents: 10,
-      includeAllDay: true,
-    },
-    configSchema: {
-      provider: ["ical"] as const,
-      account: "string" as const,
-      timeWindow: ["today", "next24h", "next7d"] as const,
-      maxEvents: "number" as const,
-      includeAllDay: "boolean" as const,
-    },
-  },
-} satisfies {
-  [TKey in WidgetKey]: {
-    key: TKey;
-    name: string;
-    defaultConfig: WidgetConfigByKey[TKey];
-    configSchema: WidgetConfigSchema;
-  };
-};
+registerBuiltinWidgetPlugins();
 
 export type SupportedWidgetType = WidgetKey;
 export type SupportedWidgetConfig = WidgetConfigByKey[SupportedWidgetType];
 export type SupportedWidgetConfigSchema = WidgetConfigSchema;
 export type SupportedWidgetConfigFieldSchema = WidgetConfigFieldSchema;
 
-export const SUPPORTED_WIDGET_TYPES = Object.keys(widgetRegistry) as SupportedWidgetType[];
+export const SUPPORTED_WIDGET_TYPES = listWidgetPlugins().map((plugin) => plugin.manifest.key) as SupportedWidgetType[];
+
+export const widgetRegistry = SUPPORTED_WIDGET_TYPES.reduce((accumulator, widgetType) => {
+  const plugin = getWidgetPlugin(widgetType);
+  if (!plugin) {
+    return accumulator;
+  }
+
+  accumulator[widgetType] = {
+    key: plugin.manifest.key,
+    name: plugin.manifest.name,
+    defaultConfig: plugin.defaultConfig,
+    configSchema: plugin.configSchema,
+  };
+
+  return accumulator;
+}, {} as Record<WidgetKey, {
+  key: WidgetKey;
+  name: string;
+  defaultConfig: WidgetConfigByKey[WidgetKey];
+  configSchema: WidgetConfigSchema;
+}>);
 
 export function getWidgetConfigSchema(widgetType: SupportedWidgetType): WidgetConfigSchema {
-  return widgetRegistry[widgetType].configSchema;
+  const plugin = getWidgetPlugin(widgetType);
+  if (!plugin) {
+    throw new Error(`Widget plugin not registered: ${widgetType}`);
+  }
+
+  return plugin.configSchema;
 }
 
 export function getWidgetDefaultConfig(widgetType: SupportedWidgetType): WidgetConfigByKey[SupportedWidgetType] {
-  return widgetRegistry[widgetType].defaultConfig;
+  const plugin = getWidgetPlugin(widgetType);
+  if (!plugin) {
+    throw new Error(`Widget plugin not registered: ${widgetType}`);
+  }
+
+  return plugin.defaultConfig;
 }
