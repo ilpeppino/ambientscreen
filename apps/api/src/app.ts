@@ -17,6 +17,7 @@ import { pluginInstallationRouter, mePluginsRouter } from "./modules/plugin-inst
 import { pluginPublishingRouter } from "./modules/plugin-publishing/pluginPublishing.routes";
 import { adminPluginsRouter } from "./modules/admin-plugins/adminPlugins.routes";
 import { registerBuiltinWidgetPlugins } from "./modules/widgets/registerBuiltinPlugins";
+import { prisma } from "./core/db/prisma";
 import {
   globalErrorMiddleware,
   notFoundMiddleware
@@ -38,8 +39,13 @@ export function createApp() {
     res.json({ status: "ok" });
   });
 
-  app.get("/health/ready", (_req, res) => {
-    res.json({ status: "ready" });
+  app.get("/health/ready", async (_req, res) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      res.json({ status: "ready" });
+    } catch {
+      res.status(503).json({ status: "unavailable", reason: "db" });
+    }
   });
 
   app.use("/auth", authRouter);

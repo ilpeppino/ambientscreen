@@ -124,7 +124,7 @@ jobs:
             --retry 5 \
             --retry-delay 5 \
             --retry-connrefused \
-            "http://${{ secrets.NAS_HOST }}:${{ secrets.NAS_API_PORT }}/health")
+            "http://${{ secrets.NAS_HOST }}:${{ secrets.NAS_API_PORT }}/health/ready")
 
           if [ "$STATUS" -ne 200 ]; then
             echo "Health check failed — HTTP $STATUS"

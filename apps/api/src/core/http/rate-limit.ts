@@ -21,11 +21,15 @@ interface RateLimitOptions {
  * This is intentionally simple (not distributed) — sufficient for single-node deployments.
  *
  * Rate-limited endpoints and their thresholds:
- *   POST /auth/login        — 10 req / 15 min  (brute-force protection)
- *   POST /auth/register     — 5 req  / 60 min  (account-creation spam)
- *   POST /devices/register  — 10 req / 60 min  (device spam)
- *   POST /devices/heartbeat — 120 req / 1 min  (frequent but bounded)
- *   POST /devices/:id/command — 60 req / 1 min (remote-control abuse)
+ *   POST /auth/login                        — 10 req / 15 min  (brute-force protection)
+ *   POST /auth/register                     — 5 req  / 60 min  (account-creation spam)
+ *   POST /devices/register                  — 10 req / 60 min  (device spam)
+ *   POST /devices/heartbeat                 — 120 req / 1 min  (frequent but bounded)
+ *   POST /devices/:id/command               — 60 req / 1 min   (remote-control abuse)
+ *   POST /plugins/:id/install               — 20 req / 5 min   (install/uninstall spam)
+ *   DELETE /plugins/:id/install             — 20 req / 5 min   (install/uninstall spam)
+ *   POST /developer/plugins                 — 5 req  / 60 min  (plugin creation spam)
+ *   POST /developer/plugins/:id/versions    — 10 req / 60 min  (version publish spam)
  */
 export function createRateLimit(options: RateLimitOptions): RequestHandler {
   const { windowMs, max, message = "Too many requests, please try again later" } = options;

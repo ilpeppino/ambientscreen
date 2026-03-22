@@ -1,13 +1,18 @@
 import { Router } from "express";
 import { asyncHandler } from "../../core/http/async-handler";
 import { getRequestUserId } from "../auth/auth.middleware";
+import { createRateLimit } from "../../core/http/rate-limit";
 import { pluginPublishingService } from "./pluginPublishing.service";
+
+const createPluginRateLimit = createRateLimit({ windowMs: 60 * 60 * 1000, max: 5 });
+const publishVersionRateLimit = createRateLimit({ windowMs: 60 * 60 * 1000, max: 10 });
 
 export const pluginPublishingRouter = Router();
 
 /** POST /developer/plugins — create a new plugin */
 pluginPublishingRouter.post(
   "/",
+  createPluginRateLimit,
   asyncHandler(async (req, res) => {
     const authorId = getRequestUserId(req);
     const plugin = await pluginPublishingService.createPlugin(authorId, req.body);
@@ -54,6 +59,7 @@ pluginPublishingRouter.patch(
 /** POST /developer/plugins/:pluginId/versions — publish a new version */
 pluginPublishingRouter.post(
   "/:pluginId/versions",
+  publishVersionRateLimit,
   asyncHandler(async (req, res) => {
     const authorId = getRequestUserId(req);
     const pluginId = Array.isArray(req.params.pluginId)
