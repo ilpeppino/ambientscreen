@@ -111,6 +111,8 @@ export function globalErrorMiddleware(
 
   if (apiError.status >= 500) {
     console.error(logContext, error);
+  } else if (apiError.status === 401 || apiError.status === 403) {
+    console.warn(`[SECURITY] ${logContext}`);
   } else {
     console.warn(logContext);
   }

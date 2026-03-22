@@ -28,6 +28,9 @@ beforeEach(() => {
   userCounter = 0;
 
   vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(usersRepository, "findById").mockImplementation(async (id: string) => {
+    return (usersStore.find((user) => user.id === id) ?? null) as never;
+  });
   vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
     return (usersStore.find((user) => user.email === email) ?? null) as never;
   });
@@ -145,7 +148,7 @@ test("M0-2: duplicate, validation, and internal errors are distinguishable with 
   expect(validationBody.error.code).toBe("VALIDATION_ERROR");
   expect(validationBody.error.details).toBeTruthy();
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => {
+  vi.spyOn(usersRepository, "findById").mockImplementation(async () => {
     throw new Error("simulated db failure");
   });
 
@@ -158,7 +161,9 @@ test("M0-2: duplicate, validation, and internal errors are distinguishable with 
     }
   });
 
-  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(usersRepository, "findById").mockImplementation(async (id: string) => {
+    return (usersStore.find((user) => user.id === id) ?? null) as never;
+  });
   const aliveResponse = await invokeRoute(usersRouter, "get", "/");
   expect(aliveResponse.statusCode).toBe(200);
 });

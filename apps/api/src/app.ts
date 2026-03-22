@@ -32,7 +32,7 @@ export function createApp() {
   });
 
   app.use("/auth", authRouter);
-  app.use("/users", usersRouter);
+  app.use("/users", requireAuth, usersRouter);
   app.use("/profiles", requireAuth, profilesRouter);
   app.use("/widgets", requireAuth, widgetsRouter);
   app.use("/widget-data", requireAuth, widgetDataRouter);
