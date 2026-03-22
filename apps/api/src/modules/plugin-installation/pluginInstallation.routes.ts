@@ -1,7 +1,10 @@
 import { Router } from "express";
 import { asyncHandler } from "../../core/http/async-handler";
 import { getRequestUserId } from "../auth/auth.middleware";
+import { createRateLimit } from "../../core/http/rate-limit";
 import { pluginInstallationService } from "./pluginInstallation.service";
+
+const installRateLimit = createRateLimit({ windowMs: 5 * 60 * 1000, max: 20 });
 
 // ---------------------------------------------------------------------------
 // /plugins/:pluginId/install
@@ -12,6 +15,7 @@ export const pluginInstallationRouter = Router();
 /** POST /plugins/:pluginId/install — install a plugin */
 pluginInstallationRouter.post(
   "/:pluginId/install",
+  installRateLimit,
   asyncHandler(async (req, res) => {
     const userId = getRequestUserId(req);
     const pluginId = Array.isArray(req.params.pluginId)
@@ -26,6 +30,7 @@ pluginInstallationRouter.post(
 /** DELETE /plugins/:pluginId/install — uninstall a plugin */
 pluginInstallationRouter.delete(
   "/:pluginId/install",
+  installRateLimit,
   asyncHandler(async (req, res) => {
     const userId = getRequestUserId(req);
     const pluginId = Array.isArray(req.params.pluginId)

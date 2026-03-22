@@ -4,6 +4,8 @@
 
 ## M5.1 — Plugin Registry Service (Backend)
 
+Status: Done
+
 ### Goal
 Create centralized plugin registry.
 
@@ -16,6 +18,8 @@ Create centralized plugin registry.
 ---
 
 ## M5.2 — Plugin Installation System
+
+Status: Done
 
 ### Goal
 Allow users to install plugins.
@@ -30,6 +34,8 @@ Allow users to install plugins.
 
 ## M5.3 — Marketplace UI (Client)
 
+Status: Done
+
 ### Goal
 Expose plugins to users.
 
@@ -43,6 +49,8 @@ Expose plugins to users.
 
 ## M5.4 — Plugin Publishing (Developer Flow)
 
+Status: Done
+
 ### Goal
 Enable developers to publish plugins.
 
@@ -54,20 +62,24 @@ Enable developers to publish plugins.
 
 ---
 
-## M5.5 — Plugin Versioning & Updates
+## M5.5 — Plugin Moderation & Admin
+
+Status: Done
 
 ### Goal
-Manage plugin lifecycle.
+Manage plugin lifecycle and moderation.
 
 ### Scope
-- version tracking
-- update detection
-- compatibility checks
-- update prompts in UI
+- admin moderation routes (`/admin/plugins`)
+- approve/reject plugin versions
+- moderation status tracking (`ModerationStatus` enum)
+- publisher visibility controls
 
 ---
 
 ## M5.6 — Plugin Security & Validation
+
+Status: Planned
 
 ### Goal
 Ensure safe ecosystem.
@@ -82,6 +94,8 @@ Ensure safe ecosystem.
 
 ## M5.7 — Monetization (Plugin-Level)
 
+Status: Planned
+
 ### Goal
 Enable plugin monetization.
 
@@ -93,6 +107,8 @@ Enable plugin monetization.
 ---
 
 ## M5.8 — Developer Portal (Docs + Publishing UX)
+
+Status: Partially Done (docs shipped in M4.5.1)
 
 ### Goal
 Support external developers.

@@ -26,16 +26,38 @@ Delivered:
 
 ## M4.5 Widget Plugin System (Core)
 
-Status: Planned
+Status: Done
+
+Delivered:
+- widget plugin registry (`widgetPluginRegistry.ts`)
+- plugin manifest contract and SDK docs
+- client-side plugin renderer integration
+- starter plugin template (M4.5.1)
 
 ## M4.6 Permissions (Basic Ownership)
 
-Status: In progress (ownership checks already present on major routes)
+Status: Done
+
+Delivered:
+- ownership validation helpers across all major routes
+- cross-user access hardening (profiles, widgets, devices, sessions)
 
 ## M4.7 API Hardening & Public Readiness
 
-Status: Planned
+Status: Done
+
+Delivered:
+- request ID middleware (`requestIdMiddleware`)
+- structured request logging middleware
+- `/health` (liveness) and `/health/ready` (readiness) endpoints
+- global error middleware with consistent error envelope
 
 ## M4.8 Foundation for Monetization
 
-Status: Planned
+Status: Done
+
+Delivered:
+- entitlements module (`/entitlements`)
+- plan-based feature flag checks
+- premium widget/plugin gating hooks
+- billing module scaffold
