@@ -20,6 +20,11 @@ interface RateLimitOptions {
  * Each rate limiter instance maintains its own store keyed by client IP.
  * This is intentionally simple (not distributed) — sufficient for single-node deployments.
  *
+ * SCALABILITY NOTE: This limiter is single-node only. In a multi-process or
+ * horizontally-scaled deployment, each process maintains independent state, so the
+ * effective rate limit per IP becomes (max × number of processes). For distributed
+ * rate limiting, replace this with a Redis-backed solution (e.g., rate-limiter-flexible).
+ *
  * Rate-limited endpoints and their thresholds:
  *   POST /auth/login                        — 10 req / 15 min  (brute-force protection)
  *   POST /auth/register                     — 5 req  / 60 min  (account-creation spam)
@@ -34,6 +39,21 @@ interface RateLimitOptions {
 export function createRateLimit(options: RateLimitOptions): RequestHandler {
   const { windowMs, max, message = "Too many requests, please try again later" } = options;
   const store = new Map<string, RateLimitWindow>();
+
+  // Periodically evict expired entries to prevent unbounded memory growth.
+  // The interval matches the window so entries are cleaned up within one extra window.
+  const pruneInterval = setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of store) {
+      if (now >= entry.resetAt) {
+        store.delete(key);
+      }
+    }
+  }, windowMs);
+
+  // Allow the interval to be garbage-collected when the process exits without
+  // blocking the event loop (Node.js will not keep the process alive for it).
+  pruneInterval.unref();
 
   return function rateLimitMiddleware(req: Request, res: Response, next: NextFunction) {
     const key = req.ip ?? "unknown";
