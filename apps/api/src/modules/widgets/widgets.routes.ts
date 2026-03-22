@@ -14,6 +14,7 @@ import { asyncHandler } from "../../core/http/async-handler";
 import { getRequestUserId } from "../auth/auth.middleware";
 import { assertFeatureAccess } from "../entitlements/entitlements.service";
 import { usersService } from "../users/users.service";
+import { pluginInstallationService } from "../plugin-installation/pluginInstallation.service";
 
 export const widgetsRouter = Router();
 
@@ -78,6 +79,8 @@ widgetsRouter.post(
         h: number;
       };
     };
+
+    await pluginInstallationService.assertPluginInstalledAndEnabled(userId, type);
 
     const plugin = getWidgetPlugin(type);
     if (plugin?.manifest.premium) {
