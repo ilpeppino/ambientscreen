@@ -16,11 +16,14 @@ import {
 import { heartbeatDevice, registerDevice } from "./src/services/api/devicesApi";
 import {
   enterDisplayMode,
+  enterMarketplaceMode,
   enterRemoteControlMode,
   exitDisplayMode,
+  exitMarketplaceMode,
   getInitialAppMode,
   type AppMode,
 } from "./src/features/navigation/appMode.logic";
+import { MarketplaceScreen } from "./src/features/marketplace/screens/MarketplaceScreen";
 import { API_BASE_URL } from "./src/core/config/api";
 import { EntitlementsProvider } from "./src/features/entitlements/entitlements.context";
 
@@ -111,12 +114,17 @@ function AuthenticatedApp() {
     return <LoginScreen />;
   }
 
+  if (mode === "marketplace") {
+    return <MarketplaceScreen onBack={() => setMode(exitMarketplaceMode())} />;
+  }
+
   if (mode === "admin") {
     return (
       <AdminHomeScreen
         currentDeviceId={deviceId}
         onEnterDisplayMode={() => setMode(enterDisplayMode())}
         onEnterRemoteControlMode={() => setMode(enterRemoteControlMode())}
+        onEnterMarketplace={() => setMode(enterMarketplaceMode())}
         onLogout={() => {
           void logout();
         }}
