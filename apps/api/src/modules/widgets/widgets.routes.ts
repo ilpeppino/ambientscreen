@@ -6,11 +6,14 @@ import {
   updateWidgetConfigPayloadSchema,
   updateWidgetsLayoutSchema,
 } from "./widget-contracts";
+import { getWidgetPlugin } from "./widgetPluginRegistry";
 import { widgetsService } from "./widgets.service";
 import { profilesService } from "../profiles/profiles.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 import { getRequestUserId } from "../auth/auth.middleware";
+import { assertFeatureAccess } from "../entitlements/entitlements.service";
+import { usersService } from "../users/users.service";
 
 export const widgetsRouter = Router();
 
@@ -75,6 +78,16 @@ widgetsRouter.post(
         h: number;
       };
     };
+
+    const plugin = getWidgetPlugin(type);
+    if (plugin?.manifest.premium) {
+      const user = await usersService.findUserById(userId);
+      if (!user) {
+        throw apiErrors.notFound("User not found");
+      }
+      assertFeatureAccess(user, "premium_widgets");
+    }
+
     const widget = await widgetsService.createWidgetAtNextPosition({
       profileId,
       type,

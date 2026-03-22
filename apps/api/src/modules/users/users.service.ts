@@ -15,5 +15,9 @@ export const usersService = {
 
   createUser(email: string, passwordHash: string) {
     return usersRepository.create(email, passwordHash);
-  }
+  },
+
+  updateUserPlan(id: string, plan: "free" | "pro") {
+    return usersRepository.updatePlan(id, plan);
+  },
 };

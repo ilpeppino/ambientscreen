@@ -11,6 +11,7 @@ model User {
   id           String    @id @default(uuid())
   email        String    @unique
   passwordHash String
+  plan         String    @default("free")
   createdAt    DateTime  @default(now())
   activeProfileId String?
 
@@ -119,4 +120,33 @@ model SharedScreenParticipant {
 
   @@unique([sessionId, deviceId])
   @@index([sessionId])
+}
+
+model Plugin {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  name        String
+  description String
+  category    String
+  isPremium   Boolean  @default(false)
+  isApproved  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  versions PluginVersion[]
+}
+
+model PluginVersion {
+  id           String   @id @default(uuid())
+  pluginId     String
+  version      String
+  manifestJson Json
+  changelog    String?
+  isActive     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  plugin Plugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
+
+  @@unique([pluginId, version])
+  @@index([pluginId])
 }

@@ -20,6 +20,13 @@ export const usersRepository = {
     });
   },
 
+  updatePlan(id: string, plan: "free" | "pro") {
+    return prisma.user.update({
+      where: { id },
+      data: { plan },
+    });
+  },
+
   create(email: string, passwordHash: string) {
     const userId = randomUUID();
     const profileId = randomUUID();

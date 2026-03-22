@@ -1,3 +1,16 @@
+export type UserPlan = "free" | "pro";
+
+export type FeatureFlagKey =
+  | "premium_widgets"
+  | "advanced_layouts"
+  | "multi_device_control"
+  | "plugin_installation";
+
+export interface EntitlementsResponse {
+  plan: UserPlan;
+  features: Record<FeatureFlagKey, boolean>;
+}
+
 export type WidgetKey = "clockDate" | "weather" | "calendar";
 
 export type WidgetDataState = "ready" | "stale" | "empty" | "error";
