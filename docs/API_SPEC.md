@@ -1,265 +1,132 @@
-# API Specification (V1)
+# API Specification (Current)
 
-## Tech Stack
+This document reflects the current API code under `apps/api/src`.
 
-| Tool       | Role                       |
-|------------|----------------------------|
-| Node.js    | Runtime                    |
-| Express 4  | HTTP framework             |
-| TypeScript | Strict mode, ES2022 target |
-| Prisma     | ORM                        |
-| Zod        | Request validation         |
+## Stack
 
----
+- Node.js 22
+- Express 4
+- TypeScript (`strict`)
+- Prisma (PostgreSQL)
+- Zod validation
+- Native WebSocket (`ws`) on `/realtime`
 
-## Module Structure
+## Auth Model
 
-Each feature follows: **Routes → Service → Repository → Prisma**
+- JWT auth for protected routes (`Authorization: Bearer <token>`)
+- Public routes:
+  - `GET /health`
+  - `POST /auth/register`
+  - `POST /auth/login`
+  - `GET /users` and `POST /users` (legacy bootstrap/test utility routes)
 
-```
-apps/api/src/modules/
-  users/
-    users.routes.ts
-    users.service.ts
-    users.repository.ts
-  widgets/
-    widgets.routes.ts
-    widgets.service.ts
-    widgets.repository.ts
-    widgets.schema.ts        ← Zod config validation
-  widgetData/
-    widgetData.routes.ts
-    widgetData.service.ts
-    resolvers/
-      clockDate.resolver.ts
-      weather.resolver.ts
-      calendar.resolver.ts
-    providers/
-      open-meteo.provider.ts
-      ical.provider.ts
-```
+## Realtime
 
----
+Endpoint:
+- `GET ws(s)://<api-host>/realtime?token=<jwt>`
 
-## Endpoints
+Optional channel params:
+- `profileId=<id>`
+- `sessionId=<id>`
+- `deviceId=<id>`
 
-### GET /health
+Subscription messages:
+- `{ "type": "subscribe", "profileId": "..." }`
+- `{ "type": "subscribeSession", "sessionId": "..." }`
+- `{ "type": "subscribeDevice", "deviceId": "..." }`
 
-Returns API health status.
+Security:
+- handshake requires valid JWT
+- server enforces ownership for profile/session/device subscriptions
 
-**Response** `200`
-```json
-{ "status": "ok" }
-```
+## Core Route Map
 
----
+### Auth
 
-### GET /users
+- `POST /auth/register`
+- `POST /auth/login`
 
-Returns all users.
+### Profiles (auth)
 
-**Response** `200`
-```json
-[{ "id": "uuid", "email": "user@example.com", "createdAt": "ISO string" }]
-```
+- `GET /profiles`
+- `GET /profiles/:id`
+- `POST /profiles`
+- `PATCH /profiles/:id`
+- `DELETE /profiles/:id`
+- `PATCH /profiles/:id/activate`
 
----
+### Widgets (auth)
 
-### POST /users
+- `GET /widgets?profileId=<id>`
+- `POST /widgets`
+- `PATCH /widgets/layout?profileId=<id>`
+- `PATCH /widgets/:id/config?profileId=<id>`
+- `PATCH /widgets/:id/active?profileId=<id>`
+- `DELETE /widgets/:id?profileId=<id>`
 
-Creates a new user.
+### Widget Data (auth)
 
-**Request body**
-```json
-{ "email": "user@example.com" }
-```
+- `GET /widget-data/:id`
 
-**Response** `201` — Created user object
+### Display Layout (auth)
 
-**Errors**
-- `400` — Validation failure (Zod)
-- `409` — Email already in use
+- `GET /display-layout?profileId=<id>`
 
----
+### Orchestration Rules (auth)
 
-### GET /widgets
+- `GET /orchestration-rules`
+- `POST /orchestration-rules`
+- `PATCH /orchestration-rules/:id`
+- `DELETE /orchestration-rules/:id`
 
-Returns all widgets for the primary user (`users[0]`).
+### Shared Sessions (auth)
 
-**Response** `200`
-```json
-[{
-  "id": "uuid",
-  "userId": "uuid",
-  "type": "clockDate | weather | calendar",
-  "config": {},
-  "position": 0,
-  "isActive": true,
-  "createdAt": "ISO string",
-  "updatedAt": "ISO string"
-}]
-```
+- `GET /shared-sessions`
+- `POST /shared-sessions`
+- `GET /shared-sessions/:id`
+- `PATCH /shared-sessions/:id`
+- `POST /shared-sessions/:id/join`
+- `POST /shared-sessions/:id/leave`
 
----
+### Devices (auth)
 
-### POST /widgets
+- `GET /devices`
+- `POST /devices/register`
+- `POST /devices/heartbeat`
+- `PATCH /devices/:id`
+- `DELETE /devices/:id`
+- `POST /devices/:id/command`
 
-Creates a widget for the primary user.
-
-**Request body**
-```json
-{
-  "type": "clockDate | weather | calendar",
-  "config": {}
-}
-```
-
-**Config by widget type**
-
-| Type      | Config fields                                                                 |
-|-----------|-------------------------------------------------------------------------------|
-| clockDate | `timezone?: string`, `locale?: string`, `hour12?: boolean`                   |
-| weather   | `location?: string`, `units?: "metric" \| "imperial"`                        |
-| calendar  | `provider?: "ical"`, `account?: string`, `timeWindow?: "today" \| "next24h" \| "next7d"`, `maxEvents?: number`, `includeAllDay?: boolean` |
-
-**Response** `201` — Created WidgetInstance
-
-**Errors**
-- `400` — Unknown widget type or invalid config (Zod)
-
----
-
-### PATCH /widgets/:id/active
-
-Sets a widget as active. Deactivates all other widgets for the user atomically.
-
-**Response** `200` — Updated WidgetInstance with `isActive: true`
-
-**Errors**
-- `404` — Widget not found
-
----
-
-### GET /widget-data/:id
-
-Resolves and returns computed widget data.
-
-**Response** `200` — WidgetDataEnvelope (see below)
-
-**Errors**
-- `404` — Widget not found
-
----
-
-## Widget Data Envelope
-
-All widget data responses use this shape:
+## Remote Command Contract
 
 ```ts
-{
-  widgetInstanceId: string
-  widgetKey: "clockDate" | "weather" | "calendar"
-  state: "ready" | "stale" | "empty" | "error"
-  data: Record<string, unknown>     // widget-type-specific (see below)
-  meta: { resolvedAt: string }      // ISO timestamp of resolution
-}
+type RemoteCommand =
+  | { type: "SET_PROFILE"; profileId: string }
+  | { type: "REFRESH" }
+  | { type: "SET_SLIDESHOW"; enabled: boolean }
 ```
 
-### States
+Behavior for `POST /devices/:id/command`:
+- requires auth
+- verifies target device belongs to requesting user
+- sends command over realtime device channel
+- returns `400` when target device is offline
 
-| State | Meaning                                                         |
-|-------|-----------------------------------------------------------------|
-| ready | Data resolved successfully                                      |
-| stale | External provider unavailable — last known data or partial data |
-| empty | No config or no results (e.g. no calendar account configured)   |
-| error | Unrecoverable error                                             |
+## Error Shape
 
----
+Errors are normalized by global middleware and include status + typed error code.
 
-## Widget Data Payloads
+Common codes:
+- `VALIDATION_ERROR`
+- `NOT_FOUND`
+- `UNAUTHORIZED`
+- `DUPLICATE_RESOURCE`
+- `BAD_REQUEST`
+- `INTERNAL_ERROR`
 
-### clockDate
+## Environment
 
-```ts
-{
-  nowIso: string          // ISO timestamp
-  formattedTime: string   // e.g. "14:35"
-  formattedDate: string   // e.g. "21 March 2026"
-  weekdayLabel: string    // e.g. "Saturday"
-}
-```
-
-### weather
-
-```ts
-{
-  location: string        // Geocoded city name
-  temperatureC: number    // Always in Celsius
-  conditionLabel: string  // e.g. "Partly cloudy"
-}
-```
-
-Provider: Open-Meteo (no API key required).
-
-### calendar
-
-```ts
-{
-  upcomingCount: number
-  events: [{
-    id: string
-    title: string
-    startIso: string
-    endIso: string
-    allDay: boolean
-    location: string | null
-  }]
-}
-```
-
-Provider: iCal feed (URL configured in widget config).
-
----
-
-## Error Responses
-
-All errors return JSON:
-
-```json
-{
-  "error": "Human-readable message",
-  "code": "VALIDATION_ERROR | NOT_FOUND | CONFLICT | INTERNAL_ERROR"
-}
-```
-
-Global error middleware (`apps/api/src/middleware/errorHandler.ts`) catches all thrown errors — the backend does not crash on unhandled route errors.
-
----
-
-## Request Logging
-
-Every request is logged with method, path, status code, and duration (ms).
-
----
-
-## Environment Setup
-
-Create `apps/api/.env` from `apps/api/.env.example`.
-
-| Variable     | Required | Default | Description                       |
-|--------------|----------|---------|-----------------------------------|
-| DATABASE_URL | Yes      | —       | PostgreSQL connection string      |
-| PORT         | No       | 3000    | Express listen port               |
-
----
-
-## Running the API
-
-```bash
-cd apps/api
-npm run dev       # ts-node, hot reload
-npm run build     # compile to dist/
-npm run typecheck # type-check without emit
-npx prisma migrate dev     # apply migrations
-npx prisma generate        # regenerate Prisma client
-```
+`apps/api/.env`:
+- `DATABASE_URL` (required)
+- `AUTH_JWT_SECRET` (required)
+- `PORT` (optional, default `3000`)

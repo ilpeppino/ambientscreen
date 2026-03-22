@@ -57,6 +57,7 @@ import {
   getOrchestrationRules,
   updateOrchestrationRule,
 } from "../../../services/api/orchestrationRulesApi";
+import { subscribeRemoteCommands } from "../../remoteControl/services/remoteCommandBus";
 
 interface DisplayScreenProps {
   deviceId?: string | null;
@@ -357,6 +358,54 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
       orchestrationEngine.stop();
     };
   }, [activeProfileId, editMode, isAppActive, isSharedMode]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeRemoteCommands((command) => {
+      if (command.type === "REFRESH") {
+        void loadDisplayLayout(false);
+        return;
+      }
+
+      if (command.type === "SET_PROFILE") {
+        void setActiveProfile(command.profileId).catch((error) => {
+          console.error(error);
+        });
+        return;
+      }
+
+      setSlideshowEnabled(command.enabled);
+      if (isSharedMode) {
+        void patchCurrentSession({
+          slideshowEnabled: command.enabled,
+        });
+        return;
+      }
+
+      if (!slideshowRuleId) {
+        return;
+      }
+
+      void (async () => {
+        try {
+          await updateOrchestrationRule(slideshowRuleId, {
+            isActive: command.enabled,
+          });
+          await orchestrationEngineRef.current.reload();
+        } catch (error) {
+          console.error(error);
+          setSlideshowSaveError(toErrorMessage(error, "Failed to apply remote slideshow command"));
+        }
+      })();
+    });
+
+    return unsubscribe;
+  }, [
+    isSharedMode,
+    loadDisplayLayout,
+    patchCurrentSession,
+    setActiveProfile,
+    slideshowRuleId,
+  ]);
 
   const toggleSlideshowProfileId = useCallback((profileId: string) => {
     setSlideshowProfileIds((current) => {

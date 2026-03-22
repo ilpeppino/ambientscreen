@@ -1,6 +1,6 @@
 import { API_BASE_URL } from "../../core/config/api";
 import { apiFetchWithTimeout, toApiErrorMessage } from "./apiClient";
-import type { Device, DevicePlatform, DeviceType } from "@ambient/shared-contracts";
+import type { Device, DevicePlatform, DeviceType, RemoteCommand } from "@ambient/shared-contracts";
 
 const DEVICES_TIMEOUT_MS = 8000;
 
@@ -94,5 +94,20 @@ export async function deleteDevice(deviceId: string): Promise<void> {
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
     throw new Error(`Failed to delete device: ${message}`);
+  }
+}
+
+export async function sendDeviceCommand(deviceId: string, command: RemoteCommand): Promise<void> {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/devices/${deviceId}/command`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(command),
+  }, DEVICES_TIMEOUT_MS);
+
+  if (!response.ok) {
+    const message = await toApiErrorMessage(response);
+    throw new Error(`Failed to send remote command: ${message}`);
   }
 }

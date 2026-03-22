@@ -104,6 +104,27 @@ beforeEach(() => {
     return target as never;
   });
 
+  vi.spyOn(devicesService, "getDeviceForUser").mockImplementation(async ({ id, userId }) => {
+    return (deviceStore.find((device) => device.id === id && device.userId === userId) ?? null) as never;
+  });
+
+  vi.spyOn(devicesService, "sendRemoteCommand").mockImplementation(({ id, userId, command }) => {
+    const ownedDevice = deviceStore.find((device) => device.id === id && device.userId === userId);
+    if (!ownedDevice) {
+      return false as never;
+    }
+
+    if (id === "device-1") {
+      return true as never;
+    }
+
+    if (id === "device-3") {
+      return false as never;
+    }
+
+    return (command.type === "SET_PROFILE") as never;
+  });
+
   vi.spyOn(devicesService, "deleteDevice").mockImplementation(async ({ id, userId }) => {
     const existingCount = deviceStore.length;
     deviceStore = deviceStore.filter((device) => !(device.id === id && device.userId === userId));
@@ -299,4 +320,57 @@ test("integration flow: same user registers two devices and heartbeat refreshes 
 
   const afterHeartbeat = await invokeRoute(devicesRouter, "get", "/");
   expect((afterHeartbeat.body as TestDevice[])[0].id).toBe(firstDeviceId);
+});
+
+test("POST /:id/command sends remote command for owned online device", async () => {
+  const response = await invokeRoute(devicesRouter, "post", "/:id/command", {
+    params: { id: "device-1" },
+    body: {
+      type: "SET_PROFILE",
+      profileId: "profile-123",
+    },
+  });
+
+  expect(response.statusCode).toBe(202);
+  expect(response.body).toEqual({
+    success: true,
+    deviceId: "device-1",
+    commandType: "SET_PROFILE",
+  });
+});
+
+test("POST /:id/command rejects non-owned devices and offline targets", async () => {
+  const nonOwned = await invokeRoute(devicesRouter, "post", "/:id/command", {
+    params: { id: "device-2" },
+    body: { type: "REFRESH" },
+  });
+  expect(nonOwned.statusCode).toBe(404);
+
+  deviceStore.push({
+    id: "device-3",
+    userId: "user-1",
+    name: "Offline Display",
+    platform: "web",
+    deviceType: "display",
+    lastSeenAt: new Date("2026-03-21T12:15:00.000Z"),
+    createdAt: new Date("2026-03-21T12:15:00.000Z"),
+    updatedAt: new Date("2026-03-21T12:15:00.000Z"),
+  });
+
+  const offline = await invokeRoute(devicesRouter, "post", "/:id/command", {
+    params: { id: "device-3" },
+    body: { type: "REFRESH" },
+  });
+  expect(offline.statusCode).toBe(400);
+});
+
+test("POST /:id/command validates command payload", async () => {
+  const response = await invokeRoute(devicesRouter, "post", "/:id/command", {
+    params: { id: "device-1" },
+    body: {
+      type: "SET_PROFILE",
+    },
+  });
+
+  expect(response.statusCode).toBe(400);
 });

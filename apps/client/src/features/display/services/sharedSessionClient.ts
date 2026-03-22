@@ -94,11 +94,15 @@ function defaultWebSocketFactory(url: string): WebSocketLike {
   return new webSocketConstructor(url) as WebSocketLike;
 }
 
-function buildSharedSessionRealtimeUrl(apiBaseUrl: string, sessionId: string | null): string {
+function buildSharedSessionRealtimeUrl(apiBaseUrl: string, sessionId: string | null, token: string | null): string {
   const url = new URL(apiBaseUrl);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   url.pathname = "/realtime";
   url.search = "";
+
+  if (token) {
+    url.searchParams.set("token", token);
+  }
 
   if (sessionId) {
     url.searchParams.set("sessionId", sessionId);
@@ -170,7 +174,7 @@ export function createSharedSessionClient(options: SharedSessionClientOptions): 
     }
 
     setState("connecting");
-    const url = buildSharedSessionRealtimeUrl(options.apiBaseUrl, activeSessionId);
+    const url = buildSharedSessionRealtimeUrl(options.apiBaseUrl, activeSessionId, getApiAuthToken());
     const nextSocket = websocketFactory(url);
     socket = nextSocket;
 
@@ -224,3 +228,4 @@ export function createSharedSessionClient(options: SharedSessionClientOptions): 
     },
   };
 }
+import { getApiAuthToken } from "../../../services/api/apiClient";

@@ -1,117 +1,41 @@
-# Ambient Screen — M4 Milestones
+# Ambient Screen — M4 Milestones (Status)
 
----
+## M4.1 Authentication & User Accounts
 
-## M4.1 — Authentication & User Accounts
+Status: Done
 
-### Goal
-Introduce user identity and secure access.
+## M4.2 Cloud Profiles & Sync
 
-### Scope
-- user model (email, password or OAuth)
-- login / logout
-- token-based authentication (JWT or similar)
-- protect API routes
+Status: Done
 
----
+## M4.3 Device Registration & Management
 
-## M4.2 — Cloud Profiles & Sync
+Status: Done
 
-### Goal
-Make dashboards available across devices.
+## M4.4 Remote Control (Core)
 
-### Scope
-- profiles linked to authenticated user
-- fetch profiles on login
-- sync widgets/layout/config from backend
-- remove local-only dependency
+Status: Done
 
----
+Delivered:
+- websocket-authenticated realtime channel
+- device-scoped subscriptions
+- `POST /devices/:id/command`
+- command model: `SET_PROFILE`, `REFRESH`, `SET_SLIDESHOW`
+- controller UI (Remote Control screen)
+- display command listener behavior
 
-## M4.3 — Device Registration & Management
+## M4.5 Widget Plugin System (Core)
 
-### Goal
-Track and manage devices per user.
+Status: Planned
 
-### Scope
-- device model (id, name, lastSeenAt)
-- register device on app start
-- list devices in UI
-- basic device metadata
+## M4.6 Permissions (Basic Ownership)
 
----
+Status: In progress (ownership checks already present on major routes)
 
-## M4.4 — Remote Control (Core)
+## M4.7 API Hardening & Public Readiness
 
-### Goal
-Control a display from another device.
+Status: Planned
 
-### Scope
-- select target device/session
-- change active profile remotely
-- toggle slideshow mode
-- trigger refresh
-- use realtime layer
+## M4.8 Foundation for Monetization
 
----
-
-## M4.5 — Widget Plugin System (Core)
-
-### Goal
-Enable extensibility.
-
-### Scope
-- define widget interface contract
-- decouple widget registry from core code
-- allow dynamic registration
-- enforce schema validation
-
----
-
-## M4.6 — Permissions (Basic Ownership)
-
-### Goal
-Ensure data isolation.
-
-### Scope
-- users own profiles, widgets, sessions
-- validate ownership in API
-- prevent cross-user access
-
----
-
-## M4.7 — API Hardening & Public Readiness
-
-### Goal
-Prepare platform for external usage.
-
-### Scope
-- consistent API structure
-- error handling standardization
-- rate limiting (basic)
-- documentation readiness
-
----
-
-## M4.8 — Foundation for Monetization
-
-### Goal
-Prepare for premium features.
-
-### Scope
-- feature flags (basic)
-- mark widgets as premium-ready
-- prepare billing integration points (no full billing yet)
-
----
-
-## Deliverables for M4
-
-- authentication system
-- cloud-synced dashboards
-- device management
-- remote control capability
-- plugin-ready widget system
-- secure API layer
-
----
+Status: Planned

@@ -1,5 +1,6 @@
 import { test, expect } from "vitest";
 import { buildRealtimeUrl, createRealtimeClient, type RealtimeEvent } from "../src/features/display/services/realtimeClient";
+import { setApiAuthToken } from "../src/services/api/apiClient";
 
 interface FakeSocket {
   onopen: ((event: unknown) => void) | null;
@@ -46,11 +47,18 @@ function createFakeSocket(): FakeSocket {
 }
 
 test("buildRealtimeUrl converts http API URL to ws realtime endpoint", () => {
+  setApiAuthToken(null);
   expect(
-    buildRealtimeUrl("http://localhost:3000", "profile-1"),
+    buildRealtimeUrl("http://localhost:3000", "profile-1", null),
   ).toBe("ws://localhost:3000/realtime?profileId=profile-1");
   expect(
-    buildRealtimeUrl("https://ambient.example.com", null),
+    buildRealtimeUrl("https://ambient.example.com", null, "jwt-token"),
+  ).toBe("wss://ambient.example.com/realtime?token=jwt-token");
+  expect(
+    buildRealtimeUrl("https://ambient.example.com", "profile-9", "jwt-token"),
+  ).toBe("wss://ambient.example.com/realtime?token=jwt-token&profileId=profile-9");
+  expect(
+    buildRealtimeUrl("https://ambient.example.com", null, null),
   ).toBe("wss://ambient.example.com/realtime");
 });
 
@@ -72,6 +80,7 @@ test("createRealtimeClient tracks connection lifecycle and sends profile subscri
   });
 
   client.setProfileId("profile-1");
+  setApiAuthToken("jwt-token");
   client.connect();
 
   expect(createdSockets.length).toBe(1);
@@ -105,6 +114,7 @@ test("createRealtimeClient forwards valid events and ignores invalid payloads", 
     },
   });
 
+  setApiAuthToken("jwt-token");
   client.connect();
   createdSockets[0].emitOpen();
 
@@ -144,6 +154,7 @@ test("createRealtimeClient reconnects after unexpected disconnect", async () => 
     onEvent: () => undefined,
   });
 
+  setApiAuthToken("jwt-token");
   client.connect();
   createdSockets[0].emitOpen();
   createdSockets[0].emitClose();

@@ -70,3 +70,31 @@ test("updateDeviceName and deleteDevice send authenticated requests", async () =
     },
   });
 });
+
+test("sendDeviceCommand posts validated payload with auth header", async () => {
+  const { sendDeviceCommand } = await import("../src/services/api/devicesApi");
+  setApiAuthToken("token-123");
+
+  const fetchSpy = vi.spyOn(globalThis, "fetch")
+    .mockResolvedValue(new Response(JSON.stringify({
+      success: true,
+      commandType: "REFRESH",
+    }), { status: 202 }));
+
+  await sendDeviceCommand("device-1", {
+    type: "REFRESH",
+  });
+
+  const [url, init] = fetchSpy.mock.calls[0] ?? [];
+  expect(url).toBe("http://localhost:3000/devices/device-1/command");
+  expect(init).toMatchObject({
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: "Bearer token-123",
+    },
+    body: JSON.stringify({
+      type: "REFRESH",
+    }),
+  });
+});
