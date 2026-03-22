@@ -15,6 +15,7 @@ import { entitlementsRouter } from "./modules/entitlements/entitlements.routes";
 import { pluginRegistryRouter } from "./modules/plugin-registry/pluginRegistry.routes";
 import { pluginInstallationRouter, mePluginsRouter } from "./modules/plugin-installation/pluginInstallation.routes";
 import { pluginPublishingRouter } from "./modules/plugin-publishing/pluginPublishing.routes";
+import { adminPluginsRouter } from "./modules/admin-plugins/adminPlugins.routes";
 import { registerBuiltinWidgetPlugins } from "./modules/widgets/registerBuiltinPlugins";
 import {
   globalErrorMiddleware,
@@ -54,6 +55,7 @@ export function createApp() {
   app.use("/plugins", requireAuth, pluginInstallationRouter);
   app.use("/me", requireAuth, mePluginsRouter);
   app.use("/developer/plugins", requireAuth, pluginPublishingRouter);
+  app.use("/admin/plugins", requireAuth, adminPluginsRouter);
   app.use("/", requireAuth, displayRouter);
   app.use(notFoundMiddleware);
   app.use(globalErrorMiddleware);

@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { ModerationStatus, Prisma } from "@prisma/client";
 import { prisma } from "../../core/db/prisma";
 
 export interface DeveloperPluginRecord {
@@ -10,6 +10,7 @@ export interface DeveloperPluginRecord {
   authorId: string | null;
   isPremium: boolean;
   isApproved: boolean;
+  status: ModerationStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +23,8 @@ export interface DeveloperPluginVersionRecord {
   entryPoint: string | null;
   changelog: string | null;
   isActive: boolean;
+  isApproved: boolean;
+  status: ModerationStatus;
   createdAt: Date;
 }
 
