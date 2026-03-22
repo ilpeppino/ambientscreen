@@ -44,6 +44,37 @@ let widgetCounter = 0;
 
 const originalFetch = globalThis.fetch;
 
+function formatDateAsIcsUtcDay(value: Date): string {
+  const year = value.getUTCFullYear();
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function buildCalendarIcsFixture(): string {
+  const todayUtc = new Date();
+  const dayString = formatDateAsIcsUtcDay(todayUtc);
+
+  return [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "BEGIN:VEVENT",
+    "UID:event-1",
+    `DTSTART;VALUE=DATE:${dayString}`,
+    "SUMMARY:All Day Planning",
+    "LOCATION:HQ",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:event-2",
+    `DTSTART:${dayString}T140000Z`,
+    `DTEND:${dayString}T143000Z`,
+    "SUMMARY:Client Sync",
+    "LOCATION:Room 4A",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+}
+
 beforeEach(() => {
   usersStore = [];
   widgetsStore = [];
@@ -158,24 +189,7 @@ beforeEach(() => {
     }
 
     if (requestUrl === "https://calendar.example.com/demo.ics") {
-      const ics = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "BEGIN:VEVENT",
-        "UID:event-1",
-        "DTSTART;VALUE=DATE:20260321",
-        "SUMMARY:All Day Planning",
-        "LOCATION:HQ",
-        "END:VEVENT",
-        "BEGIN:VEVENT",
-        "UID:event-2",
-        "DTSTART:20260321T140000Z",
-        "DTEND:20260321T143000Z",
-        "SUMMARY:Client Sync",
-        "LOCATION:Room 4A",
-        "END:VEVENT",
-        "END:VCALENDAR",
-      ].join("\r\n");
+      const ics = buildCalendarIcsFixture();
 
       return new Response(ics, { status: 200 });
     }
