@@ -7,6 +7,7 @@ interface PluginCardProps {
   plugin: MarketplacePlugin;
   actionInProgress: boolean;
   isPremiumLocked: boolean;
+  isInstallationLocked: boolean;
   onInstall: () => void;
   onUninstall: () => void;
   onToggleEnabled: (isEnabled: boolean) => void;
@@ -17,13 +18,15 @@ export function PluginCard({
   plugin,
   actionInProgress,
   isPremiumLocked,
+  isInstallationLocked,
   onInstall,
   onUninstall,
   onToggleEnabled,
   onViewDetails,
 }: PluginCardProps) {
+  const anyLocked = isPremiumLocked || isInstallationLocked;
   return (
-    <View style={[styles.card, isPremiumLocked && styles.cardLocked]}>
+    <View style={[styles.card, anyLocked && styles.cardLocked]}>
       <View style={styles.header}>
         <View style={styles.titleRow}>
           <Text style={styles.name}>{plugin.name}</Text>
@@ -40,9 +43,17 @@ export function PluginCard({
         <Text style={styles.version}>v{plugin.activeVersion.version}</Text>
       ) : null}
 
-      {isPremiumLocked ? (
+      {isInstallationLocked ? (
         <View style={styles.lockedRow}>
-          <Text style={styles.lockedText}>Pro plan required to install</Text>
+          <Text style={styles.lockedText}>
+            {isPremiumLocked
+              ? "Pro plan required (Premium plugin)"
+              : "Upgrade to Pro to install plugins"}
+          </Text>
+        </View>
+      ) : isPremiumLocked ? (
+        <View style={styles.lockedRow}>
+          <Text style={styles.lockedText}>Premium plan required for this plugin</Text>
         </View>
       ) : (
         <View style={styles.actions}>

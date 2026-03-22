@@ -33,6 +33,13 @@ export interface DeveloperPluginWithVersions extends DeveloperPluginRecord {
   activeVersion: DeveloperPluginVersionRecord | null;
 }
 
+export function derivePluginKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 export const pluginPublishingRepository = {
   async findAllByAuthor(authorId: string): Promise<DeveloperPluginWithVersions[]> {
     const plugins = await prisma.plugin.findMany({
@@ -78,11 +85,7 @@ export const pluginPublishingRepository = {
     category: string;
     authorId: string;
   }): Promise<DeveloperPluginRecord> {
-    // Derive key from name: lowercase, replace spaces/special chars with hyphens
-    const key = data.name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+    const key = derivePluginKey(data.name);
 
     return prisma.plugin.create({
       data: {

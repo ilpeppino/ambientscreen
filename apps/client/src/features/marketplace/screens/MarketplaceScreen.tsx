@@ -67,7 +67,11 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
   }, [plugins, selectedCategory, activeFilter, searchQuery]);
 
   function isPremiumLocked(plugin: MarketplacePlugin): boolean {
-    return plugin.isPremium && !hasFeature("plugin_installation");
+    return plugin.isPremium && !hasFeature("premium_widgets");
+  }
+
+  function isInstallationLocked(): boolean {
+    return !hasFeature("plugin_installation");
   }
 
   async function handleInstall(plugin: MarketplacePlugin) {
@@ -226,6 +230,7 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
         ) : (
           visiblePlugins.map((plugin) => {
             const locked = isPremiumLocked(plugin);
+            const installLocked = isInstallationLocked();
             const busy = actionInProgress === plugin.id;
 
             return (
@@ -234,6 +239,7 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
                 plugin={plugin}
                 actionInProgress={busy}
                 isPremiumLocked={locked}
+                isInstallationLocked={installLocked}
                 onInstall={() => void handleInstall(plugin)}
                 onUninstall={() => void handleUninstall(plugin)}
                 onToggleEnabled={(enabled) => void handleToggleEnabled(plugin, enabled)}
@@ -252,6 +258,7 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
           }
           actionInProgress={actionInProgress === selectedPlugin.id}
           isPremiumLocked={isPremiumLocked(selectedPlugin)}
+          isInstallationLocked={isInstallationLocked()}
           onClose={() => setSelectedPlugin(null)}
           onInstall={() => void handleInstall(selectedPlugin)}
           onUninstall={() => void handleUninstall(selectedPlugin)}

@@ -124,6 +124,7 @@ interface PluginRow {
   isApproved: boolean;
   approvedAt: Date | null;
   approvedBy: string | null;
+  rejectionReason: string | null;
   status: ModerationStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -140,6 +141,7 @@ interface VersionRow {
   isApproved: boolean;
   approvedAt: Date | null;
   approvedBy: string | null;
+  rejectionReason: string | null;
   status: ModerationStatus;
   createdAt: Date;
 }
@@ -171,6 +173,7 @@ function makePlugin(overrides: Partial<PluginRow> = {}): PluginRow {
     isApproved: false,
     approvedAt: null,
     approvedBy: null,
+    rejectionReason: null,
     status: ModerationStatus.PENDING,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -190,6 +193,7 @@ function makeVersion(pluginId: string, overrides: Partial<VersionRow> = {}): Ver
     isApproved: false,
     approvedAt: null,
     approvedBy: null,
+    rejectionReason: null,
     status: ModerationStatus.PENDING,
     createdAt: new Date(),
     ...overrides,
@@ -238,12 +242,13 @@ beforeEach(() => {
     return plugin;
   });
 
-  vi.spyOn(adminPluginsRepository, "rejectPlugin").mockImplementation(async (id, adminId) => {
+  vi.spyOn(adminPluginsRepository, "rejectPlugin").mockImplementation(async (id, adminId, reason) => {
     const plugin = pluginsStore.find((p) => p.id === id);
     if (!plugin) return null;
     plugin.isApproved = false;
     plugin.status = ModerationStatus.REJECTED;
     plugin.approvedBy = adminId;
+    plugin.rejectionReason = reason ?? null;
     plugin.updatedAt = new Date();
     return plugin;
   });
@@ -270,13 +275,14 @@ beforeEach(() => {
     },
   );
 
-  vi.spyOn(adminPluginsRepository, "rejectVersion").mockImplementation(async (versionId, adminId) => {
+  vi.spyOn(adminPluginsRepository, "rejectVersion").mockImplementation(async (versionId, adminId, reason) => {
     const version = versionsStore.find((v) => v.id === versionId);
     if (!version) return null;
     version.isApproved = false;
     version.isActive = false;
     version.status = ModerationStatus.REJECTED;
     version.approvedBy = adminId;
+    version.rejectionReason = reason ?? null;
     return version;
   });
 
@@ -510,10 +516,10 @@ describe("POST /admin/plugins/:pluginId/reject", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    const body = res.body as PluginRow & { reason: string };
+    const body = res.body as PluginRow;
     expect(body.isApproved).toBe(false);
     expect(body.status).toBe(ModerationStatus.REJECTED);
-    expect(body.reason).toBe("Violates guidelines");
+    expect(body.rejectionReason).toBe("Violates guidelines");
   });
 
   test("reject works without reason", async () => {
@@ -636,11 +642,11 @@ describe("POST /admin/plugins/:pluginId/versions/:versionId/reject", () => {
     );
 
     expect(res.statusCode).toBe(200);
-    const body = res.body as VersionRow & { reason: string };
+    const body = res.body as VersionRow;
     expect(body.isApproved).toBe(false);
     expect(body.isActive).toBe(false);
     expect(body.status).toBe(ModerationStatus.REJECTED);
-    expect(body.reason).toBe("Security issue");
+    expect(body.rejectionReason).toBe("Security issue");
   });
 
   test("returns 404 for unknown version", async () => {

@@ -63,12 +63,11 @@ export const pluginInstallationService = {
       return;
     }
 
-    const installations = await pluginInstallationRepository.findAllForUser(userId);
-    const match = installations.find((i) => i.plugin.key === pluginKey);
-    if (!match) {
+    const installation = await pluginInstallationRepository.findByUserAndPluginKey(userId, pluginKey);
+    if (!installation) {
       throw apiErrors.forbidden(`Plugin '${pluginKey}' is not installed`);
     }
-    if (!match.isEnabled) {
+    if (!installation.isEnabled) {
       throw apiErrors.forbidden(`Plugin '${pluginKey}' is disabled`);
     }
   },

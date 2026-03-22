@@ -17,6 +17,7 @@ interface PluginDetailModalProps {
   plugin: MarketplacePlugin | null;
   actionInProgress: boolean;
   isPremiumLocked: boolean;
+  isInstallationLocked: boolean;
   onClose: () => void;
   onInstall: () => void;
   onUninstall: () => void;
@@ -27,6 +28,7 @@ export function PluginDetailModal({
   plugin,
   actionInProgress,
   isPremiumLocked,
+  isInstallationLocked,
   onClose,
   onInstall,
   onUninstall,
@@ -123,10 +125,18 @@ export function PluginDetailModal({
               </Text>
             </View>
 
-            {isPremiumLocked ? (
+            {isInstallationLocked ? (
               <View style={styles.lockedBanner}>
                 <Text style={styles.lockedBannerText}>
-                  This plugin requires a Pro plan. Upgrade to install it.
+                  {isPremiumLocked
+                    ? "Plugin installation and premium widgets require a Pro plan. Upgrade to access this plugin."
+                    : "Plugin installation requires a Pro plan. Upgrade to install plugins."}
+                </Text>
+              </View>
+            ) : isPremiumLocked ? (
+              <View style={styles.lockedBanner}>
+                <Text style={styles.lockedBannerText}>
+                  This is a Premium plugin. Upgrade to Pro to use premium widgets.
                 </Text>
               </View>
             ) : plugin.isInstalled ? (

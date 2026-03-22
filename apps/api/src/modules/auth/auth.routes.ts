@@ -4,6 +4,7 @@ import { authService } from "./auth.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 import { createRateLimit } from "../../core/http/rate-limit";
+import { requireAuth } from "./auth.middleware";
 
 export const authRouter = Router();
 
@@ -71,5 +72,15 @@ authRouter.post(
       }
       throw error;
     }
+  }),
+);
+
+authRouter.post(
+  "/logout",
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const token = req.headers.authorization!.split(" ")[1];
+    await authService.revokeToken(token);
+    res.status(204).send();
   }),
 );

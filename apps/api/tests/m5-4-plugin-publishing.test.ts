@@ -16,8 +16,8 @@
  * - POST /developer/plugins/:pluginId/versions — non-owner gets 403
  * - POST /developer/plugins/:pluginId/versions — missing entryPoint rejected (400)
  * - Integration: create plugin → appears in developer list
- * - Integration: publish version → becomes active version
- * - Integration: second version → previous deactivated
+ * - Integration: publish version → enters PENDING state (isActive = false)
+ * - Integration: second version → both remain PENDING until admin approval
  * - Integration: non-owner cannot modify plugin
  */
 
@@ -25,6 +25,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Router } from "express";
 import { pluginPublishingRouter } from "../src/modules/plugin-publishing/pluginPublishing.routes";
 import { pluginPublishingRepository } from "../src/modules/plugin-publishing/pluginPublishing.repository";
+import { pluginRegistryRepository } from "../src/modules/plugin-registry/pluginRegistry.repository";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 
 // ---------------------------------------------------------------------------
@@ -139,6 +140,12 @@ beforeEach(() => {
   pluginsStore = [];
   versionsStore = [];
   idCounter = 0;
+
+  vi.spyOn(pluginRegistryRepository, "findByKey").mockImplementation(async (key) => {
+    const p = pluginsStore.find((x) => x.key === key) ?? null;
+    if (!p) return null;
+    return { ...p, activeVersion: null };
+  });
 
   vi.spyOn(pluginPublishingRepository, "findByName").mockImplementation(async (name) => {
     return pluginsStore.find((p) => p.name === name) ?? null;
@@ -282,6 +289,32 @@ describe("POST /developer/plugins — create plugin", () => {
     expect(res.statusCode).toBe(409);
   });
 
+  test("returns 409 when a different name normalizes to an already-taken key", async () => {
+    // "My Clock" → key "my-clock"
+    await invokeRoute(pluginPublishingRouter, "post", "/", { body: pluginBody });
+
+    // "My-Clock" → key "my-clock" (same key, different name)
+    const res = await invokeRoute(pluginPublishingRouter, "post", "/", {
+      body: { name: "My-Clock", description: "Another clock", category: "time" },
+    });
+    expect(res.statusCode).toBe(409);
+    expect((res.body as { error: { message: string } }).error.message).toMatch(/my-clock/);
+  });
+
+  test("returns 409 when name with spaces collides with hyphenated name", async () => {
+    // Pre-register a plugin with key "my-widget"
+    await invokeRoute(pluginPublishingRouter, "post", "/", {
+      body: { name: "my-widget", description: "first", category: "time" },
+    });
+
+    // "My Widget" also normalizes to "my-widget"
+    const res = await invokeRoute(pluginPublishingRouter, "post", "/", {
+      body: { name: "My Widget", description: "second", category: "time" },
+    });
+    expect(res.statusCode).toBe(409);
+    expect((res.body as { error: { message: string } }).error.message).toMatch(/my-widget/);
+  });
+
   test("returns 400 for missing required fields", async () => {
     const res = await invokeRoute(pluginPublishingRouter, "post", "/", {
       body: { name: "x" },
@@ -337,7 +370,8 @@ describe("GET /developer/plugins — list my plugins", () => {
     const res = await invokeRoute(pluginPublishingRouter, "get", "/");
     const list = res.body as Array<Record<string, unknown>>;
     expect(list[0].isApproved).toBe(false);
-    expect(list[0].activeVersion).not.toBeNull();
+    // activeVersion is null until admin approves the submitted version
+    expect(list[0].activeVersion).toBeNull();
   });
 });
 
@@ -457,7 +491,8 @@ describe("POST /developer/plugins/:pluginId/versions — publish version", () =>
     const body = res.body as VersionRow;
     expect(body.version).toBe("1.0.0");
     expect(body.entryPoint).toBe("dist/index.js");
-    expect(body.isActive).toBe(true);
+    // Versions are PENDING until admin approval — never auto-activated on submit
+    expect(body.isActive).toBe(false);
   });
 
   test("returns 400 for invalid semver", async () => {
@@ -555,7 +590,7 @@ describe("Integration: plugin publishing lifecycle", () => {
     expect(list[0].isApproved).toBe(false);
   });
 
-  test("publish version → becomes active version", async () => {
+  test("publish version → enters PENDING state (isActive = false, not yet approved)", async () => {
     const createRes = await invokeRoute(pluginPublishingRouter, "post", "/", { body: pluginBody });
     const plugin = createRes.body as PluginRow;
 
@@ -569,12 +604,15 @@ describe("Integration: plugin publishing lifecycle", () => {
     });
 
     const detail = detailRes.body as Record<string, unknown>;
-    expect(detail.activeVersion).not.toBeNull();
-    expect((detail.activeVersion as Record<string, unknown>).version).toBe("1.0.0");
-    expect((detail.activeVersion as Record<string, unknown>).isActive).toBe(true);
+    // No active version until admin approves
+    expect(detail.activeVersion).toBeNull();
+    const versions = detail.versions as VersionRow[];
+    expect(versions.length).toBe(1);
+    expect(versions[0].version).toBe("1.0.0");
+    expect(versions[0].isActive).toBe(false);
   });
 
-  test("second version → previous deactivated", async () => {
+  test("second version → both remain PENDING until admin approval", async () => {
     const createRes = await invokeRoute(pluginPublishingRouter, "post", "/", { body: pluginBody });
     const plugin = createRes.body as PluginRow;
 
@@ -593,12 +631,10 @@ describe("Integration: plugin publishing lifecycle", () => {
     });
 
     const detail = detailRes.body as Record<string, unknown>;
-    expect((detail.activeVersion as Record<string, unknown>).version).toBe("2.0.0");
-
-    // v1 should be inactive
+    // Neither version is active — both await admin approval
+    expect(detail.activeVersion).toBeNull();
     const versions = detail.versions as VersionRow[];
-    const v1 = versions.find((v) => v.version === "1.0.0");
-    expect(v1?.isActive).toBe(false);
+    expect(versions.every((v) => v.isActive === false)).toBe(true);
   });
 
   test("non-owner cannot modify plugin", async () => {

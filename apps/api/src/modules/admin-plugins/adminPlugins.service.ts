@@ -29,11 +29,11 @@ export const adminPluginsService = {
       throw apiErrors.validation("Invalid reject payload", parsed.error.format());
     }
 
-    const updated = await adminPluginsRepository.rejectPlugin(pluginId, adminId);
+    const updated = await adminPluginsRepository.rejectPlugin(pluginId, adminId, parsed.data.reason);
     if (!updated) {
       throw apiErrors.notFound("Plugin not found");
     }
-    return { ...updated, reason: parsed.data.reason ?? null };
+    return updated;
   },
 
   async approveVersion(pluginId: string, versionId: string, adminId: string, body: unknown) {
@@ -69,10 +69,10 @@ export const adminPluginsService = {
       throw apiErrors.notFound("Plugin version not found");
     }
 
-    const updated = await adminPluginsRepository.rejectVersion(versionId, adminId);
+    const updated = await adminPluginsRepository.rejectVersion(versionId, adminId, parsed.data.reason);
     if (!updated) {
       throw apiErrors.notFound("Plugin version not found");
     }
-    return { ...updated, reason: parsed.data.reason ?? null };
+    return updated;
   },
 };

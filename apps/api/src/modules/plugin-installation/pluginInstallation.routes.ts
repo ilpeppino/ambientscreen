@@ -2,6 +2,9 @@ import { Router } from "express";
 import { asyncHandler } from "../../core/http/async-handler";
 import { getRequestUserId } from "../auth/auth.middleware";
 import { createRateLimit } from "../../core/http/rate-limit";
+import { apiErrors } from "../../core/http/api-error";
+import { assertFeatureAccess } from "../entitlements/entitlements.service";
+import { usersService } from "../users/users.service";
 import { pluginInstallationService } from "./pluginInstallation.service";
 
 const installRateLimit = createRateLimit({ windowMs: 5 * 60 * 1000, max: 20 });
@@ -21,6 +24,10 @@ pluginInstallationRouter.post(
     const pluginId = Array.isArray(req.params.pluginId)
       ? req.params.pluginId[0]
       : req.params.pluginId;
+
+    const user = await usersService.findUserById(userId);
+    if (!user) throw apiErrors.notFound("User not found");
+    assertFeatureAccess(user, "plugin_installation");
 
     const installation = await pluginInstallationService.installPlugin(userId, pluginId);
     res.status(201).json(installation);

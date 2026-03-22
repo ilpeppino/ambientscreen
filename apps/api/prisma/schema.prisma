@@ -131,6 +131,14 @@ model SharedScreenParticipant {
   @@index([sessionId])
 }
 
+model TokenBlocklist {
+  jti       String   @id
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
 model Plugin {
   id          String   @id @default(uuid())
   key         String   @unique
@@ -138,19 +146,22 @@ model Plugin {
   description String
   category    String
   authorId    String?
-  isPremium   Boolean          @default(false)
-  isApproved  Boolean          @default(false)
-  approvedAt  DateTime?
-  approvedBy  String?
-  status      ModerationStatus @default(PENDING)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  isPremium        Boolean          @default(false)
+  isApproved       Boolean          @default(false)
+  approvedAt       DateTime?
+  approvedBy       String?
+  rejectionReason  String?
+  status           ModerationStatus @default(PENDING)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
 
   author            User?           @relation("AuthoredPlugins", fields: [authorId], references: [id], onDelete: SetNull)
   versions          PluginVersion[]
   installedByUsers  InstalledPlugin[]
 
   @@index([authorId])
+  @@index([status])
+  @@index([isApproved])
 }
 
 model InstalledPlugin {
@@ -175,15 +186,17 @@ model PluginVersion {
   manifestJson Json
   entryPoint   String?
   changelog    String?
-  isActive     Boolean          @default(false)
-  isApproved   Boolean          @default(false)
-  approvedAt   DateTime?
-  approvedBy   String?
-  status       ModerationStatus @default(PENDING)
-  createdAt    DateTime         @default(now())
+  isActive        Boolean          @default(false)
+  isApproved      Boolean          @default(false)
+  approvedAt      DateTime?
+  approvedBy      String?
+  rejectionReason String?
+  status          ModerationStatus @default(PENDING)
+  createdAt       DateTime         @default(now())
 
   plugin Plugin @relation(fields: [pluginId], references: [id], onDelete: Cascade)
 
   @@unique([pluginId, version])
   @@index([pluginId])
+  @@index([isActive])
 }

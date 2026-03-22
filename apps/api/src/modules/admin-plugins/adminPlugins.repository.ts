@@ -12,6 +12,7 @@ export interface AdminPluginRecord {
   isApproved: boolean;
   approvedAt: Date | null;
   approvedBy: string | null;
+  rejectionReason: string | null;
   status: ModerationStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -28,6 +29,7 @@ export interface AdminVersionRecord {
   isApproved: boolean;
   approvedAt: Date | null;
   approvedBy: string | null;
+  rejectionReason: string | null;
   status: ModerationStatus;
   createdAt: Date;
 }
@@ -71,6 +73,7 @@ export const adminPluginsRepository = {
   async rejectPlugin(
     id: string,
     adminId: string,
+    reason?: string | null,
   ): Promise<AdminPluginRecord | null> {
     const existing = await prisma.plugin.findUnique({ where: { id } });
     if (!existing) return null;
@@ -81,6 +84,7 @@ export const adminPluginsRepository = {
         isApproved: false,
         status: ModerationStatus.REJECTED,
         approvedBy: adminId,
+        rejectionReason: reason ?? null,
       },
     }) as Promise<AdminPluginRecord>;
   },
@@ -124,6 +128,7 @@ export const adminPluginsRepository = {
   async rejectVersion(
     versionId: string,
     adminId: string,
+    reason?: string | null,
   ): Promise<AdminVersionRecord | null> {
     const existing = await prisma.pluginVersion.findUnique({ where: { id: versionId } });
     if (!existing) return null;
@@ -135,6 +140,7 @@ export const adminPluginsRepository = {
         isActive: false,
         status: ModerationStatus.REJECTED,
         approvedBy: adminId,
+        rejectionReason: reason ?? null,
       },
     }) as Promise<AdminVersionRecord>;
   },

@@ -1,6 +1,7 @@
 import type { NextFunction, Request, Response } from "express";
 import { apiErrors } from "../../core/http/api-error";
 import { authService } from "./auth.service";
+import { tokenBlocklistRepository } from "./tokenBlocklist.repository";
 
 function getBearerToken(authorizationHeader: string | undefined): string | null {
   if (!authorizationHeader) {
@@ -15,7 +16,7 @@ function getBearerToken(authorizationHeader: string | undefined): string | null 
   return token;
 }
 
-export function requireAuth(req: Request, _res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const token = getBearerToken(req.headers.authorization);
   if (!token) {
     next(apiErrors.unauthorized("Missing or invalid Authorization header"));
@@ -23,7 +24,13 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   }
 
   try {
-    req.authUser = authService.verifyToken(token);
+    const { user, jti } = authService.verifyTokenFull(token);
+    const revoked = await tokenBlocklistRepository.isBlocked(jti);
+    if (revoked) {
+      next(apiErrors.unauthorized("Token has been revoked"));
+      return;
+    }
+    req.authUser = user;
     next();
   } catch {
     next(apiErrors.unauthorized("Invalid or expired token"));

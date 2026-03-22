@@ -35,6 +35,16 @@ export const pluginInstallationRepository = {
     });
   },
 
+  async findByUserAndPluginKey(
+    userId: string,
+    pluginKey: string,
+  ): Promise<Pick<InstalledPluginRecord, "isEnabled"> | null> {
+    return prisma.installedPlugin.findFirst({
+      where: { userId, plugin: { key: pluginKey } },
+      select: { isEnabled: true },
+    });
+  },
+
   async findAllForUser(userId: string): Promise<InstalledPluginWithPlugin[]> {
     const records = await prisma.installedPlugin.findMany({
       where: { userId },

@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { apiErrors } from "../../core/http/api-error";
-import { pluginPublishingRepository } from "./pluginPublishing.repository";
+import { derivePluginKey, pluginPublishingRepository } from "./pluginPublishing.repository";
+import { pluginRegistryRepository } from "../plugin-registry/pluginRegistry.repository";
 
 // ---------------------------------------------------------------------------
 // Validation schemas
@@ -57,6 +58,12 @@ export const pluginPublishingService = {
     const existing = await pluginPublishingRepository.findByName(name);
     if (existing) {
       throw apiErrors.duplicate(`Plugin with name '${name}' already exists`);
+    }
+
+    const key = derivePluginKey(name);
+    const keyConflict = await pluginRegistryRepository.findByKey(key);
+    if (keyConflict) {
+      throw apiErrors.duplicate(`Plugin key '${key}' is already taken`);
     }
 
     return pluginPublishingRepository.create({ name, description, category, authorId });
@@ -117,17 +124,14 @@ export const pluginPublishingService = {
       throw apiErrors.duplicate(`Version '${version}' already exists for this plugin`);
     }
 
-    const created = await pluginPublishingRepository.createVersion({
+    // Version is created as PENDING (isActive = false, isApproved = false).
+    // isActive is set to true only when an admin approves via approveVersion.
+    return pluginPublishingRepository.createVersion({
       pluginId,
       version,
       manifestJson: manifest as Prisma.InputJsonValue,
       entryPoint,
       changelog,
     });
-
-    // Activate the new version (deactivates previous active version)
-    await pluginPublishingRepository.setActiveVersion(pluginId, created.id);
-
-    return { ...created, isActive: true };
   },
 };

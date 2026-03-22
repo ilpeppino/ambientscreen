@@ -25,6 +25,7 @@ import { pluginInstallationRouter, mePluginsRouter } from "../src/modules/plugin
 import { pluginInstallationRepository } from "../src/modules/plugin-installation/pluginInstallation.repository";
 import { pluginRegistryRepository } from "../src/modules/plugin-registry/pluginRegistry.repository";
 import { pluginInstallationService } from "../src/modules/plugin-installation/pluginInstallation.service";
+import { usersService } from "../src/modules/users/users.service";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 
 // ---------------------------------------------------------------------------
@@ -148,6 +149,17 @@ beforeEach(() => {
   installsStore = [];
   idCounter = 0;
 
+  // Mock user as pro so entitlement check passes (not the focus of these tests)
+  vi.spyOn(usersService, "findUserById").mockResolvedValue({
+    id: "user-1",
+    email: "test@ambient.dev",
+    passwordHash: "hash",
+    plan: "pro",
+    isAdmin: false,
+    createdAt: new Date(),
+    activeProfileId: null,
+  });
+
   // Mock plugin registry repo
   vi.spyOn(pluginRegistryRepository, "findById").mockImplementation(async (id) => {
     return pluginsStore.find((p) => p.id === id) ?? null;
@@ -164,6 +176,14 @@ beforeEach(() => {
   vi.spyOn(pluginInstallationRepository, "findByUserAndPlugin").mockImplementation(
     async (userId, pluginId) => {
       return installsStore.find((i) => i.userId === userId && i.pluginId === pluginId) ?? null;
+    },
+  );
+
+  vi.spyOn(pluginInstallationRepository, "findByUserAndPluginKey").mockImplementation(
+    async (userId, pluginKey) => {
+      const plugin = pluginsStore.find((p) => p.key === pluginKey);
+      if (!plugin) return null;
+      return installsStore.find((i) => i.userId === userId && i.pluginId === plugin.id) ?? null;
     },
   );
 
