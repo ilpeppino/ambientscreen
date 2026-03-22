@@ -83,6 +83,7 @@ export const widgetBuiltinDefinitions = {
       category: "custom",
       defaultLayout: { w: 4, h: 2, minW: 2, minH: 1 },
       refreshPolicy: { intervalMs: 30000 },  // refresh every 30 seconds
+      // premium: true,  // uncomment if this widget requires a premium plan
     },
     defaultConfig: {
       displayMode: "full",
@@ -101,6 +102,7 @@ export const widgetBuiltinDefinitions = {
 - `version` — use `"1.0.0"` for a new plugin
 - `refreshPolicy.intervalMs` — how often the client polls for data; use `null` if no polling is needed
 - `defaultLayout` — choose sizes appropriate to your content; see existing widgets for reference
+- `premium` — set to `true` if this widget is gated by the `premium_widgets` entitlement
 
 ---
 
@@ -206,73 +208,75 @@ export const myWidgetPlugin: WidgetApiPluginModule<"myWidget"> = {
 
 ## Step 5 — Implement the client renderer
 
-The renderer is a React Native component. It receives the data envelope payload and renders the widget visually. Keep it purely presentational — no data fetching, no business logic.
+The renderer is a React Native component. It receives the data envelope payload and renders the widget. Keep it purely presentational — no data fetching, no business logic.
+
+All renderers must use `BaseWidgetFrame` as their outer wrapper. This ensures consistent surface styling, header rendering, and automatic state routing (error, empty, loading states). Do not build custom containers or hardcode theme values.
 
 Create `apps/client/src/widgets/myWidget/renderer.tsx`:
 
 ```typescript
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import type { MyWidgetData, WidgetRendererProps } from "@ambient/shared-contracts";
+import type { WidgetRendererProps } from "@ambient/shared-contracts";
+import { Text } from "../../shared/ui/components";
+import { colors, spacing } from "../../shared/ui/theme";
+import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
+import { StyleSheet, View } from "react-native";
 
-export function MyWidgetRenderer({ data, state, config }: WidgetRendererProps<MyWidgetData>) {
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.fallback}>
-          {state === "empty" ? "Nothing to display." : "Data unavailable."}
-        </Text>
-      </View>
-    );
-  }
+export function MyWidgetRenderer({ state, data, config }: WidgetRendererProps<"myWidget">) {
+  const hasData = Boolean(data?.value);
 
   return (
-    <View style={styles.container}>
-      {config.showLabel && <Text style={styles.label}>My Widget</Text>}
-      <Text style={styles.value}>{data.value}</Text>
-      <Text style={styles.timestamp}>{data.updatedAt}</Text>
-    </View>
+    <BaseWidgetFrame
+      title="My Widget"
+      icon="star"          // use an AppIconName from the allowed icon set
+      state={state}
+      hasData={hasData}
+      emptyMessage="No data available."
+      errorMessage="Something went wrong."
+    >
+      <View style={styles.content}>
+        {config.showLabel && (
+          <Text variant="caption" color="textSecondary" style={styles.label}>
+            My Widget
+          </Text>
+        )}
+        <Text variant="display" style={styles.value}>
+          {data?.value}
+        </Text>
+      </View>
+    </BaseWidgetFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    padding: 24,
   },
   label: {
-    fontSize: 16,
-    color: "#bfbfbf",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textTransform: "uppercase",
     letterSpacing: 2,
   },
   value: {
     fontSize: 48,
     fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-  },
-  timestamp: {
-    marginTop: 8,
-    fontSize: 14,
-    color: "#666",
-  },
-  fallback: {
-    fontSize: 18,
-    color: "#888",
+    color: colors.textPrimary,
     textAlign: "center",
   },
 });
 ```
 
 **Renderer rules:**
-- Always handle `data === null` — this occurs for `empty` and `error` states
-- Use `config` for display variations (e.g. `showLabel`)
-- Follow the dark-theme style conventions used by other renderers (dark backgrounds, white text)
-- Do not import API modules or make network calls
+- Always wrap in `BaseWidgetFrame` — pass `state`, `hasData`, and optional message props
+- `BaseWidgetFrame` handles `data === null` automatically — do not guard `null` yourself in the outer return
+- Use theme tokens from `src/shared/ui/theme` — do not hardcode colors or spacing
+- Use `AppIcon` via `WidgetHeader` (inside `BaseWidgetFrame`) — do not import Lucide icons directly
+- Do not make network calls or import API modules
+- For the `icon` prop, only use names from the `AppIconName` type
+
+See [PLUGIN_UI_GUIDELINES.md](./PLUGIN_UI_GUIDELINES.md) for detailed visual guidelines.
 
 ---
 
@@ -307,19 +311,22 @@ If users should be able to configure your widget through a UI, add a `SettingsFo
 // apps/client/src/widgets/myWidget/settingsForm.tsx
 
 import React from "react";
-import { Switch, Text, View } from "react-native";
+import { Switch, View } from "react-native";
 import type { WidgetSettingsFormProps } from "@ambient/shared-contracts";
-import type { MyWidgetConfig } from "@ambient/shared-contracts";
+import { Text } from "../../shared/ui/components";
+import { spacing } from "../../shared/ui/theme";
 
 export function MyWidgetSettingsForm({ config, onChange, disabled }: WidgetSettingsFormProps<"myWidget">) {
   return (
-    <View>
-      <Text>Show label</Text>
-      <Switch
-        value={config.showLabel}
-        onValueChange={(v) => onChange({ ...config, showLabel: v })}
-        disabled={disabled}
-      />
+    <View style={{ gap: spacing.md }}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text variant="body" color="textPrimary">Show label</Text>
+        <Switch
+          value={config.showLabel}
+          onValueChange={(v) => onChange({ ...config, showLabel: v })}
+          disabled={disabled}
+        />
+      </View>
     </View>
   );
 }
@@ -336,7 +343,41 @@ client: {
 
 ---
 
-## Step 8 — Register the plugin
+## Step 8 — Declare premium capability (if applicable)
+
+If your widget should only be available on a paid plan:
+
+1. Set `premium: true` in the manifest (Step 2)
+2. The platform enforces the entitlement check automatically — no code needed in the renderer or resolver
+3. The widget will appear in the marketplace with a premium badge
+4. Users without the `premium_widgets` entitlement will see a locked state
+
+Do not implement custom locking logic in your renderer. The widget container layer handles this.
+
+---
+
+## Step 9 — Authenticated integration config (if applicable)
+
+If your widget fetches data from a third-party authenticated system (e.g. Google Calendar, CRM, analytics):
+
+1. Add `integrationConnectionId` and `provider` fields to your config type and schema
+2. The resolver loads the connection, validates ownership, refreshes tokens, and fetches data via the provider adapter
+3. The client never calls the third-party API directly
+
+```typescript
+// Example config type for an authenticated plugin
+export interface MyCrmWidgetConfig {
+  provider: "my-crm";
+  integrationConnectionId: string;
+  resourceId: string;
+}
+```
+
+Full specification: [AUTHENTICATED_INTEGRATION_PLUGIN_PATTERN.md](./AUTHENTICATED_INTEGRATION_PLUGIN_PATTERN.md)
+
+---
+
+## Step 10 — Register the plugin
 
 ### API registry
 
@@ -378,7 +419,7 @@ export function registerBuiltinWidgetPlugins() {
 
 ---
 
-## Step 9 — Test your plugin
+## Step 11 — Test your plugin
 
 ### Unit test — API resolver
 
@@ -440,9 +481,13 @@ describe("myWidget plugin", () => {
 - [ ] `WidgetKey` union includes your key
 - [ ] `WidgetConfigByKey` and `WidgetDataByKey` include your types
 - [ ] Builtin definition added to `widgetBuiltinDefinitions`
+- [ ] Manifest declares `premium: true` if the widget requires a paid plan
 - [ ] API resolver implemented and handles errors without throwing
 - [ ] API plugin module created
-- [ ] Client renderer handles `data === null`
+- [ ] Client renderer uses `BaseWidgetFrame` — not raw containers or hardcoded colors
+- [ ] Client renderer uses `AppIconName` icons only
+- [ ] Client renderer passes `state`, `hasData`, `emptyMessage`, and `errorMessage` to `BaseWidgetFrame`
 - [ ] Client plugin module created
 - [ ] Plugin registered in both API and client `registerBuiltinWidgetPlugins()`
 - [ ] Tests pass for resolver and registry
+- [ ] `npm run typecheck` passes in `apps/api` and `apps/client`
