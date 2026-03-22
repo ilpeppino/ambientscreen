@@ -12,6 +12,11 @@ beforeEach(() => {
     publish: (event) => {
       emittedEvents.push(event);
     },
+    publishDeviceCommand: () => false,
+    getDeviceConnectionSnapshot: () => ({
+      online: false,
+      lastConnectedAt: null,
+    }),
     close: async () => undefined,
   });
 });

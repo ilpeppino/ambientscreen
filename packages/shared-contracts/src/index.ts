@@ -196,12 +196,19 @@ export type DevicePlatform = "ios" | "android" | "web";
 
 export type DeviceType = "phone" | "tablet" | "display" | "web";
 
+export type RemoteCommand =
+  | { type: "SET_PROFILE"; profileId: string }
+  | { type: "REFRESH" }
+  | { type: "SET_SLIDESHOW"; enabled: boolean };
+
 export interface Device {
   id: string;
   userId: string;
   name: string;
   platform: DevicePlatform;
   deviceType: DeviceType;
+  connectionStatus?: "online" | "offline";
+  lastConnectedAt?: string | null;
   lastSeenAt: string;
   createdAt: string;
   updatedAt: string;

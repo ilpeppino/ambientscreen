@@ -37,6 +37,7 @@ import {
 interface AdminHomeScreenProps {
   currentDeviceId: string | null;
   onEnterDisplayMode: () => void;
+  onEnterRemoteControlMode: () => void;
   onLogout: () => void;
 }
 
@@ -49,7 +50,12 @@ function formatLastSeenAt(value: string): string {
   return date.toLocaleString();
 }
 
-export function AdminHomeScreen({ currentDeviceId, onEnterDisplayMode, onLogout }: AdminHomeScreenProps) {
+export function AdminHomeScreen({
+  currentDeviceId,
+  onEnterDisplayMode,
+  onEnterRemoteControlMode,
+  onLogout,
+}: AdminHomeScreenProps) {
   const {
     profiles,
     activeProfileId,
@@ -657,6 +663,13 @@ export function AdminHomeScreen({ currentDeviceId, onEnterDisplayMode, onLogout 
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          style={styles.remoteControlButton}
+          onPress={onEnterRemoteControlMode}
+        >
+          <Text style={styles.remoteControlButtonLabel}>Remote Control</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           style={styles.logoutButton}
           onPress={onLogout}
         >
@@ -937,6 +950,17 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "700",
     fontSize: 16,
+  },
+  remoteControlButton: {
+    backgroundColor: "#3a3f51",
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  remoteControlButtonLabel: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 15,
   },
   logoutButton: {
     backgroundColor: "#2d2d2d",

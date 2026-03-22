@@ -6,6 +6,9 @@ import { AuthProvider, useAuth } from "./src/features/auth/auth.context";
 import { LoginScreen } from "./src/features/auth/screens/LoginScreen";
 import { DisplayScreen } from "./src/features/display/screens/DisplayScreen";
 import { getCurrentDeviceMetadata } from "./src/features/devices/deviceMetadata";
+import { RemoteControlScreen } from "./src/features/remoteControl/screens/RemoteControlScreen";
+import { createRemoteCommandClient } from "./src/features/remoteControl/services/remoteCommandClient";
+import { emitRemoteCommand } from "./src/features/remoteControl/services/remoteCommandBus";
 import {
   DEVICE_STORAGE_KEY,
   registerOrHeartbeatDevice,
@@ -13,10 +16,12 @@ import {
 import { heartbeatDevice, registerDevice } from "./src/services/api/devicesApi";
 import {
   enterDisplayMode,
+  enterRemoteControlMode,
   exitDisplayMode,
   getInitialAppMode,
   type AppMode,
 } from "./src/features/navigation/appMode.logic";
+import { API_BASE_URL } from "./src/core/config/api";
 
 function AuthenticatedApp() {
   const { isLoading, token, logout } = useAuth();
@@ -70,6 +75,29 @@ function AuthenticatedApp() {
     };
   }, [token]);
 
+  const remoteCommandClientRef = React.useRef(createRemoteCommandClient({
+    apiBaseUrl: API_BASE_URL,
+    onConnectionStateChange: () => undefined,
+    onCommand: (command) => {
+      emitRemoteCommand(command);
+    },
+  }));
+
+  React.useEffect(() => {
+    const client = remoteCommandClientRef.current;
+    if (!token || !deviceId) {
+      client.disconnect();
+      return;
+    }
+
+    client.setDeviceId(deviceId);
+    client.connect();
+
+    return () => {
+      client.disconnect();
+    };
+  }, [deviceId, token]);
+
   if (isLoading) {
     return (
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#000" }}>
@@ -87,11 +115,16 @@ function AuthenticatedApp() {
       <AdminHomeScreen
         currentDeviceId={deviceId}
         onEnterDisplayMode={() => setMode(enterDisplayMode())}
+        onEnterRemoteControlMode={() => setMode(enterRemoteControlMode())}
         onLogout={() => {
           void logout();
         }}
       />
     );
+  }
+
+  if (mode === "remoteControl") {
+    return <RemoteControlScreen currentDeviceId={deviceId} onBack={() => setMode(exitDisplayMode())} />;
   }
 
   return <DisplayScreen deviceId={deviceId} onExitDisplayMode={() => setMode(exitDisplayMode())} />;

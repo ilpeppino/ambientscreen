@@ -1,4 +1,4 @@
-export type AppMode = "admin" | "display";
+export type AppMode = "admin" | "display" | "remoteControl";
 
 export function getInitialAppMode(): AppMode {
   return "admin";
@@ -6,6 +6,10 @@ export function getInitialAppMode(): AppMode {
 
 export function enterDisplayMode(): AppMode {
   return "display";
+}
+
+export function enterRemoteControlMode(): AppMode {
+  return "remoteControl";
 }
 
 export function exitDisplayMode(): AppMode {

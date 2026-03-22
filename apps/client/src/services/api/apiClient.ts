@@ -12,6 +12,10 @@ export function setApiAuthToken(token: string | null) {
   authToken = token;
 }
 
+export function getApiAuthToken(): string | null {
+  return authToken;
+}
+
 export function withAuthHeaders(headers?: HeadersInit): HeadersInit {
   if (!authToken) {
     return headers ?? {};

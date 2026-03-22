@@ -1,21 +1,5 @@
+import type { RemoteCommand } from "@ambient/shared-contracts";
 import { getApiAuthToken } from "../../../services/api/apiClient";
-
-export type RealtimeEventType =
-  | "profile.updated"
-  | "widget.created"
-  | "widget.updated"
-  | "widget.deleted"
-  | "layout.updated"
-  | "display.refreshRequested";
-
-export interface RealtimeEvent {
-  type: RealtimeEventType;
-  profileId: string;
-  widgetId?: string;
-  timestamp: string;
-}
-
-export type RealtimeConnectionState = "connecting" | "connected" | "disconnected" | "error";
 
 type WebSocketLike = {
   onopen: ((event: unknown) => void) | null;
@@ -28,69 +12,74 @@ type WebSocketLike = {
 
 type WebSocketFactory = (url: string) => WebSocketLike;
 
-interface RealtimeClientOptions {
+export type RemoteCommandConnectionState = "connecting" | "connected" | "disconnected" | "error";
+
+interface DeviceCommandEvent {
+  scope: "device";
+  type: "device.command";
+  deviceId: string;
+  timestamp: string;
+  command: RemoteCommand;
+}
+
+interface RemoteCommandClientOptions {
   apiBaseUrl: string;
   reconnectDelayMs?: number;
   maxReconnectDelayMs?: number;
   websocketFactory?: WebSocketFactory;
-  onEvent: (event: RealtimeEvent) => void;
-  onConnectionStateChange: (state: RealtimeConnectionState) => void;
+  onCommand: (command: RemoteCommand) => void;
+  onConnectionStateChange: (state: RemoteCommandConnectionState) => void;
 }
 
-interface RealtimeClient {
+interface RemoteCommandClient {
   connect: () => void;
   disconnect: () => void;
-  setProfileId: (profileId: string | null) => void;
+  setDeviceId: (deviceId: string | null) => void;
 }
 
 const DEFAULT_RECONNECT_DELAY_MS = 1000;
 const DEFAULT_MAX_RECONNECT_DELAY_MS = 30000;
-const SUPPORTED_EVENT_TYPES = new Set<RealtimeEventType>([
-  "profile.updated",
-  "widget.created",
-  "widget.updated",
-  "widget.deleted",
-  "layout.updated",
-  "display.refreshRequested",
-]);
 
-export function buildRealtimeUrl(apiBaseUrl: string, profileId: string | null, token: string | null): string {
-  const url = new URL(apiBaseUrl);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  url.pathname = "/realtime";
-  url.search = "";
-
-  if (token) {
-    url.searchParams.set("token", token);
+function isRemoteCommand(value: unknown): value is RemoteCommand {
+  if (typeof value !== "object" || !value) {
+    return false;
   }
 
-  if (profileId) {
-    url.searchParams.set("profileId", profileId);
+  const parsed = value as Partial<RemoteCommand>;
+  if (parsed.type === "REFRESH") {
+    return true;
   }
 
-  return url.toString();
+  if (parsed.type === "SET_PROFILE") {
+    return typeof parsed.profileId === "string" && parsed.profileId.trim().length > 0;
+  }
+
+  if (parsed.type === "SET_SLIDESHOW") {
+    return typeof parsed.enabled === "boolean";
+  }
+
+  return false;
 }
 
-function parseRealtimeEvent(rawData: string): RealtimeEvent | null {
+function parseDeviceCommandEvent(rawData: string): DeviceCommandEvent | null {
   try {
-    const parsed = JSON.parse(rawData) as Partial<RealtimeEvent>;
-
+    const parsed = JSON.parse(rawData) as Partial<DeviceCommandEvent>;
     if (
-      typeof parsed.type !== "string"
-      || typeof parsed.profileId !== "string"
+      parsed.scope !== "device"
+      || parsed.type !== "device.command"
+      || typeof parsed.deviceId !== "string"
       || typeof parsed.timestamp !== "string"
+      || !isRemoteCommand(parsed.command)
     ) {
-      return null;
-    }
-    if (!SUPPORTED_EVENT_TYPES.has(parsed.type as RealtimeEventType)) {
       return null;
     }
 
     return {
-      type: parsed.type as RealtimeEventType,
-      profileId: parsed.profileId,
+      scope: "device",
+      type: "device.command",
+      deviceId: parsed.deviceId,
       timestamp: parsed.timestamp,
-      ...(typeof parsed.widgetId === "string" ? { widgetId: parsed.widgetId } : {}),
+      command: parsed.command,
     };
   } catch {
     return null;
@@ -109,18 +98,35 @@ function defaultWebSocketFactory(url: string): WebSocketLike {
   return new webSocketConstructor(url) as WebSocketLike;
 }
 
-export function createRealtimeClient(options: RealtimeClientOptions): RealtimeClient {
+function buildRemoteCommandRealtimeUrl(apiBaseUrl: string, deviceId: string | null, token: string | null): string {
+  const url = new URL(apiBaseUrl);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  url.pathname = "/realtime";
+  url.search = "";
+
+  if (token) {
+    url.searchParams.set("token", token);
+  }
+
+  if (deviceId) {
+    url.searchParams.set("deviceId", deviceId);
+  }
+
+  return url.toString();
+}
+
+export function createRemoteCommandClient(options: RemoteCommandClientOptions): RemoteCommandClient {
   const reconnectDelayMs = options.reconnectDelayMs ?? DEFAULT_RECONNECT_DELAY_MS;
   const maxReconnectDelayMs = options.maxReconnectDelayMs ?? DEFAULT_MAX_RECONNECT_DELAY_MS;
   const websocketFactory = options.websocketFactory ?? defaultWebSocketFactory;
 
   let socket: WebSocketLike | null = null;
-  let activeProfileId: string | null = null;
+  let activeDeviceId: string | null = null;
   let shouldReconnect = true;
   let reconnectAttempt = 0;
   let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
-  function setState(state: RealtimeConnectionState) {
+  function setState(state: RemoteCommandConnectionState) {
     options.onConnectionStateChange(state);
   }
 
@@ -132,20 +138,20 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   }
 
   function sendSubscription() {
-    if (!socket || !activeProfileId) {
+    if (!socket || !activeDeviceId) {
       return;
     }
 
     socket.send(
       JSON.stringify({
-        type: "subscribe",
-        profileId: activeProfileId,
+        type: "subscribeDevice",
+        deviceId: activeDeviceId,
       }),
     );
   }
 
   function scheduleReconnect() {
-    if (!shouldReconnect || reconnectTimeout) {
+    if (!shouldReconnect || reconnectTimeout || !activeDeviceId) {
       return;
     }
 
@@ -161,14 +167,18 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
   function connectInternal() {
     clearReconnectTimeout();
 
+    if (!activeDeviceId) {
+      setState("disconnected");
+      return;
+    }
+
     if (socket) {
       socket.close();
       socket = null;
     }
 
     setState("connecting");
-
-    const url = buildRealtimeUrl(options.apiBaseUrl, activeProfileId, getApiAuthToken());
+    const url = buildRemoteCommandRealtimeUrl(options.apiBaseUrl, activeDeviceId, getApiAuthToken());
     const nextSocket = websocketFactory(url);
     socket = nextSocket;
 
@@ -179,12 +189,12 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
     };
 
     nextSocket.onmessage = (event) => {
-      const parsed = parseRealtimeEvent(event.data);
-      if (!parsed) {
+      const parsed = parseDeviceCommandEvent(event.data);
+      if (!parsed || parsed.deviceId !== activeDeviceId) {
         return;
       }
 
-      options.onEvent(parsed);
+      options.onCommand(parsed.command);
     };
 
     nextSocket.onerror = () => {
@@ -215,8 +225,8 @@ export function createRealtimeClient(options: RealtimeClientOptions): RealtimeCl
 
       setState("disconnected");
     },
-    setProfileId(profileId: string | null) {
-      activeProfileId = profileId;
+    setDeviceId(deviceId: string | null) {
+      activeDeviceId = deviceId;
       sendSubscription();
     },
   };

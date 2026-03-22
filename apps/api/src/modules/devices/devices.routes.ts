@@ -21,6 +21,20 @@ const updateDeviceSchema = z.object({
   name: z.string().trim().min(1).max(120),
 });
 
+const remoteCommandSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("SET_PROFILE"),
+    profileId: z.string().trim().min(1),
+  }),
+  z.object({
+    type: z.literal("REFRESH"),
+  }),
+  z.object({
+    type: z.literal("SET_SLIDESHOW"),
+    enabled: z.boolean(),
+  }),
+]);
+
 function getRouteParamId(value: unknown): string {
   if (typeof value === "string") {
     return value;
@@ -125,5 +139,37 @@ devicesRouter.delete(
     }
 
     res.status(204).send();
+  }),
+);
+
+devicesRouter.post(
+  "/:id/command",
+  asyncHandler(async (req, res) => {
+    const parseResult = remoteCommandSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      throw apiErrors.validation("Invalid remote command payload", parseResult.error.format());
+    }
+
+    const userId = getRequestUserId(req);
+    const deviceId = getRouteParamId(req.params.id);
+    const device = await devicesService.getDeviceForUser({ id: deviceId, userId });
+    if (!device) {
+      throw apiErrors.notFound("Device not found");
+    }
+
+    const delivered = devicesService.sendRemoteCommand({
+      id: deviceId,
+      userId,
+      command: parseResult.data,
+    });
+    if (!delivered) {
+      throw apiErrors.badRequest("Target device is offline");
+    }
+
+    res.status(202).json({
+      success: true,
+      deviceId,
+      commandType: parseResult.data.type,
+    });
   }),
 );

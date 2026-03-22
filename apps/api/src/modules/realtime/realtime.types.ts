@@ -1,3 +1,5 @@
+import type { RemoteCommand } from "@ambient/shared-contracts";
+
 export type ProfileRealtimeEventType =
   | "profile.updated"
   | "widget.created"
@@ -29,10 +31,25 @@ export interface SharedSessionRealtimeEvent {
   payload?: Record<string, unknown>;
 }
 
-export type RealtimeEvent = ProfileRealtimeEvent | SharedSessionRealtimeEvent;
+export interface DeviceCommandRealtimeEvent {
+  scope: "device";
+  type: "device.command";
+  deviceId: string;
+  timestamp: string;
+  command: RemoteCommand;
+}
+
+export type RealtimeEvent = ProfileRealtimeEvent | SharedSessionRealtimeEvent | DeviceCommandRealtimeEvent;
+
+export interface DeviceConnectionSnapshot {
+  online: boolean;
+  lastConnectedAt: Date | null;
+}
 
 export interface RealtimeServer {
   publish: (event: RealtimeEvent) => void;
+  publishDeviceCommand: (input: { userId: string; deviceId: string; command: RemoteCommand }) => boolean;
+  getDeviceConnectionSnapshot: (deviceId: string) => DeviceConnectionSnapshot;
   close: () => Promise<void>;
 }
 
