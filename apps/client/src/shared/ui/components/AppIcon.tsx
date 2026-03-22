@@ -56,5 +56,9 @@ export function AppIcon({
 }: AppIconProps) {
   const Icon = ICON_MAP[name];
 
-  return <Icon size={getIconSize(size)} color={getIconColor(color)} strokeWidth={2} />;
+  return React.createElement(Icon as React.ComponentType<any>, {
+    size: getIconSize(size),
+    color: getIconColor(color),
+    strokeWidth: 2,
+  });
 }
