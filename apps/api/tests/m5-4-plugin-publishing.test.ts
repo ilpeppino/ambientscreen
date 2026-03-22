@@ -49,7 +49,8 @@ function getRouteHandler(router: Router, method: RouteMethod, path: string) {
     throw new Error(`Route ${method.toUpperCase()} ${path} not found`);
   }
 
-  return routeLayer.route.stack[0].handle;
+  // Use the last handler in the stack — earlier entries may be rate-limit middleware.
+  return routeLayer.route.stack[routeLayer.route.stack.length - 1].handle;
 }
 
 async function invokeRoute(
