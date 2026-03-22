@@ -4,6 +4,7 @@ import type {
   WeatherWidgetData,
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
+import { colors, spacing } from "../../shared/ui/theme";
 
 export function WeatherRenderer({ data }: WidgetRendererProps<WeatherWidgetData>) {
   if (!data) {
@@ -36,15 +37,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
     backgroundColor: "transparent",
   },
   card: {
     width: "100%",
     maxWidth: 720,
     borderWidth: 1,
-    borderColor: "#1c1c1c",
+    borderColor: colors.surface,
     backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderRadius: 24,
     alignItems: "center",
@@ -56,20 +57,20 @@ const styles = StyleSheet.create({
     fontSize: 30,
     lineHeight: 36,
     fontWeight: "700",
-    color: "#fff",
+    color: colors.textPrimary,
     textAlign: "center",
   },
   statusMessage: {
     marginTop: 10,
     fontSize: 18,
     lineHeight: 24,
-    color: "#bdbdbd",
+    color: colors.textSecondary,
     textAlign: "center",
   },
   location: {
     fontSize: 30,
     lineHeight: 36,
-    color: "#e8e8e8",
+    color: colors.textPrimary,
     textAlign: "center",
   },
   temperature: {
@@ -77,19 +78,19 @@ const styles = StyleSheet.create({
     fontSize: 86,
     lineHeight: 94,
     fontWeight: "700",
-    color: "#fff",
+    color: colors.textPrimary,
     letterSpacing: 1.2,
     textAlign: "center",
   },
   temperatureUnit: {
     fontSize: 30,
-    color: "#d0d0d0",
+    color: colors.textSecondary,
   },
   condition: {
     marginTop: 8,
     fontSize: 24,
     lineHeight: 32,
-    color: "#bebebe",
+    color: colors.textSecondary,
     textAlign: "center",
   },
 });

@@ -16,9 +16,11 @@
     "expo": "~54.0.0",
     "expo-keep-awake": "~14.0.2",
     "expo-screen-orientation": "~8.0.4",
+    "lucide-react-native": "^0.577.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-native": "0.77.3",
+    "react-native-svg": "^15.15.4",
     "react-native-web": "~0.19.13"
   },
   "devDependencies": {

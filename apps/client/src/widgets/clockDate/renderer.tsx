@@ -4,6 +4,7 @@ import type {
   ClockDateWidgetData,
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
+import { colors, spacing } from "../../shared/ui/theme";
 
 export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetData>) {
   if (!data) {
@@ -36,15 +37,15 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 24,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.xl,
     backgroundColor: "transparent",
   },
   card: {
     width: "100%",
     maxWidth: 720,
     borderWidth: 1,
-    borderColor: "#1c1c1c",
+    borderColor: colors.surface,
     backgroundColor: "rgba(255, 255, 255, 0.04)",
     borderRadius: 24,
     alignItems: "center",
@@ -55,14 +56,14 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 108,
     fontWeight: "700",
-    color: "#fff",
+    color: colors.textPrimary,
     letterSpacing: 1.2,
     textAlign: "center",
   },
   weekday: {
     marginTop: 14,
     fontSize: 30,
-    color: "#efefef",
+    color: colors.textPrimary,
     letterSpacing: 2,
     textTransform: "uppercase",
     textAlign: "center",
@@ -70,12 +71,12 @@ const styles = StyleSheet.create({
   date: {
     marginTop: 10,
     fontSize: 28,
-    color: "#bfbfbf",
+    color: colors.textSecondary,
     textAlign: "center",
   },
   loadingText: {
     fontSize: 22,
-    color: "#d5d5d5",
+    color: colors.textSecondary,
     textAlign: "center",
   },
 });
