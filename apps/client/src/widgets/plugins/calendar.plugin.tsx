@@ -9,6 +9,6 @@ export const calendarWidgetPlugin: WidgetClientPluginModule<"calendar", JSX.Elem
   configSchema: definition.configSchema,
   defaultConfig: definition.defaultConfig,
   client: {
-    Renderer: ({ data }) => <CalendarRenderer data={data} />,
+    Renderer: (props) => <CalendarRenderer {...props} />,
   },
 };

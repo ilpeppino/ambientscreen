@@ -42,6 +42,10 @@ export function getEffectivePollingIntervalMs(
   return baseIntervalMs;
 }
 
+export function shouldShowDisplayEditControls(editMode: boolean): boolean {
+  return editMode;
+}
+
 type DisplayUiState =
   | "loadingWidgets"
   | "error"

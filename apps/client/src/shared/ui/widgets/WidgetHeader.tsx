@@ -9,14 +9,28 @@ interface WidgetHeaderProps {
   title: string;
   icon: AppIconName;
   rightContent?: React.ReactNode;
+  mode?: "display" | "edit";
 }
 
-export function WidgetHeader({ title, icon, rightContent }: WidgetHeaderProps) {
+export function WidgetHeader({
+  title,
+  icon,
+  rightContent,
+  mode = "display",
+}: WidgetHeaderProps) {
+  const isEditMode = mode === "edit";
+
   return (
     <View style={styles.row}>
       <View style={styles.leftContent}>
-        <AppIcon name={icon} size="sm" color="textSecondary" />
-        <Text variant="subtitle">{title}</Text>
+        <AppIcon name={icon} size="sm" color={isEditMode ? "textPrimary" : "textSecondary"} />
+        <Text
+          variant={isEditMode ? "body" : "caption"}
+          color={isEditMode ? "textPrimary" : "textSecondary"}
+          style={styles.title}
+        >
+          {title}
+        </Text>
       </View>
       {rightContent ? <View style={styles.rightContent}>{rightContent}</View> : null}
     </View>
@@ -28,12 +42,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   leftContent: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  title: {
+    letterSpacing: 0.3,
   },
   rightContent: {
     marginLeft: spacing.md,

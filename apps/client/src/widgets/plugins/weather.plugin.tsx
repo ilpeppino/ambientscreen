@@ -9,6 +9,6 @@ export const weatherWidgetPlugin: WidgetClientPluginModule<"weather", JSX.Elemen
   configSchema: definition.configSchema,
   defaultConfig: definition.defaultConfig,
   client: {
-    Renderer: ({ data }) => <WeatherRenderer data={data} />,
+    Renderer: (props) => <WeatherRenderer {...props} />,
   },
 };

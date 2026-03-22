@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import Animated, {
   runOnJS,
@@ -12,6 +12,7 @@ import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayL
 import { AppIcon } from "../../../shared/ui/components";
 import { Text } from "../../../shared/ui/components/Text";
 import { colors, radius, spacing } from "../../../shared/ui/theme";
+import { WidgetState } from "../../../shared/ui/widgets";
 import type { AnimatedItemPhase } from "../animations/transitionManager";
 import { renderWidgetFromKey } from "../../../widgets/pluginRegistry";
 import { computeWidgetScale, getWidgetErrorLabel } from "./WidgetContainer.logic";
@@ -75,6 +76,7 @@ function WidgetContainerBase({
   const dragTranslateY = useSharedValue(0);
   const resizePreviewX = useSharedValue(0);
   const resizePreviewY = useSharedValue(0);
+  const contentOpacity = useSharedValue(1);
 
   useEffect(() => {
     if (animationPhase === "exit") {
@@ -104,6 +106,16 @@ function WidgetContainerBase({
     setSnapLabel(null);
   }, [dragTranslateX, dragTranslateY, editMode, resizePreviewX, resizePreviewY]);
 
+  useEffect(() => {
+    if (editMode) {
+      contentOpacity.value = 1;
+      return;
+    }
+
+    contentOpacity.value = 0.82;
+    contentOpacity.value = withTiming(1, { duration: 220 });
+  }, [contentOpacity, editMode, widget.data, widget.meta.fetchedAt, widget.meta.staleAt, widget.state]);
+
   const columnWidth = containerSize.width > 0 ? containerSize.width / DISPLAY_GRID_COLUMNS : 0;
   const rowHeight = containerSize.height > 0 ? containerSize.height / DISPLAY_GRID_BASE_ROWS : 0;
 
@@ -130,6 +142,10 @@ function WidgetContainerBase({
       ],
     };
   }, [editMode, height, maxPreviewHeight, maxPreviewWidth, mountOpacity, mountScale, resizePreviewX, resizePreviewY, width, dragTranslateX, dragTranslateY]);
+
+  const animatedContentStyle = useAnimatedStyle(() => ({
+    opacity: contentOpacity.value,
+  }), [contentOpacity]);
 
   const commitDragLayout = useCallback((translationX: number, translationY: number) => {
     if (columnWidth <= 0 || rowHeight <= 0) {
@@ -239,7 +255,7 @@ function WidgetContainerBase({
     if (widget.state === "loading") {
       return (
         <View style={styles.centered}>
-          <ActivityIndicator size="small" color={colors.textPrimary} />
+          <WidgetState type="loading" compact message="Refreshing..." />
         </View>
       );
     }
@@ -247,9 +263,7 @@ function WidgetContainerBase({
     if (widget.state === "error") {
       return (
         <View style={styles.centered}>
-          <Text variant="caption" color="error">
-            {getWidgetErrorLabel(widget)}
-          </Text>
+          <WidgetState type="error" compact message={getWidgetErrorLabel(widget)} />
         </View>
       );
     }
@@ -257,9 +271,7 @@ function WidgetContainerBase({
     if (widget.state === "empty") {
       return (
         <View style={styles.centered}>
-          <Text variant="caption" color="textSecondary">
-            No data
-          </Text>
+          <WidgetState type="empty" compact message="No data available" />
         </View>
       );
     }
@@ -299,18 +311,20 @@ function WidgetContainerBase({
           editMode && hasSelectedWidget && isSelected === false ? styles.secondaryInEditMode : null,
         ] as any}
       >
-        <Pressable
-          accessibilityRole={editMode ? "button" : undefined}
-          disabled={editMode === false}
-          style={styles.contentPressArea}
-          onPress={() => {
-            if (editMode && onSelectWidget) {
-              onSelectWidget(widget.widgetInstanceId);
-            }
-          }}
-        >
-          {content}
-        </Pressable>
+        <AnimatedView style={animatedContentStyle}>
+          <Pressable
+            accessibilityRole={editMode ? "button" : undefined}
+            disabled={editMode === false}
+            style={styles.contentPressArea}
+            onPress={() => {
+              if (editMode && onSelectWidget) {
+                onSelectWidget(widget.widgetInstanceId);
+              }
+            }}
+          >
+            {content}
+          </Pressable>
+        </AnimatedView>
 
         <WidgetContextActions
           visible={canEditSelectedWidget}
@@ -362,8 +376,8 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: `${colors.surface}CC`,
-    backgroundColor: `${colors.textPrimary}08`,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
     overflow: "hidden",
     padding: spacing.md,
   },
@@ -371,8 +385,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   editModeContainer: {
-    borderColor: `${colors.textSecondary}AA`,
-    backgroundColor: `${colors.surface}66`,
+    borderColor: `${colors.textSecondary}CC`,
+    backgroundColor: `${colors.surface}B3`,
   },
   selectedContainer: {
     borderColor: `${colors.accent}EE`,
