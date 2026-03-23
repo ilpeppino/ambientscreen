@@ -118,6 +118,30 @@ describe("WidgetLibraryPanel", () => {
     expect(texts.some((t) => String(t).toLowerCase().includes("weather"))).toBe(true);
     expect(texts.some((t) => String(t).includes("Clock"))).toBe(false);
   });
+
+  test("publishes widget type metadata on drag start", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetLibraryPanel, defaultProps),
+    );
+
+    const draggableRow = tree.root.findAllByType("pressable" as any)
+      .find((node: { props: { draggable?: boolean; onDragStart?: (event: unknown) => void } }) => (
+        node.props.draggable === true && typeof node.props.onDragStart === "function"
+      ));
+
+    expect(draggableRow).toBeDefined();
+
+    const setData = vi.fn();
+    draggableRow?.props.onDragStart?.({
+      dataTransfer: {
+        setData,
+        effectAllowed: "copy",
+      },
+    });
+
+    expect(setData).toHaveBeenCalledWith("application/x-ambient-widget", expect.any(String));
+    expect(setData).toHaveBeenCalledWith("text/plain", expect.any(String));
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -336,5 +360,63 @@ describe("DashboardCanvas", () => {
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
     expect(texts.some((t) => String(t).toLowerCase().includes("loading"))).toBe(true);
+  });
+
+  test("drop forwards widget type and default-sized layout to onWidgetDropped", () => {
+    const onWidgetDropped = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(DashboardCanvas, {
+        ...baseProps,
+        onWidgetDropped,
+      }),
+    );
+
+    const dropZone = tree.root.findAllByType("view" as any)
+      .find((node: { props: { onDrop?: (event: unknown) => void } }) => typeof node.props.onDrop === "function");
+    expect(dropZone).toBeDefined();
+
+    dropZone?.props.onDrop?.({
+      preventDefault: vi.fn(),
+      clientX: 300,
+      clientY: 100,
+      currentTarget: {
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 1200, height: 600 }),
+      },
+      dataTransfer: {
+        getData: (mime: string) => (mime === "application/x-ambient-widget" ? "calendar" : ""),
+      },
+    });
+
+    expect(onWidgetDropped).toHaveBeenCalledTimes(1);
+    expect(onWidgetDropped).toHaveBeenCalledWith(
+      "calendar",
+      expect.objectContaining({ w: 6, h: 3 }),
+    );
+  });
+
+  test("drop ignores unsupported widget type safely", () => {
+    const onWidgetDropped = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(DashboardCanvas, {
+        ...baseProps,
+        onWidgetDropped,
+      }),
+    );
+
+    const dropZone = tree.root.findAllByType("view" as any)
+      .find((node: { props: { onDrop?: (event: unknown) => void } }) => typeof node.props.onDrop === "function");
+    dropZone?.props.onDrop?.({
+      preventDefault: vi.fn(),
+      clientX: 300,
+      clientY: 100,
+      currentTarget: {
+        getBoundingClientRect: () => ({ left: 0, top: 0, width: 1200, height: 600 }),
+      },
+      dataTransfer: {
+        getData: () => "unsupportedWidget",
+      },
+    });
+
+    expect(onWidgetDropped).not.toHaveBeenCalled();
   });
 });

@@ -28,7 +28,7 @@ Ambient Screen is a multi-device display platform with an authenticated backend,
 
 ### Profile and Display Management
 - Multi-profile CRUD with active profile switching.
-- Widget CRUD, layout updates, config patching, active toggle, and delete.
+- Widget CRUD, layout updates, config patching, and delete.
 - Display layout read API for current/explicit profile.
 - Built-in widget keys: `clockDate`, `weather`, `calendar`.
 
@@ -41,16 +41,16 @@ Ambient Screen is a multi-device display platform with an authenticated backend,
   - `SET_SLIDESHOW`
 
 ### Shared Sessions and Orchestration
-- Shared session CRUD + participant join/leave.
+- Shared session list/create/read/update + participant join/leave.
 - Shared-session slideshow state (interval, rotation IDs, index).
 - Orchestration rules (`interval`, `rotation`) with validation.
 - Realtime channels for profile/session/device updates.
 
 ### Plugin Ecosystem Foundation
-- Plugin registry for approved plugin catalog (`/plugins`).
+- Authenticated plugin catalog for approved plugins (`/plugins`).
 - Per-user plugin installation and enable/disable (`/plugins/:pluginId/install`, `/me/plugins`).
 - Developer plugin publishing flow (`/developer/plugins`).
-- Admin moderation flow for plugins and versions (`/admin/plugins`).
+- Admin moderation flow for plugins and versions (`/admin/plugins`) plus admin plugin metadata/version management under `/plugins`.
 
 ### Entitlements and Plan Gating
 - User plan model (`free`/`pro`) and feature map endpoint (`/entitlements`).

@@ -424,7 +424,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   configList: {
-    gap: 8,
+    gap: spacing.sm,
   },
   configRow: {
     flexDirection: "row",
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   fieldColumn: {
-    gap: 4,
+    gap: spacing.xs,
   },
   fieldLabel: {
     fontSize: 11,
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   },
   enumOption: {
     paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
     borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.border,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
   },
   enumOptionSelected: {
     borderColor: colors.accent ?? colors.textPrimary,
-    backgroundColor: colors.surfaceElevated ?? colors.surfaceCard,
+    backgroundColor: colors.surfaceCard,
   },
   enumOptionText: {
     fontSize: 12,
@@ -507,7 +507,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 11,
-    color: colors.error ?? "#e55",
+    color: colors.error,
     marginTop: spacing.xs,
   },
 });

@@ -7,6 +7,8 @@ import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { CreatableWidgetType } from "../adminHome.logic";
 import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 
+const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
+
 const WIDGET_ICON: Record<WidgetKey, "clock" | "weather" | "calendar"> = {
   clockDate: "clock",
   weather: "weather",
@@ -87,6 +89,7 @@ export function WidgetLibraryPanel({
                   ? ({
                       draggable: true,
                       onDragStart: (event: DragEvent) => {
+                        event.dataTransfer?.setData(DRAG_WIDGET_TYPE_MIME, widgetKey);
                         event.dataTransfer?.setData("text/plain", widgetKey);
                         if (event.dataTransfer) {
                           event.dataTransfer.effectAllowed = "copy";

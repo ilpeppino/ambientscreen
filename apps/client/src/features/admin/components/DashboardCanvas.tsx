@@ -13,6 +13,9 @@ import type { WidgetLayout } from "../../display/components/LayoutGrid.logic";
 import { computeDropLayout } from "./dropPosition.logic";
 import type { CreatableWidgetType } from "../adminHome.logic";
 import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
+import { getWidgetDefaultSize } from "../widgetPlacement.logic";
+
+const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
 
 interface DashboardCanvasProps {
   widgets: DisplayLayoutWidgetEnvelope[];
@@ -26,6 +29,7 @@ interface DashboardCanvasProps {
   hasLayoutChanges: boolean;
   savingLayout: boolean;
   layoutError: string | null;
+  widgetPlacementError?: string | null;
   onSaveLayout: () => void;
   onCancelLayout: () => void;
   /** Called when a widget type is dropped onto the canvas with a resolved grid layout. */
@@ -44,6 +48,7 @@ export function DashboardCanvas({
   hasLayoutChanges,
   savingLayout,
   layoutError,
+  widgetPlacementError,
   onSaveLayout,
   onCancelLayout,
   onWidgetDropped,
@@ -55,7 +60,9 @@ export function DashboardCanvas({
     event.preventDefault();
     setIsDragOver(false);
 
-    const widgetType = event.dataTransfer?.getData("text/plain") as string | undefined;
+    const widgetType = event.dataTransfer?.getData(DRAG_WIDGET_TYPE_MIME)
+      || event.dataTransfer?.getData("text/plain")
+      || undefined;
     if (!widgetType || !CREATABLE_WIDGET_TYPES.includes(widgetType as CreatableWidgetType)) {
       return;
     }
@@ -70,12 +77,15 @@ export function DashboardCanvas({
       widgets.map((w) => [w.widgetInstanceId, w.layout]),
     );
 
+    const defaultSize = getWidgetDefaultSize(widgetType as CreatableWidgetType);
     const layout = computeDropLayout({
       dropX,
       dropY,
       containerWidth: rect.width,
       containerHeight: rect.height,
       existingLayoutsById,
+      widgetW: defaultSize.w,
+      widgetH: defaultSize.h,
     });
 
     onWidgetDropped?.(widgetType as CreatableWidgetType, layout);
@@ -189,9 +199,9 @@ export function DashboardCanvas({
       </View>
 
       {/* Layout error banner */}
-      {layoutError ? (
+      {(layoutError || widgetPlacementError) ? (
         <View style={styles.errorBanner}>
-          <ErrorState compact message={layoutError} />
+          <ErrorState compact message={layoutError ?? widgetPlacementError ?? ""} />
         </View>
       ) : null}
     </View>
@@ -257,7 +267,7 @@ const styles = StyleSheet.create({
     flex: 1,
     position: "relative",
     padding: spacing.sm,
-    backgroundColor: "#050709",
+    backgroundColor: colors.backgroundScreen,
   },
   canvasBodyDragOver: {
     borderWidth: 2,

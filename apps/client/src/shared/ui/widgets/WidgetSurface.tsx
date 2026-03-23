@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   debugSurface: {
-    borderColor: "#00E5A8",
+    borderColor: colors.statusSuccessText,
     borderWidth: 1,
   },
 });
