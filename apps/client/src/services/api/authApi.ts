@@ -22,6 +22,7 @@ interface LoginResponse {
 
 export async function register(payload: AuthPayload): Promise<AuthUser> {
   const response = await apiFetchWithTimeout(`${API_BASE_URL}/auth/register`, {
+    withAuth: false,
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -40,6 +41,7 @@ export async function register(payload: AuthPayload): Promise<AuthUser> {
 
 export async function login(payload: AuthPayload): Promise<LoginResponse> {
   const response = await apiFetchWithTimeout(`${API_BASE_URL}/auth/login`, {
+    withAuth: false,
     method: "POST",
     headers: {
       "Content-Type": "application/json",

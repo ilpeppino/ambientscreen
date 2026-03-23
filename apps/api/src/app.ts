@@ -34,7 +34,13 @@ export function createApp() {
     ?.split(",")
     .map((s) => s.trim())
     .filter(Boolean) ?? [];
-  app.use(cors({ origin: allowedOrigins.length > 0 ? allowedOrigins : false }));
+  const isProduction = process.env.NODE_ENV === "production";
+  const corsOrigin = allowedOrigins.length > 0
+    ? allowedOrigins
+    : isProduction
+      ? false
+      : true;
+  app.use(cors({ origin: corsOrigin }));
   app.use(requestIdMiddleware);
   app.use(requestLoggingMiddleware);
   app.use(express.json());

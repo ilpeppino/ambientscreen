@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { EntitlementsResponse, FeatureFlagKey, UserPlan } from "@ambient/shared-contracts";
 import { getEntitlements } from "../../services/api/entitlementsApi";
+import { useAuth } from "../auth/auth.context";
 
 interface EntitlementsContextValue {
   plan: UserPlan;
@@ -20,6 +21,7 @@ const defaultFeatures: Record<FeatureFlagKey, boolean> = {
 const EntitlementsContext = createContext<EntitlementsContextValue | undefined>(undefined);
 
 export function EntitlementsProvider({ children }: { children: React.ReactNode }) {
+  const { token, isLoading: isAuthLoading } = useAuth();
   const [plan, setPlan] = useState<UserPlan>("free");
   const [features, setFeatures] = useState<Record<FeatureFlagKey, boolean>>(defaultFeatures);
   const [isLoading, setIsLoading] = useState(true);
@@ -38,8 +40,19 @@ export function EntitlementsProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
+    if (isAuthLoading) {
+      return;
+    }
+
+    if (!token) {
+      setPlan("free");
+      setFeatures(defaultFeatures);
+      setIsLoading(false);
+      return;
+    }
+
     void fetchEntitlements();
-  }, [fetchEntitlements]);
+  }, [fetchEntitlements, token, isAuthLoading]);
 
   const hasFeature = useCallback(
     (key: FeatureFlagKey): boolean => features[key] ?? false,
