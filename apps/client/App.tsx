@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AdminHomeScreen } from "./src/features/admin/screens/AdminHomeScreen";
 import { AuthProvider, useAuth } from "./src/features/auth/auth.context";
 import { LoginScreen } from "./src/features/auth/screens/LoginScreen";
@@ -164,10 +165,12 @@ function AuthenticatedApp() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <EntitlementsProvider>
-        <AuthenticatedApp />
-      </EntitlementsProvider>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <EntitlementsProvider>
+          <AuthenticatedApp />
+        </EntitlementsProvider>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }

@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
 import {
   Pressable,
-  SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "../auth.context";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import { Button } from "../../../shared/ui/Button";

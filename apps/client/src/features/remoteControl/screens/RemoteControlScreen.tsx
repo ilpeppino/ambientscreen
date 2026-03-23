@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { SafeAreaView, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, spacing, typography } from "../../../shared/ui/theme";
 import type { Device } from "@ambient/shared-contracts";
 import { Text } from "../../../shared/ui/components";

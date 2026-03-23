@@ -7,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { WidgetConfigSchema } from "@ambient/shared-contracts";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
@@ -41,6 +42,7 @@ export function WidgetSettingsModal({
   onClose,
   onSave,
 }: WidgetSettingsModalProps) {
+  const insets = useSafeAreaInsets();
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -136,7 +138,13 @@ export function WidgetSettingsModal({
         </View>
       }
     >
-      <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContent}>
+      <ScrollView
+        style={styles.formContainer}
+        contentContainerStyle={[
+          styles.formContent,
+          { paddingBottom: spacing.sm + Math.max(insets.bottom - spacing.sm, 0) },
+        ]}
+      >
         {fieldDescriptors.map((descriptor) => (
           <View key={descriptor.key} style={styles.fieldBlock}>
             <Text style={styles.fieldLabel}>{descriptor.label}</Text>
