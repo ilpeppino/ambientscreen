@@ -214,22 +214,34 @@ export function AdminEditorScreen({
   }, [loadDevices]);
 
   // ---- Widget actions ----
-  async function handleAddWidgetToCanvas(widgetType: CreatableWidgetType) {
+  /**
+   * Create a new widget and place it on the canvas.
+   * When `layout` is provided (drag-and-drop), the widget is created at that exact position.
+   * When omitted (click-to-add), the server assigns the next available slot.
+   * In both cases the new widget is auto-selected in the properties panel.
+   */
+  async function handleAddWidgetToCanvas(
+    widgetType: CreatableWidgetType,
+    layout?: import("../../display/components/LayoutGrid.logic").WidgetLayout,
+  ) {
     if (!activeProfileId) return;
     try {
       setAddingWidgetType(widgetType);
-      await createWidget(
-        buildCreateWidgetInput({
+      const payload = {
+        ...buildCreateWidgetInput({
           profileId: activeProfileId,
           widgetType,
           weatherConfig: { location: "Amsterdam", units: "metric" },
           calendarConfig: { provider: "ical", timeWindow: "next7d" },
         }),
-        activeProfileId,
-      );
-      // Reload layout so new widget appears on canvas
+        ...(layout ? { layout } : {}),
+      };
+      const newWidget = await createWidget(payload, activeProfileId);
+      // Reload layout so the new widget appears on canvas
       await loadDisplayLayout(false);
       await loadWidgetInstances();
+      // Auto-select the newly created widget in the properties panel
+      setSelectedWidgetId(newWidget.id);
     } catch (err) {
       console.error("Failed to add widget:", err);
     } finally {
@@ -448,6 +460,9 @@ export function AdminEditorScreen({
           layoutError={layoutError}
           onSaveLayout={() => void handleSaveLayout()}
           onCancelLayout={() => handleCancelLayout()}
+          onWidgetDropped={(widgetType, layout) =>
+            void handleAddWidgetToCanvas(widgetType, layout)
+          }
         />
       </View>
 

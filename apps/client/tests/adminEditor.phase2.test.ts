@@ -214,7 +214,7 @@ describe("WidgetPropertiesPanel", () => {
 // ---------------------------------------------------------------------------
 describe("DashboardCanvas", () => {
   const baseProps = {
-    widgets: [],
+    widgets: [] as import("../src/services/api/displayLayoutApi").DisplayLayoutWidgetEnvelope[],
     selectedWidgetId: null,
     onSelectWidget: vi.fn(),
     onClearSelection: vi.fn(),

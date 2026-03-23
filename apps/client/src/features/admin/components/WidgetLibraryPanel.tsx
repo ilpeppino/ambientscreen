@@ -61,12 +61,19 @@ export function WidgetLibraryPanel({
             const locked = isPremium && !hasFeature("premium_widgets");
             const isAdding = addingWidgetType === widgetKey;
 
+            const draggable = !isAdding && !locked;
+
             return (
               <Pressable
                 key={widgetKey}
                 accessibilityRole="button"
                 accessibilityLabel={`Add ${manifest.name} widget`}
-                style={[styles.widgetRow, isAdding ? styles.widgetRowAdding : null]}
+                style={[
+                  styles.widgetRow,
+                  isAdding ? styles.widgetRowAdding : null,
+                  // web-only cursor — ignored on native
+                  { cursor: draggable ? "grab" : "default" } as object,
+                ]}
                 onPress={() => {
                   if (locked) {
                     onUpgradePress();
@@ -75,6 +82,18 @@ export function WidgetLibraryPanel({
                   onAddWidget(widgetKey);
                 }}
                 disabled={isAdding}
+                // HTML5 Drag-and-Drop — web only, passed through by React Native Web
+                {...(draggable
+                  ? ({
+                      draggable: true,
+                      onDragStart: (event: DragEvent) => {
+                        event.dataTransfer?.setData("text/plain", widgetKey);
+                        if (event.dataTransfer) {
+                          event.dataTransfer.effectAllowed = "copy";
+                        }
+                      },
+                    } as object)
+                  : undefined)}
               >
                 <View style={styles.widgetInfo}>
                   <AppIcon name={WIDGET_ICON[widgetKey]} size="sm" color="textSecondary" />

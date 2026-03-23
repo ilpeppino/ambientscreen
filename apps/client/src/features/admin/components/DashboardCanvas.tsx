@@ -1,11 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ErrorState } from "../../../shared/ui/ErrorState";
 import { EmptyPanel } from "../../../shared/ui/management";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { LayoutGrid } from "../../display/components/LayoutGrid";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
+import {
+  DISPLAY_GRID_COLUMNS,
+  DISPLAY_GRID_BASE_ROWS,
+} from "../../display/components/LayoutGrid.logic";
 import type { WidgetLayout } from "../../display/components/LayoutGrid.logic";
+import { computeDropLayout } from "./dropPosition.logic";
+import type { CreatableWidgetType } from "../adminHome.logic";
+import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 
 interface DashboardCanvasProps {
   widgets: DisplayLayoutWidgetEnvelope[];
@@ -21,6 +28,8 @@ interface DashboardCanvasProps {
   layoutError: string | null;
   onSaveLayout: () => void;
   onCancelLayout: () => void;
+  /** Called when a widget type is dropped onto the canvas with a resolved grid layout. */
+  onWidgetDropped?: (widgetType: CreatableWidgetType, layout: WidgetLayout) => void;
 }
 
 export function DashboardCanvas({
@@ -37,14 +46,68 @@ export function DashboardCanvas({
   layoutError,
   onSaveLayout,
   onCancelLayout,
+  onWidgetDropped,
 }: DashboardCanvasProps) {
   const hasWidgets = widgets.length > 0;
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    setIsDragOver(false);
+
+    const widgetType = event.dataTransfer?.getData("text/plain") as string | undefined;
+    if (!widgetType || !CREATABLE_WIDGET_TYPES.includes(widgetType as CreatableWidgetType)) {
+      return;
+    }
+
+    // Use getBoundingClientRect for pixel-accurate canvas-relative coords
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const dropX = event.clientX - rect.left;
+    const dropY = event.clientY - rect.top;
+
+    const existingLayoutsById = Object.fromEntries(
+      widgets.map((w) => [w.widgetInstanceId, w.layout]),
+    );
+
+    const layout = computeDropLayout({
+      dropX,
+      dropY,
+      containerWidth: rect.width,
+      containerHeight: rect.height,
+      existingLayoutsById,
+    });
+
+    onWidgetDropped?.(widgetType as CreatableWidgetType, layout);
+  }
+
+  // Web-only DnD event handlers spread onto the canvas body View
+  const dropZoneProps = {
+    onDragOver: (event: DragEvent) => {
+      event.preventDefault();
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = "copy";
+      }
+      setIsDragOver(true);
+    },
+    onDragLeave: (event: DragEvent) => {
+      // Only clear when leaving the container itself, not child elements
+      const relatedTarget = event.relatedTarget as Node | null;
+      const currentTarget = event.currentTarget as HTMLElement;
+      if (!currentTarget.contains(relatedTarget)) {
+        setIsDragOver(false);
+      }
+    },
+    onDrop: handleDrop,
+  } as object;
 
   return (
     <View style={styles.canvas}>
-      {/* Save / Cancel overlay */}
+      {/* Top bar: canvas label + save/reset actions */}
       <View style={styles.canvasTopBar}>
-        <Text style={styles.canvasLabel}>Canvas</Text>
+        <Text style={styles.canvasLabel}>
+          Canvas{isDragOver ? " — drop to place" : ""}
+        </Text>
         <View style={styles.canvasActions}>
           {hasLayoutChanges ? (
             <>
@@ -58,19 +121,28 @@ export function DashboardCanvas({
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                style={[styles.actionButton, styles.saveButton, savingLayout ? styles.actionDisabled : null]}
+                style={[
+                  styles.actionButton,
+                  styles.saveButton,
+                  savingLayout ? styles.actionDisabled : null,
+                ]}
                 onPress={onSaveLayout}
                 disabled={savingLayout}
               >
-                <Text style={styles.saveLabel}>{savingLayout ? "Saving…" : "Save Layout"}</Text>
+                <Text style={styles.saveLabel}>
+                  {savingLayout ? "Saving…" : "Save Layout"}
+                </Text>
               </Pressable>
             </>
           ) : null}
         </View>
       </View>
 
-      {/* Canvas content */}
-      <View style={styles.canvasBody}>
+      {/* Drop zone — covers both empty canvas and populated grid */}
+      <View
+        style={[styles.canvasBody, isDragOver ? styles.canvasBodyDragOver : null]}
+        {...dropZoneProps}
+      >
         {loadingLayout && !hasWidgets ? (
           <EmptyPanel
             variant="loading"
@@ -81,10 +153,19 @@ export function DashboardCanvas({
           <ErrorState message={error} onRetry={onRetry} />
         ) : !hasWidgets ? (
           <View style={styles.emptyCanvas}>
-            <View style={styles.emptyPlaceholder}>
-              <Text style={styles.emptyTitle}>Canvas is empty</Text>
+            <View
+              style={[
+                styles.emptyPlaceholder,
+                isDragOver ? styles.emptyPlaceholderDragOver : null,
+              ]}
+            >
+              <Text style={styles.emptyTitle}>
+                {isDragOver ? "Release to add widget" : "Canvas is empty"}
+              </Text>
               <Text style={styles.emptyMessage}>
-                Add widgets from the sidebar to start building your dashboard.
+                {isDragOver
+                  ? "The widget will be placed at this position."
+                  : "Drag a widget from the sidebar or click + Add to place it here."}
               </Text>
             </View>
           </View>
@@ -98,6 +179,13 @@ export function DashboardCanvas({
             onWidgetLayoutChange={onWidgetLayoutChange}
           />
         )}
+
+        {/* Drop overlay hint shown over the grid when dragging */}
+        {isDragOver && hasWidgets ? (
+          <View style={styles.dragOverlay} pointerEvents="none">
+            <Text style={styles.dragOverlayText}>Release to place widget</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Layout error banner */}
@@ -167,6 +255,12 @@ const styles = StyleSheet.create({
   },
   canvasBody: {
     flex: 1,
+    position: "relative",
+  },
+  canvasBodyDragOver: {
+    borderWidth: 2,
+    borderColor: colors.accentBlue,
+    borderStyle: "dashed",
   },
   emptyCanvas: {
     flex: 1,
@@ -182,6 +276,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
+  emptyPlaceholderDragOver: {
+    borderColor: colors.accentBlue,
+    backgroundColor: colors.statusInfoBg,
+  },
   emptyTitle: {
     ...typography.body,
     color: colors.textSecondary,
@@ -192,6 +290,25 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 20,
+  },
+  dragOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(18, 49, 76, 0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.accentBlue,
+    borderStyle: "dashed",
+  },
+  dragOverlayText: {
+    ...typography.body,
+    color: colors.statusInfoText,
+    fontWeight: "700",
+    backgroundColor: "rgba(0,0,0,0.7)",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
+    overflow: "hidden",
   },
   errorBanner: {
     position: "absolute",
