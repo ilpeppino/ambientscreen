@@ -81,3 +81,16 @@ export async function activateProfile(profileId: string): Promise<{ activeProfil
 
   return response.json();
 }
+
+export async function clearProfileWidgets(profileId: string): Promise<{ deletedCount: number }> {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/profiles/${profileId}/widgets`, {
+    method: "DELETE",
+  }, PROFILES_TIMEOUT_MS);
+
+  if (!response.ok) {
+    const message = await toApiErrorMessage(response);
+    throw new Error(`Failed to clear profile widgets: ${message}`);
+  }
+
+  return response.json();
+}

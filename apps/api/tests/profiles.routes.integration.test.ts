@@ -3,6 +3,7 @@ import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { profilesRouter } from "../src/modules/profiles/profiles.routes";
 import { profilesService } from "../src/modules/profiles/profiles.service";
+import { widgetsService } from "../src/modules/widgets/widgets.service";
 
 interface TestProfile {
   id: string;
@@ -96,6 +97,14 @@ beforeEach(() => {
     }
 
     return { deleted: true } as never;
+  });
+
+  vi.spyOn(widgetsService, "clearWidgetsForProfile").mockImplementation(async ({ profileId }) => {
+    const profile = profileStore.find((item) => item.id === profileId && item.userId === "user-1");
+    if (!profile) {
+      return { deletedCount: 0 } as never;
+    }
+    return { deletedCount: 2 } as never;
   });
 });
 
@@ -252,4 +261,16 @@ test("profile delete prevents deleting the last remaining profile", async () => 
   });
 
   expect(deleteResponse.statusCode).toBe(400);
+});
+
+test("DELETE /profiles/:id/widgets clears only the selected profile canvas", async () => {
+  const clearResponse = await invokeRoute(profilesRouter, "delete", "/:id/widgets", {
+    params: { id: "profile-default" },
+  });
+
+  expect(clearResponse.statusCode).toBe(200);
+  expect(clearResponse.body).toEqual({ deletedCount: 2 });
+  expect(widgetsService.clearWidgetsForProfile).toHaveBeenCalledWith({
+    profileId: "profile-default",
+  });
 });

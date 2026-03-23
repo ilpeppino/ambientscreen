@@ -190,4 +190,12 @@ export const widgetsRepository = {
 
     return mapWidgetRecord(widget);
   },
+
+  async deleteAllByProfileId(profileId: string): Promise<number> {
+    const result = await prisma.widgetInstance.deleteMany({
+      where: { profileId },
+    });
+
+    return result.count;
+  },
 };

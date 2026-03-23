@@ -55,3 +55,26 @@ test("activateProfile sends authenticated PATCH request", async () => {
     },
   });
 });
+
+test("clearProfileWidgets sends authenticated DELETE request", async () => {
+  const { clearProfileWidgets } = await import("../src/services/api/profilesApi");
+  setApiAuthToken("token-abc");
+
+  const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    new Response(JSON.stringify({
+      deletedCount: 3,
+    }), { status: 200 }),
+  );
+
+  const result = await clearProfileWidgets("profile-3");
+
+  expect(result).toEqual({ deletedCount: 3 });
+  const [url, requestInit] = fetchSpy.mock.calls[0] ?? [];
+  expect(String(url)).toContain("/profiles/profile-3/widgets");
+  expect(requestInit).toMatchObject({
+    method: "DELETE",
+    headers: {
+      Authorization: "Bearer token-abc",
+    },
+  });
+});

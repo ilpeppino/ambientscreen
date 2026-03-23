@@ -183,3 +183,14 @@ test("widgetsService updateWidgetsLayoutForProfile persists validated payload", 
     ],
   });
 });
+
+test("widgetsService clearWidgetsForProfile deletes all widgets in a profile", async () => {
+  vi.spyOn(widgetsRepository, "deleteAllByProfileId").mockResolvedValue(4 as never);
+
+  const result = await widgetsService.clearWidgetsForProfile({
+    profileId: "profile-1",
+  });
+
+  expect(widgetsRepository.deleteAllByProfileId).toHaveBeenCalledWith("profile-1");
+  expect(result).toEqual({ deletedCount: 4 });
+});
