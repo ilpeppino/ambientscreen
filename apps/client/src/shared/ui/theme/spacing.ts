@@ -5,6 +5,7 @@ export const spacing = {
   lg: 16,
   xl: 24,
   xxl: 32,
+  screenPadding: 20,   // standard screen horizontal padding
 } as const;
 
 export type SpacingToken = keyof typeof spacing;

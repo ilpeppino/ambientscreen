@@ -5,7 +5,8 @@
   "scripts": {
     "start": "expo start",
     "typecheck": "tsc --noEmit",
-    "lint": "tsc --noEmit",
+    "check-tokens": "node scripts/check-tokens.js",
+    "lint": "tsc --noEmit && node scripts/check-tokens.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

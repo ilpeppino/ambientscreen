@@ -19,6 +19,7 @@ import {
   ManagementCard,
   SectionHeader,
 } from "../../../shared/ui/management";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import {
   createWidget,
   getWidgets,
@@ -653,15 +654,15 @@ export function AdminHomeScreen({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#090c13",
+    backgroundColor: colors.backgroundScreen,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    gap: 12,
+    paddingHorizontal: spacing.screenPadding,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
   inlineFields: {
     flexDirection: "row",
@@ -675,20 +676,20 @@ const styles = StyleSheet.create({
   },
   textInput: {
     borderWidth: 1,
-    borderColor: "#2e3440",
-    backgroundColor: "#0f1318",
-    borderRadius: 10,
-    color: "#fff",
-    paddingHorizontal: 12,
+    borderColor: colors.borderInput,
+    backgroundColor: colors.surfaceInput,
+    borderRadius: radius.sm,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    fontSize: 14,
+    fontSize: typography.label.fontSize,
   },
   stack: {
     gap: 10,
   },
   fieldLabel: {
-    color: "#d1d5db",
-    fontSize: 13,
+    color: colors.textPrimary,
+    fontSize: typography.small.fontSize,
     fontWeight: "600",
   },
 });

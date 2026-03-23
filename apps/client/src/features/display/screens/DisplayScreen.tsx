@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import {
   getDisplayLayout,
   type DisplayLayoutWidgetEnvelope,
@@ -903,7 +904,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
                   onChangeText={setNewSharedSessionName}
                   inputStyle={styles.sharedSessionNameInput}
                   placeholder="Session name"
-                  placeholderTextColor="#6b6b6b"
+                  placeholderTextColor={colors.textSecondary}
                 />
                 <Pressable
                   accessibilityRole="button"
@@ -1003,7 +1004,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
                 keyboardType="numeric"
                 inputStyle={styles.slideshowIntervalInput}
                 placeholder="60"
-                placeholderTextColor="#6b6b6b"
+                placeholderTextColor={colors.textSecondary}
               />
               <Pressable
                 accessibilityRole="button"
@@ -1101,7 +1102,7 @@ function DisplayStatusContent({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: colors.backgroundPrimary,
   },
   exitButtonContainer: {
     position: "absolute",
@@ -1111,15 +1112,15 @@ const styles = StyleSheet.create({
   },
   exitButton: {
     borderWidth: 1,
-    borderColor: "#3c3c3c",
-    borderRadius: 999,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 9,
     backgroundColor: "rgba(0, 0, 0, 0.86)",
   },
   exitButtonLabel: {
-    color: "#d8d8d8",
-    fontSize: 12,
+    color: colors.textSecondary,
+    fontSize: typography.caption.fontSize,
     letterSpacing: 0.4,
     fontWeight: "600",
   },
@@ -1153,8 +1154,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   footerText: {
-    color: "#8d8d8d",
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.small.fontSize,
     letterSpacing: 0.4,
   },
   profileTabsRow: {
@@ -1166,31 +1167,31 @@ const styles = StyleSheet.create({
   },
   profileTab: {
     borderWidth: 1,
-    borderColor: "#3c3c3c",
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
     paddingVertical: 6,
     backgroundColor: "rgba(0, 0, 0, 0.82)",
   },
   profileTabSelected: {
-    borderColor: "#fff",
+    borderColor: colors.textPrimary,
     backgroundColor: "rgba(30, 30, 30, 0.95)",
   },
   profileTabLabel: {
-    color: "#bfbfbf",
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: "600",
   },
   profileTabLabelSelected: {
-    color: "#fff",
+    color: colors.textPrimary,
   },
   profileError: {
     position: "absolute",
     bottom: 10,
     left: 18,
     right: 18,
-    color: "#ff7d7d",
-    fontSize: 12,
+    color: colors.error,
+    fontSize: typography.caption.fontSize,
     textAlign: "center",
   },
   editModeButtonContainer: {
@@ -1200,13 +1201,13 @@ const styles = StyleSheet.create({
     zIndex: 20,
   },
   sharedSessionPanel: {
-    borderColor: "#2f2f2f",
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     padding: 10,
     backgroundColor: "rgba(0, 0, 0, 0.82)",
     minWidth: 360,
     marginBottom: 8,
-    gap: 8,
+    gap: spacing.sm,
   },
   sharedSessionRow: {
     flexDirection: "row",
@@ -1214,57 +1215,57 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   sharedSessionLabel: {
-    color: "#d8d8d8",
-    fontSize: 12,
+    color: colors.textSecondary,
+    fontSize: typography.caption.fontSize,
     fontWeight: "600",
     flex: 1,
   },
   sharedSessionRefreshButton: {
     borderWidth: 1,
-    borderColor: "#3c3c3c",
-    borderRadius: 999,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   sharedSessionRefreshLabel: {
-    color: "#c6c6c6",
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: "600",
   },
   sharedSessionLeaveButton: {
     borderWidth: 1,
-    borderColor: "#8f4f4f",
-    borderRadius: 999,
+    borderColor: colors.statusDangerBorder,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 6,
     backgroundColor: "rgba(57, 16, 16, 0.92)",
   },
   sharedSessionLeaveLabel: {
-    color: "#ffd2d2",
+    color: colors.statusDangerText,
     fontSize: 11,
     fontWeight: "700",
   },
   sharedSessionNameInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#3c3c3c",
-    borderRadius: 8,
-    color: "#fff",
-    paddingHorizontal: 8,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 6,
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     backgroundColor: "rgba(9, 9, 9, 0.9)",
   },
   sharedSessionCreateButton: {
     borderWidth: 1,
-    borderColor: "#4f8cc0",
-    borderRadius: 999,
+    borderColor: colors.accentBlue,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 7,
     backgroundColor: "rgba(12, 42, 66, 0.92)",
   },
   sharedSessionCreateLabel: {
-    color: "#cae8ff",
+    color: colors.statusInfoText,
     fontSize: 11,
     fontWeight: "700",
   },
@@ -1275,40 +1276,40 @@ const styles = StyleSheet.create({
   },
   sharedSessionChip: {
     borderWidth: 1,
-    borderColor: "#3c3c3c",
-    borderRadius: 999,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   sharedSessionChipActive: {
-    borderColor: "#5DAEFF",
+    borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
   },
   sharedSessionChipLabel: {
-    color: "#bfbfbf",
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: "600",
   },
   sharedSessionMeta: {
-    color: "#979797",
+    color: colors.textSecondary,
     fontSize: 11,
   },
   editModeButton: {
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "#356084",
-    borderRadius: 999,
+    borderColor: colors.accentBlue,
+    borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 9,
     backgroundColor: "rgba(12, 30, 45, 0.9)",
   },
   editModeButtonActive: {
-    borderColor: "#5DAEFF",
+    borderColor: colors.accentBlue,
     backgroundColor: "rgba(20, 52, 82, 0.95)",
   },
   editModeButtonLabel: {
-    color: "#b8ddff",
-    fontSize: 12,
+    color: colors.statusInfoText,
+    fontSize: typography.caption.fontSize,
     letterSpacing: 0.4,
     fontWeight: "600",
   },
@@ -1322,30 +1323,30 @@ const styles = StyleSheet.create({
   },
   layoutActionButton: {
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
   layoutCancelButton: {
-    borderColor: "#575757",
+    borderColor: colors.border,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
   },
   layoutSaveButton: {
-    borderColor: "#5DAEFF",
+    borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
   },
   layoutActionDisabled: {
     opacity: 0.45,
   },
   layoutActionLabel: {
-    color: "#e4f2ff",
-    fontSize: 12,
+    color: colors.statusInfoText,
+    fontSize: typography.caption.fontSize,
     letterSpacing: 0.4,
     fontWeight: "600",
   },
   slideshowPanel: {
-    borderColor: "#2f2f2f",
-    borderRadius: 14,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
     padding: 10,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
     minWidth: 360,
@@ -1357,8 +1358,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   slideshowLabel: {
-    color: "#d1d1d1",
-    fontSize: 12,
+    color: colors.textSecondary,
+    fontSize: typography.caption.fontSize,
     fontWeight: "600",
   },
   slideshowProfileRow: {
@@ -1369,39 +1370,39 @@ const styles = StyleSheet.create({
   },
   slideshowProfileChip: {
     borderWidth: 1,
-    borderColor: "#3c3c3c",
-    borderRadius: 999,
+    borderColor: colors.border,
+    borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   slideshowProfileChipSelected: {
-    borderColor: "#5DAEFF",
+    borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
   },
   slideshowProfileChipLabel: {
-    color: "#bfbfbf",
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: "600",
   },
   slideshowProfileChipLabelSelected: {
-    color: "#d9ecff",
+    color: colors.statusInfoText,
   },
   slideshowIntervalInput: {
     width: 90,
     borderWidth: 1,
-    borderColor: "#3c3c3c",
-    borderRadius: 8,
-    color: "#fff",
-    paddingHorizontal: 8,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 6,
-    fontSize: 12,
+    fontSize: typography.caption.fontSize,
     backgroundColor: "rgba(9, 9, 9, 0.9)",
   },
   slideshowSaveButton: {
     borderWidth: 1,
-    borderColor: "#5DAEFF",
-    borderRadius: 999,
-    paddingHorizontal: 12,
+    borderColor: colors.accentBlue,
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.md,
     paddingVertical: 7,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
   },
@@ -1409,12 +1410,12 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   slideshowSaveButtonLabel: {
-    color: "#d9ecff",
+    color: colors.statusInfoText,
     fontSize: 11,
     fontWeight: "700",
   },
   slideshowError: {
-    color: "#ff7d7d",
+    color: colors.error,
     fontSize: 11,
   },
 });

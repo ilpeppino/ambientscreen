@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import {
   ActionRow,
   InlineStatusBadge,
@@ -106,8 +107,8 @@ export function PluginCard({
             value={plugin.isEnabled}
             onValueChange={onToggleEnabled}
             disabled={actionInProgress}
-            trackColor={{ false: "#3d3d3d", true: "#2d8cff" }}
-            thumbColor={plugin.isEnabled ? "#fff" : "#888"}
+            trackColor={{ false: colors.border, true: colors.accentBlue }}
+            thumbColor={plugin.isEnabled ? colors.textPrimary : colors.textSecondary}
           />
         </View>
       ) : null}
@@ -121,29 +122,29 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#242934",
+    borderBottomColor: colors.border,
     paddingBottom: 6,
   },
   metaLabel: {
-    color: "#8b95a7",
-    fontSize: 12,
+    color: colors.textSecondary,
+    fontSize: typography.caption.fontSize,
     fontWeight: "600",
   },
   metaValue: {
-    color: "#d4dbe7",
-    fontSize: 12,
+    color: colors.textPrimary,
+    fontSize: typography.caption.fontSize,
   },
   lockedRow: {
     borderWidth: 1,
-    borderColor: "#6b5318",
-    borderRadius: 10,
-    backgroundColor: "#2d250f",
-    paddingVertical: 8,
+    borderColor: colors.statusPremiumBorder,
+    borderRadius: radius.sm,
+    backgroundColor: colors.statusPremiumBg,
+    paddingVertical: spacing.sm,
     paddingHorizontal: 10,
   },
   lockedText: {
-    color: "#f5a623",
-    fontSize: 12,
+    color: colors.accent,
+    fontSize: typography.caption.fontSize,
     fontWeight: "600",
   },
   toggleRow: {
@@ -153,8 +154,8 @@ const styles = StyleSheet.create({
     paddingTop: 4,
   },
   toggleLabel: {
-    color: "#d4dbe7",
-    fontSize: 13,
+    color: colors.textPrimary,
+    fontSize: typography.small.fontSize,
     fontWeight: "600",
   },
 });

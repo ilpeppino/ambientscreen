@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { colors, radius, spacing, typography } from "../../shared/ui/theme";
 
 interface UpgradeModalProps {
   visible: boolean;
@@ -67,32 +68,32 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.75)",
     justifyContent: "center",
     alignItems: "center",
-    padding: 24,
+    padding: spacing.xl,
   },
   sheet: {
-    backgroundColor: "#1a1a1a",
-    borderRadius: 16,
-    padding: 24,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
     width: "100%",
     maxWidth: 400,
-    gap: 12,
+    gap: spacing.md,
     borderWidth: 1,
-    borderColor: "#f5a623",
+    borderColor: colors.accent,
   },
   title: {
-    color: "#fff",
+    color: colors.textPrimary,
     fontSize: 22,
     fontWeight: "800",
     textAlign: "center",
   },
   subtitle: {
-    color: "#aaa",
-    fontSize: 14,
+    color: colors.textSecondary,
+    fontSize: typography.label.fontSize,
     textAlign: "center",
   },
   featureList: {
-    gap: 8,
-    marginVertical: 8,
+    gap: spacing.sm,
+    marginVertical: spacing.sm,
   },
   featureRow: {
     flexDirection: "row",
@@ -100,32 +101,32 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   checkmark: {
-    color: "#f5a623",
-    fontSize: 16,
+    color: colors.accent,
+    fontSize: typography.body.fontSize,
     fontWeight: "700",
   },
   featureText: {
-    color: "#fff",
+    color: colors.textPrimary,
     fontSize: 15,
   },
   upgradeButton: {
-    backgroundColor: "#f5a623",
-    borderRadius: 10,
-    paddingVertical: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radius.sm,
+    paddingVertical: spacing.lg,
     alignItems: "center",
     marginTop: 8,
   },
   upgradeButtonLabel: {
-    color: "#000",
+    color: colors.backgroundPrimary,
     fontWeight: "800",
-    fontSize: 16,
+    fontSize: typography.body.fontSize,
   },
   dismissButton: {
     paddingVertical: 10,
     alignItems: "center",
   },
   dismissButtonLabel: {
-    color: "#888",
-    fontSize: 14,
+    color: colors.textSecondary,
+    fontSize: typography.label.fontSize,
   },
 });
