@@ -18,7 +18,8 @@ test("exports radius tokens", () => {
     sm: 8,
     md: 12,
     lg: 16,
-    pill: 9999,
+    xl: 24,
+    pill: 999,
   });
 });
 

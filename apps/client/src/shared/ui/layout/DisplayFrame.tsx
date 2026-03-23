@@ -1,7 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors, spacing, typography } from "../theme";
+import { colors, radius, spacing, typography } from "../theme";
 
 interface DisplayFrameProps {
   title?: string;
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 420,
     height: 420,
-    borderRadius: 420,
+    borderRadius: radius.pill,
     top: -260,
     alignSelf: "center",
     backgroundColor: "rgba(255, 255, 255, 0.05)",
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 320,
     height: 320,
-    borderRadius: 320,
+    borderRadius: radius.pill,
     bottom: -220,
     right: -80,
     backgroundColor: "rgba(255, 255, 255, 0.03)",
