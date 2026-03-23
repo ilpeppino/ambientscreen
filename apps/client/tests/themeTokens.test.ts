@@ -49,13 +49,13 @@ test("exports extended color tokens", () => {
 });
 
 test("exports typography variants", () => {
-  expect(typography.title).toEqual({ fontSize: 30, fontWeight: "700" });
-  expect(typography.subtitle).toEqual({ fontSize: 18, fontWeight: "600" });
-  expect(typography.body).toEqual({ fontSize: 16, fontWeight: "400" });
+  expect(typography.title).toEqual({ fontSize: 28, fontWeight: "700" });
+  expect(typography.subtitle).toEqual({ fontSize: 16, fontWeight: "600" });
+  expect(typography.body).toEqual({ fontSize: 14, fontWeight: "400", lineHeight: 20 });
   expect(typography.caption).toEqual({ fontSize: 12, fontWeight: "400" });
-  expect(typography.small).toEqual({ fontSize: 13, fontWeight: "400" });
-  expect(typography.label).toEqual({ fontSize: 14, fontWeight: "400" });
-  expect(typography.heading).toEqual({ fontSize: 17, fontWeight: "700" });
+  expect(typography.small).toEqual({ fontSize: 12, fontWeight: "400" });
+  expect(typography.label).toEqual({ fontSize: 14, fontWeight: "400", lineHeight: 20 });
+  expect(typography.heading).toEqual({ fontSize: 16, fontWeight: "600" });
   expect(typography.badge).toEqual({ fontSize: 12, fontWeight: "700" });
 });
 
