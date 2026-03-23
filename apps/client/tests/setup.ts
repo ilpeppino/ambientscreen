@@ -2,7 +2,8 @@ import React from "react";
 import { vi } from "vitest";
 
 function host(name: string) {
-  return (props: Record<string, unknown>) => React.createElement(name, props, props.children);
+  return (props: Record<string, unknown>) =>
+    React.createElement(name, props, props.children as React.ReactNode);
 }
 
 vi.mock("react-native", () => ({
