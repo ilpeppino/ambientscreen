@@ -61,6 +61,7 @@ export function ManagementActionButton({
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled: Boolean(disabled || loading) }}
       style={[
         styles.button,

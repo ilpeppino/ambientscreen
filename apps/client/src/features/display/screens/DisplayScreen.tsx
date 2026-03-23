@@ -494,19 +494,24 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         </View>
       ) : null}
       {!showEditControls ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Enter edit mode"
+        <View
           style={[
-            styles.hiddenEditTrigger,
+            styles.editButtonContainer,
             {
-              top: insets.top + spacing.md,
-              left: Math.max(insets.left, spacing.md),
+              top: insets.top + 12,
+              left: Math.max(insets.left, 12),
             },
           ]}
-          delayLongPress={450}
-          onLongPress={handleToggleEditMode}
-        />
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Enter edit mode"
+            style={styles.editButton}
+            onPress={handleToggleEditMode}
+          >
+            <Text style={styles.editButtonLabel}>Edit Layout</Text>
+          </Pressable>
+        </View>
       ) : null}
       {showEditControls ? (
         <DisplayEditPanel
@@ -692,11 +697,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: spacing.xl,
   },
-  hiddenEditTrigger: {
+  editButtonContainer: {
     position: "absolute",
-    width: 60,
-    height: 60,
-    zIndex: 12,
+    zIndex: 20,
+  },
+  editButton: {
+    borderWidth: 1,
+    borderColor: colors.accentBlue,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    backgroundColor: "rgba(18, 49, 76, 0.95)",
+  },
+  editButtonLabel: {
+    color: colors.statusInfoText,
+    fontSize: typography.caption.fontSize,
+    letterSpacing: 0.4,
+    fontWeight: "600",
   },
   dashboardLayerStack: {
     flex: 1,

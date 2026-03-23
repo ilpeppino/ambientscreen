@@ -7,6 +7,10 @@ interface ApiErrorResponse {
   };
 }
 
+interface ApiFetchInit extends RequestInit {
+  withAuth?: boolean;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -71,9 +75,15 @@ export async function toApiErrorMessage(response: Response): Promise<string> {
 
 export async function apiFetchWithTimeout(
   input: RequestInfo | URL,
-  init?: RequestInit,
+  init?: ApiFetchInit,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<Response> {
+  const {
+    withAuth = true,
+    headers,
+    ...requestInit
+  } = init ?? {};
+
   const abortController = new AbortController();
   const timeoutHandle = setTimeout(() => {
     abortController.abort();
@@ -81,8 +91,8 @@ export async function apiFetchWithTimeout(
 
   try {
     return await fetch(input, {
-      ...init,
-      headers: withAuthHeaders(init?.headers),
+      ...requestInit,
+      headers: withAuth ? withAuthHeaders(headers) : (headers ?? {}),
       signal: abortController.signal,
     });
   } catch (error) {

@@ -46,13 +46,14 @@ export function getWidgetStateMessage(type: WidgetStateType, message?: string): 
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.md,
-    minHeight: 132,
+    paddingVertical: spacing.sm,
   },
   containerCompact: {
-    minHeight: 112,
+    paddingVertical: spacing.xs,
   },
   message: {
     textAlign: "center",

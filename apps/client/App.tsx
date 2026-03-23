@@ -1,8 +1,9 @@
 import React, { useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AdminHomeScreen } from "./src/features/admin/screens/AdminHomeScreen";
+import { AdminEditorScreen } from "./src/features/admin/screens/AdminEditorScreen";
 import { AuthProvider, useAuth } from "./src/features/auth/auth.context";
 import { LoginScreen } from "./src/features/auth/screens/LoginScreen";
 import { DisplayScreen } from "./src/features/display/screens/DisplayScreen";
@@ -143,17 +144,19 @@ function AuthenticatedApp() {
   }
 
   if (mode === "admin") {
-    return (
-      <AdminHomeScreen
-        currentDeviceId={deviceId}
-        onEnterDisplayMode={() => applyModeChange(enterDisplayMode())}
-        onEnterRemoteControlMode={() => applyModeChange(enterRemoteControlMode())}
-        onEnterMarketplace={() => applyModeChange(enterMarketplaceMode())}
-        onLogout={() => {
-          void logout();
-        }}
-      />
-    );
+    const adminProps = {
+      currentDeviceId: deviceId,
+      onEnterDisplayMode: () => applyModeChange(enterDisplayMode()),
+      onEnterRemoteControlMode: () => applyModeChange(enterRemoteControlMode()),
+      onEnterMarketplace: () => applyModeChange(enterMarketplaceMode()),
+      onLogout: () => { void logout(); },
+    };
+
+    if (Platform.OS === "web") {
+      return <AdminEditorScreen {...adminProps} />;
+    }
+
+    return <AdminHomeScreen {...adminProps} />;
   }
 
   if (mode === "remoteControl") {
