@@ -17,6 +17,10 @@ export const typography = {
     fontSize: 12,
     fontWeight: "400",
   },
+  small: { fontSize: 13, fontWeight: "400" },    // secondary/meta text
+  label: { fontSize: 14, fontWeight: "400" },     // input/label text
+  heading: { fontSize: 17, fontWeight: "700" },   // section headers/titles
+  badge: { fontSize: 12, fontWeight: "700" },     // badge labels (same size as caption, bold)
 } as const satisfies Record<string, Pick<TextStyle, "fontSize" | "fontWeight">>;
 
 export type TypographyToken = keyof typeof typography;

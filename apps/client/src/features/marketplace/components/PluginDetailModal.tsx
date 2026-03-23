@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { Text } from "../../../shared/ui/components";
 import {
   ActionRow,
@@ -160,8 +161,8 @@ export function PluginDetailModal({
                   value={plugin.isEnabled}
                   onValueChange={onToggleEnabled}
                   disabled={actionInProgress}
-                  trackColor={{ false: "#3d3d3d", true: "#2d8cff" }}
-                  thumbColor={plugin.isEnabled ? "#fff" : "#888"}
+                  trackColor={{ false: colors.border, true: colors.accentBlue }}
+                  thumbColor={plugin.isEnabled ? colors.textPrimary : colors.textSecondary}
                 />
               </View>
             ) : null}
@@ -187,10 +188,10 @@ export function PluginDetailModal({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#090c13",
-    paddingTop: 16,
-    paddingHorizontal: 20,
-    gap: 12,
+    backgroundColor: colors.backgroundScreen,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.screenPadding,
+    gap: spacing.md,
   },
   topBar: {
     alignItems: "flex-end",
@@ -199,21 +200,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    gap: 12,
-    paddingBottom: 24,
+    gap: spacing.md,
+    paddingBottom: spacing.xl,
   },
   badgesRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: spacing.sm,
   },
   metaGrid: {
     borderWidth: 1,
-    borderColor: "#2a2d34",
-    borderRadius: 12,
-    backgroundColor: "#111317",
-    padding: 12,
-    gap: 8,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceCard,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   metaRow: {
     flexDirection: "row",
@@ -221,52 +222,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   metaLabel: {
-    color: "#9ca3af",
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.small.fontSize,
     fontWeight: "600",
   },
   metaValue: {
-    color: "#e5e7eb",
-    fontSize: 13,
+    color: colors.textPrimary,
+    fontSize: typography.small.fontSize,
   },
   sectionBlock: {
     borderWidth: 1,
-    borderColor: "#2a2d34",
-    borderRadius: 12,
-    backgroundColor: "#111317",
-    padding: 12,
-    gap: 8,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceCard,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   sectionTitle: {
-    color: "#ffffff",
-    fontSize: 14,
+    color: colors.textPrimary,
+    fontSize: typography.label.fontSize,
     fontWeight: "700",
   },
   sectionBody: {
-    color: "#a7a7a7",
-    fontSize: 13,
+    color: colors.textSecondary,
+    fontSize: typography.small.fontSize,
     lineHeight: 20,
   },
   warningBlock: {
     borderWidth: 1,
-    borderColor: "#6b5318",
-    borderRadius: 12,
-    backgroundColor: "#2d250f",
-    padding: 12,
-    gap: 8,
+    borderColor: colors.statusPremiumBorder,
+    borderRadius: radius.md,
+    backgroundColor: colors.statusPremiumBg,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
   warningBody: {
-    color: "#f5d27a",
-    fontSize: 13,
+    color: colors.statusWarningText,
+    fontSize: typography.small.fontSize,
     lineHeight: 18,
   },
   toggleRow: {
     borderWidth: 1,
-    borderColor: "#2a2d34",
-    borderRadius: 12,
-    backgroundColor: "#111317",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.surfaceCard,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

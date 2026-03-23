@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AppIcon, type AppIconName } from "../components";
 import { Text } from "../components/Text";
-import { radius, spacing } from "../theme";
+import { colors, radius, spacing, typography } from "../theme";
 
 interface ManagementCardProps {
   title: string;
@@ -53,9 +53,9 @@ export function ManagementCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#111317",
+    backgroundColor: colors.surfaceCard,
     borderWidth: 1,
-    borderColor: "#2a2d34",
+    borderColor: colors.border,
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.sm,
@@ -76,14 +76,14 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   title: {
-    color: "#ffffff",
-    fontSize: 16,
+    ...typography.body,
+    color: colors.textPrimary,
     fontWeight: "700",
     flexShrink: 1,
   },
   subtitle: {
-    color: "#a7a7a7",
-    fontSize: 13,
+    ...typography.small,
+    color: colors.textSecondary,
     lineHeight: 19,
   },
   badges: {

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { SafeAreaView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "../../../shared/ui/components";
 import {
@@ -264,43 +265,43 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#090c13",
+    backgroundColor: colors.backgroundScreen,
   },
   topBar: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.screenPadding,
     paddingBottom: 6,
   },
   content: {
     flex: 1,
     gap: 10,
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: spacing.screenPadding,
+    paddingBottom: spacing.screenPadding,
   },
   actionErrorBanner: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
     borderWidth: 1,
-    borderColor: "#5f2424",
-    borderRadius: 12,
-    backgroundColor: "#301414",
-    paddingHorizontal: 12,
+    borderColor: colors.statusDangerBorder,
+    borderRadius: radius.md,
+    backgroundColor: colors.statusDangerBg,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
   actionErrorText: {
-    color: "#fecaca",
-    fontSize: 13,
+    color: colors.statusDangerText,
+    fontSize: typography.small.fontSize,
     flex: 1,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: spacing.xl,
   },
   cardWrap: {
     flex: 1,
     paddingHorizontal: 6,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
 });

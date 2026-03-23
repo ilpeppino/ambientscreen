@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useAuth } from "../auth.context";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 
 type AuthMode = "login" | "register";
 
@@ -70,7 +71,7 @@ export function LoginScreen() {
           disabled={isSubmitting}
         >
           {isSubmitting ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color={colors.textPrimary} />
           ) : (
             <Text style={styles.buttonLabel}>{mode === "login" ? "Login" : "Register"}</Text>
           )}
@@ -95,57 +96,57 @@ export function LoginScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: "#f3f4f6",
+    backgroundColor: colors.backgroundAuth,
     justifyContent: "center",
-    padding: 20,
+    padding: spacing.screenPadding,
   },
   card: {
     width: "100%",
     maxWidth: 420,
     alignSelf: "center",
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 20,
-    gap: 12,
+    backgroundColor: colors.surfaceAuth,
+    borderRadius: radius.md,
+    padding: spacing.screenPadding,
+    gap: spacing.md,
   },
   title: {
     fontSize: 24,
     fontWeight: "700",
-    color: "#111827",
+    color: colors.textOnLight,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#d1d5db",
-    borderRadius: 8,
-    paddingHorizontal: 12,
+    borderColor: colors.borderLight,
+    borderRadius: radius.sm,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    fontSize: 16,
-    color: "#111827",
-    backgroundColor: "#ffffff",
+    fontSize: typography.body.fontSize,
+    color: colors.textOnLight,
+    backgroundColor: colors.surfaceAuth,
   },
   button: {
     marginTop: 4,
-    borderRadius: 8,
-    backgroundColor: "#0f766e",
-    paddingVertical: 12,
+    borderRadius: radius.sm,
+    backgroundColor: colors.accentTeal,
+    paddingVertical: spacing.md,
     alignItems: "center",
   },
   buttonDisabled: {
     opacity: 0.7,
   },
   buttonLabel: {
-    color: "#ffffff",
-    fontSize: 16,
+    color: colors.textPrimary,
+    fontSize: typography.body.fontSize,
     fontWeight: "700",
   },
   switchText: {
     marginTop: 6,
-    color: "#0f766e",
+    color: colors.accentTeal,
     textAlign: "center",
     fontWeight: "600",
   },
   error: {
-    color: "#dc2626",
-    fontSize: 14,
+    color: colors.errorStrong,
+    fontSize: typography.label.fontSize,
   },
 });

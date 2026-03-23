@@ -2,7 +2,7 @@ import React from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AppIcon, type AppIconName } from "../components";
 import { Text } from "../components/Text";
-import { radius, spacing } from "../theme";
+import { colors, radius, spacing, typography } from "../theme";
 import { ManagementActionButton } from "./ActionRow";
 
 export type EmptyPanelVariant = "empty" | "loading" | "error";
@@ -27,7 +27,7 @@ export function EmptyPanel({
   return (
     <View style={styles.container}>
       {variant === "loading" ? (
-        <ActivityIndicator size="large" color="#2d8cff" />
+        <ActivityIndicator size="large" color={colors.accentBlue} />
       ) : (
         <AppIcon name={icon} size="lg" color={variant === "error" ? "error" : "textSecondary"} />
       )}
@@ -43,21 +43,20 @@ export function EmptyPanel({
 const styles = StyleSheet.create({
   container: {
     borderWidth: 1,
-    borderColor: "#2b2f36",
+    borderColor: colors.border,
     borderRadius: radius.lg,
-    backgroundColor: "#111317",
+    backgroundColor: colors.surfaceCard,
     padding: spacing.xl,
     gap: spacing.sm,
     alignItems: "center",
   },
   title: {
-    color: "#ffffff",
-    fontSize: 17,
-    fontWeight: "700",
+    ...typography.heading,
+    color: colors.textPrimary,
   },
   message: {
-    color: "#a2a2a2",
-    fontSize: 13,
+    ...typography.small,
+    color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 19,
   },

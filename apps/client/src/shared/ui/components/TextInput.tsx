@@ -7,7 +7,7 @@ import {
   type TextStyle,
 } from "react-native";
 import { Text } from "./Text";
-import { colors, radius, spacing } from "../theme";
+import { colors, radius, spacing, typography } from "../theme";
 
 interface TextInputProps extends RNTextInputProps {
   label?: string;
@@ -76,16 +76,16 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#2e3440",
-    backgroundColor: "#0f1318",
+    borderColor: colors.borderInput,
+    backgroundColor: colors.surfaceInput,
     borderRadius: radius.md,
     color: colors.textPrimary,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    fontSize: 14,
+    ...typography.label,
   },
   inputFocused: {
-    borderColor: "#2d8cff",
+    borderColor: colors.accentBlue,
   },
   inputError: {
     borderColor: colors.error,

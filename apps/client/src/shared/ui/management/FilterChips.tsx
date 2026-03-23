@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { AppIcon, type AppIconName } from "../components";
 import { Text } from "../components/Text";
-import { spacing } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 export interface FilterChipItem {
   key: string;
@@ -67,17 +67,17 @@ const styles = StyleSheet.create({
     paddingRight: spacing.md,
   },
   chip: {
-    borderRadius: 999,
+    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: "#2e3440",
-    backgroundColor: "#111317",
+    borderColor: colors.borderInput,
+    backgroundColor: colors.surfaceCard,
     minHeight: 34,
     justifyContent: "center",
     paddingHorizontal: spacing.md,
   },
   chipActive: {
-    borderColor: "#2d8cff",
-    backgroundColor: "#13263d",
+    borderColor: colors.accentBlue,
+    backgroundColor: colors.statusInfoBg,
   },
   identity: {
     flexDirection: "row",
@@ -85,11 +85,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   label: {
-    color: "#a3a3a3",
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: "600",
   },
   labelActive: {
-    color: "#dbeafe",
+    color: colors.buttonSecondaryText,
   },
 });

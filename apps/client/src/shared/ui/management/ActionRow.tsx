@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { AppIcon, type AppIconName } from "../components";
 import { Text } from "../components/Text";
-import { radius, spacing } from "../theme";
+import { colors, radius, spacing } from "../theme";
 
 export type ManagementActionTone = "primary" | "secondary" | "destructive" | "passive";
 
@@ -22,23 +22,23 @@ interface ActionRowProps {
 
 const toneStyles = {
   primary: {
-    button: { backgroundColor: "#2d8cff", borderColor: "#2d8cff" },
-    label: { color: "#ffffff" },
+    button: { backgroundColor: colors.accentBlue, borderColor: colors.accentBlue },
+    label: { color: colors.textPrimary },
     iconColor: "textPrimary" as const,
   },
   secondary: {
-    button: { backgroundColor: "#162033", borderColor: "#2a4a70" },
-    label: { color: "#dbeafe" },
+    button: { backgroundColor: colors.buttonSecondaryBg, borderColor: colors.buttonSecondaryBorder },
+    label: { color: colors.buttonSecondaryText },
     iconColor: "textPrimary" as const,
   },
   destructive: {
-    button: { backgroundColor: "#301414", borderColor: "#7f1d1d" },
-    label: { color: "#fecaca" },
+    button: { backgroundColor: colors.statusDangerBg, borderColor: colors.statusDangerBorderAlt },
+    label: { color: colors.statusDangerText },
     iconColor: "error" as const,
   },
   passive: {
-    button: { backgroundColor: "#121212", borderColor: "#303030" },
-    label: { color: "#c9c9c9" },
+    button: { backgroundColor: colors.buttonPassiveBg, borderColor: colors.buttonPassiveBorder },
+    label: { color: colors.buttonPassiveText },
     iconColor: "textSecondary" as const,
   },
 };

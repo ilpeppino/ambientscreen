@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import { AppIcon, type AppIconName } from "../components";
 import { Text } from "../components/Text";
-import { spacing } from "../theme";
+import { colors, spacing, typography } from "../theme";
 
 interface SectionHeaderProps {
   title: string;
@@ -43,13 +43,12 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   title: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: "#ffffff",
+    ...typography.heading,
+    color: colors.textPrimary,
   },
   subtitle: {
-    color: "#9a9a9a",
-    fontSize: 13,
+    ...typography.small,
+    color: colors.textSecondary,
     lineHeight: 19,
   },
   rightAction: {

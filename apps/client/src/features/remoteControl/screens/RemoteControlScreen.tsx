@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { SafeAreaView, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { colors, spacing, typography } from "../../../shared/ui/theme";
 import type { Device } from "@ambient/shared-contracts";
 import { Text } from "../../../shared/ui/components";
 import {
@@ -221,17 +222,17 @@ export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlSc
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#090c13",
+    backgroundColor: colors.backgroundScreen,
   },
   topBar: {
-    paddingHorizontal: 20,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.screenPadding,
+    paddingBottom: spacing.sm,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.screenPadding,
     gap: 10,
-    paddingBottom: 20,
+    paddingBottom: spacing.screenPadding,
   },
   devicesList: {
     flexGrow: 0,
@@ -248,8 +249,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   toggleLabel: {
-    color: "#d1d5db",
-    fontSize: 13,
+    color: colors.textPrimary,
+    fontSize: typography.small.fontSize,
     fontWeight: "600",
   },
 });
