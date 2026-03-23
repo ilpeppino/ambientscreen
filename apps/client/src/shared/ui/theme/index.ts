@@ -1,7 +1,7 @@
 export { colors } from "./colors";
 export type { ColorToken } from "./colors";
-export { motion } from "./motion";
-export type { MotionToken } from "./motion";
+export { motion, easing } from "./motion";
+export type { MotionToken, EasingToken } from "./motion";
 export { radius } from "./radius";
 export type { RadiusToken } from "./radius";
 export { shadows } from "./shadows";

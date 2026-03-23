@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Animated,
   AppState,
   BackHandler,
   Pressable,
@@ -8,6 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
+import Animated, { useAnimatedStyle } from "react-native-reanimated";
 import { ConfirmDialog } from "../../../shared/ui/overlays";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
@@ -55,7 +55,7 @@ interface DisplayScreenProps {
   onExitDisplayMode?: () => void;
 }
 
-const WIDGET_TRANSITION_LIBRARY = "react-native Animated API";
+const WIDGET_TRANSITION_LIBRARY = "react-native-reanimated";
 
 export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProps) {
   registerBuiltinWidgetPlugins();
@@ -226,6 +226,15 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   } = useDashboardTransition({ layoutWidgets, editMode, isAppActive });
 
   markTransitionPendingRef.current = markTransitionPending;
+
+  const incomingLayerStyle = useAnimatedStyle(() => ({
+    opacity: dashboardIncomingOpacity.value,
+    transform: [{ translateX: dashboardIncomingSlide.value }],
+  }), [dashboardIncomingOpacity, dashboardIncomingSlide]);
+
+  const outgoingLayerStyle = useAnimatedStyle(() => ({
+    opacity: dashboardOutgoingOpacity.value,
+  }), [dashboardOutgoingOpacity]);
 
   // Keep screen awake and lock orientation while in display mode
   useEffect(() => {
@@ -421,15 +430,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
 
     return (
       <View style={styles.dashboardLayerStack}>
-        <Animated.View
-          style={[
-            styles.dashboardLayer,
-            {
-              opacity: dashboardIncomingOpacity,
-              transform: [{ translateX: dashboardIncomingSlide }],
-            },
-          ]}
-        >
+        <Animated.View style={[styles.dashboardLayer, incomingLayerStyle]}>
           <LayoutGrid
             widgets={renderedWidgets}
             editMode={editMode}
@@ -445,10 +446,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         {outgoingWidgets ? (
           <Animated.View
             pointerEvents="none"
-            style={[
-              styles.dashboardLayer,
-              { opacity: dashboardOutgoingOpacity },
-            ]}
+            style={[styles.dashboardLayer, outgoingLayerStyle]}
           >
             <LayoutGrid widgets={outgoingWidgets} />
           </Animated.View>
@@ -457,15 +455,14 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
       </View>
     );
   }, [
-    dashboardIncomingOpacity,
-    dashboardIncomingSlide,
-    dashboardOutgoingOpacity,
     displayError,
     editMode,
     handleOpenWidgetSettings,
     handleWidgetLayoutChange,
     hasAnyDashboardWidgets,
+    incomingLayerStyle,
     loadingLayout,
+    outgoingLayerStyle,
     outgoingWidgets,
     renderedWidgets,
     selectedWidgetId,

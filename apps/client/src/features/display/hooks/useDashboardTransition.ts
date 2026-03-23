@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Easing } from "react-native";
+import {
+  cancelAnimation,
+  useSharedValue,
+  withTiming,
+  type SharedValue,
+} from "react-native-reanimated";
+import { easing, motion } from "../../../shared/ui/theme";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import {
   createTransitionManager,
@@ -19,9 +25,9 @@ interface UseDashboardTransitionReturn {
   renderedWidgets: DisplayLayoutWidgetEnvelope[];
   outgoingWidgets: DisplayLayoutWidgetEnvelope[] | null;
   dashboardTransitionType: TransitionType;
-  dashboardIncomingOpacity: Animated.Value;
-  dashboardOutgoingOpacity: Animated.Value;
-  dashboardIncomingSlide: Animated.Value;
+  dashboardIncomingOpacity: SharedValue<number>;
+  dashboardOutgoingOpacity: SharedValue<number>;
+  dashboardIncomingSlide: SharedValue<number>;
   markTransitionPending: () => void;
 }
 
@@ -39,14 +45,22 @@ export function useDashboardTransition({
     initialDashboard: [],
   }));
   const transitionPendingRef = useRef(false);
-  const dashboardTransitionAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
-  const dashboardIncomingOpacity = useRef(new Animated.Value(1)).current;
-  const dashboardOutgoingOpacity = useRef(new Animated.Value(0)).current;
-  const dashboardIncomingSlide = useRef(new Animated.Value(0)).current;
+  const transitionIdRef = useRef<number | null>(null);
+
+  const dashboardIncomingOpacity = useSharedValue(1);
+  const dashboardOutgoingOpacity = useSharedValue(0);
+  const dashboardIncomingSlide = useSharedValue(0);
 
   const markTransitionPending = () => {
     transitionPendingRef.current = true;
   };
+
+  function cancelDashboardAnimation() {
+    cancelAnimation(dashboardIncomingOpacity);
+    cancelAnimation(dashboardOutgoingOpacity);
+    cancelAnimation(dashboardIncomingSlide);
+    transitionIdRef.current = null;
+  }
 
   // Cancel animation when app goes background
   useEffect(() => {
@@ -55,10 +69,10 @@ export function useDashboardTransition({
     }
 
     transitionPendingRef.current = false;
-    dashboardTransitionAnimationRef.current?.stop();
-    dashboardTransitionAnimationRef.current = null;
+    cancelDashboardAnimation();
     transitionManagerRef.current.cancelDashboardTransition();
     setOutgoingWidgets(null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAppActive]);
 
   // Run or skip transition when layout changes
@@ -74,8 +88,7 @@ export function useDashboardTransition({
       setRenderedWidgets(nextState.currentDashboard ?? []);
       setOutgoingWidgets(null);
       transitionPendingRef.current = false;
-      dashboardTransitionAnimationRef.current?.stop();
-      dashboardTransitionAnimationRef.current = null;
+      cancelDashboardAnimation();
       return;
     }
 
@@ -91,43 +104,43 @@ export function useDashboardTransition({
     setOutgoingWidgets(nextState.previousDashboard);
     transitionPendingRef.current = false;
 
-    dashboardTransitionAnimationRef.current?.stop();
+    cancelDashboardAnimation();
     const preset = transitionPresets[dashboardTransitionType];
-    dashboardIncomingOpacity.setValue(dashboardTransitionType === "fade" ? 0.72 : 0.78);
-    dashboardOutgoingOpacity.setValue(1);
-    dashboardIncomingSlide.setValue(dashboardTransitionType === "slide" ? 14 : 0);
+    const duration = preset.durationMs;
+    const capturedTransitionId = nextState.transitionId;
+    transitionIdRef.current = capturedTransitionId;
 
-    const transitionId = nextState.transitionId;
-    dashboardTransitionAnimationRef.current = Animated.parallel([
-      Animated.timing(dashboardOutgoingOpacity, {
-        toValue: 0,
-        duration: preset.durationMs,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(dashboardIncomingOpacity, {
-        toValue: 1,
-        duration: preset.durationMs,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(dashboardIncomingSlide, {
-        toValue: 0,
-        duration: preset.durationMs,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
+    dashboardIncomingOpacity.value = dashboardTransitionType === "fade" ? 0.72 : 0.78;
+    dashboardOutgoingOpacity.value = 1;
+    dashboardIncomingSlide.value = dashboardTransitionType === "slide" ? 14 : 0;
 
-    dashboardTransitionAnimationRef.current.start(({ finished }) => {
-      if (!finished) {
+    dashboardOutgoingOpacity.value = withTiming(0, {
+      duration,
+      easing: easing.inOut,
+    });
+    dashboardIncomingOpacity.value = withTiming(1, {
+      duration,
+      easing: easing.decelerate,
+    });
+    dashboardIncomingSlide.value = withTiming(0, {
+      duration,
+      easing: easing.decelerate,
+    });
+
+    // Complete the transition after duration
+    const timer = setTimeout(() => {
+      if (transitionIdRef.current !== capturedTransitionId) {
         return;
       }
-
-      const completedState = transitionManager.completeDashboardTransition(transitionId);
+      const completedState = transitionManager.completeDashboardTransition(capturedTransitionId);
       setRenderedWidgets(completedState.currentDashboard ?? []);
       setOutgoingWidgets(completedState.previousDashboard);
-    });
+      transitionIdRef.current = null;
+    }, duration + motion.fast);
+
+    return () => {
+      clearTimeout(timer);
+    };
   }, [
     dashboardIncomingOpacity,
     dashboardIncomingSlide,
@@ -140,8 +153,8 @@ export function useDashboardTransition({
 
   // Cleanup on unmount
   useEffect(() => () => {
-    dashboardTransitionAnimationRef.current?.stop();
-    dashboardTransitionAnimationRef.current = null;
+    cancelDashboardAnimation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
