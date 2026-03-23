@@ -10,6 +10,7 @@ import {
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { WidgetConfigSchema } from "@ambient/shared-contracts";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
+import { Button } from "../../../shared/ui/Button";
 import { DialogModal } from "../../../shared/ui/overlays";
 import { ManagementActionButton } from "../../../shared/ui/management";
 import {
@@ -107,15 +108,13 @@ export function WidgetSettingsModal({
           {saveError ? (
             <View style={styles.errorRow}>
               <Text style={styles.errorText}>{saveError}</Text>
-              <Pressable
-                style={styles.retryButton}
-                onPress={() => {
-                  void handleSave();
-                }}
+              <Button
+                label="Retry"
+                variant="danger"
+                size="sm"
+                onPress={() => { void handleSave(); }}
                 disabled={saving}
-              >
-                <Text style={styles.retryLabel}>Retry</Text>
-              </Pressable>
+              />
             </View>
           ) : null}
           <View style={styles.actionsRow}>
@@ -296,19 +295,6 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.error,
     fontSize: typography.small.fontSize,
-  },
-  retryButton: {
-    alignSelf: "flex-start",
-    borderRadius: radius.sm,
-    borderWidth: 1,
-    borderColor: colors.error,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  retryLabel: {
-    color: colors.error,
-    fontSize: typography.small.fontSize,
-    fontWeight: "600",
   },
   actionsRow: {
     flexDirection: "row",
