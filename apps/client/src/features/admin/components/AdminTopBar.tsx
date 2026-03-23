@@ -10,6 +10,9 @@ interface AdminTopBarProps {
   onOpenSettings: () => void;
   onEnterDisplayMode: () => void;
   onEnterMarketplace: () => void;
+  onClearCanvas: () => void;
+  clearCanvasDisabled?: boolean;
+  clearingCanvas?: boolean;
 }
 
 export function AdminTopBar({
@@ -18,6 +21,9 @@ export function AdminTopBar({
   onOpenSettings,
   onEnterDisplayMode,
   onEnterMarketplace,
+  onClearCanvas,
+  clearCanvasDisabled = false,
+  clearingCanvas = false,
 }: AdminTopBarProps) {
   return (
     <View style={styles.bar}>
@@ -42,6 +48,22 @@ export function AdminTopBar({
         >
           <AppIcon name="star" size="sm" color="textSecondary" />
           <Text style={styles.actionLabel}>Marketplace</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Clear Canvas"
+          style={[
+            styles.actionButton,
+            styles.actionButtonDestructive,
+            clearCanvasDisabled ? styles.actionDisabled : null,
+          ]}
+          onPress={onClearCanvas}
+          disabled={clearCanvasDisabled}
+        >
+          <AppIcon name="trash" size="sm" color="statusDangerText" />
+          <Text style={styles.actionLabelDestructive}>
+            {clearingCanvas ? "Clearing…" : "Clear Canvas"}
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
@@ -124,6 +146,13 @@ const styles = StyleSheet.create({
     borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
   },
+  actionButtonDestructive: {
+    borderColor: colors.statusDangerBorderAlt,
+    backgroundColor: colors.statusDangerBg,
+  },
+  actionDisabled: {
+    opacity: 0.55,
+  },
   actionLabel: {
     ...typography.small,
     color: colors.textSecondary,
@@ -131,6 +160,11 @@ const styles = StyleSheet.create({
   },
   actionLabelPrimary: {
     color: colors.statusInfoText,
+  },
+  actionLabelDestructive: {
+    ...typography.small,
+    color: colors.statusDangerText,
+    fontWeight: "700",
   },
   settingsButton: {
     flexDirection: "row",

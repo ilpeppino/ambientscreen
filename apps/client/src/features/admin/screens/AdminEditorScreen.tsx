@@ -4,12 +4,14 @@ import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
 import { EmptyPanel } from "../../../shared/ui/management";
 import { ErrorState } from "../../../shared/ui/ErrorState";
+import { ConfirmDialog } from "../../../shared/ui/overlays";
 import { colors } from "../../../shared/ui/theme";
 import {
   createWidget,
   deleteWidget,
 } from "../../../services/api/widgetsApi";
 import { updateWidgetConfig } from "../../../services/api/displayLayoutApi";
+import { clearProfileWidgets } from "../../../services/api/profilesApi";
 import {
   deleteDevice,
   getDevices,
@@ -93,6 +95,8 @@ export function AdminEditorScreen({
   const [selectedLibraryWidgetType, setSelectedLibraryWidgetType] = useState<CreatableWidgetType | null>(null);
   const [inspectorMode, setInspectorMode] = useState<"canvas" | "library" | null>(null);
   const [widgetPlacementError, setWidgetPlacementError] = useState<string | null>(null);
+  const [confirmClearCanvas, setConfirmClearCanvas] = useState(false);
+  const [clearingCanvas, setClearingCanvas] = useState(false);
 
   // ---- Canvas data ----
   // Realtime sync keeps canvas fresh without blocking edit mode
@@ -247,6 +251,27 @@ export function AdminEditorScreen({
           ? err.message
           : "Failed to delete widget. Please try again.",
       );
+    }
+  }
+
+  async function handleClearCanvas() {
+    if (!activeProfileId) return;
+    try {
+      setClearingCanvas(true);
+      setWidgetPlacementError(null);
+      await clearProfileWidgets(activeProfileId);
+      await loadDisplayLayout(false);
+      setSelectedWidgetId(null);
+      setInspectorMode(selectedLibraryWidgetType ? "library" : null);
+    } catch (err) {
+      console.error("Failed to clear canvas:", err);
+      setWidgetPlacementError(
+        err instanceof Error
+          ? err.message
+          : "Failed to clear canvas. Please try again.",
+      );
+    } finally {
+      setClearingCanvas(false);
     }
   }
 
@@ -410,6 +435,9 @@ export function AdminEditorScreen({
         activeProfileName={activeProfile?.name ?? null}
         plan={plan}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        onClearCanvas={() => setConfirmClearCanvas(true)}
+        clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
+        clearingCanvas={clearingCanvas}
         onEnterDisplayMode={onEnterDisplayMode}
         onEnterMarketplace={onEnterMarketplace}
       />
@@ -458,6 +486,20 @@ export function AdminEditorScreen({
       </View>
 
       <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
+
+      <ConfirmDialog
+        visible={confirmClearCanvas}
+        title="Clear Canvas"
+        message="Are you sure you want to remove all widgets from this profile's canvas?"
+        warningText="This cannot be undone. All widgets in this canvas will be permanently removed."
+        confirmLabel="Clear Canvas"
+        loading={clearingCanvas}
+        onConfirm={() => {
+          setConfirmClearCanvas(false);
+          void handleClearCanvas();
+        }}
+        onCancel={() => setConfirmClearCanvas(false)}
+      />
     </View>
   );
 }

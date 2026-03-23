@@ -35,6 +35,9 @@ const baseProps = {
   activeProfileName: "Home",
   plan: "free" as const,
   onOpenSettings: vi.fn(),
+  onClearCanvas: vi.fn(),
+  clearCanvasDisabled: false,
+  clearingCanvas: false,
   onEnterDisplayMode: vi.fn(),
   onEnterMarketplace: vi.fn(),
 };
@@ -110,6 +113,22 @@ describe("AdminTopBar", () => {
     expect(settingsBtn).toBeDefined();
     settingsBtn?.props.onPress?.();
     expect(onOpenSettings).toHaveBeenCalled();
+  });
+
+  test("calls onClearCanvas when Clear Canvas button is pressed", () => {
+    const onClearCanvas = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(AdminTopBar, { ...baseProps, onClearCanvas }),
+    );
+
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const clearCanvasBtn = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) =>
+        p.props.accessibilityLabel === "Clear Canvas",
+    );
+    expect(clearCanvasBtn).toBeDefined();
+    clearCanvasBtn?.props.onPress?.();
+    expect(onClearCanvas).toHaveBeenCalled();
   });
 
   test("calls onEnterMarketplace when Marketplace button is pressed", () => {
