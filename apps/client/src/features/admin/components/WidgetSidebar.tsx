@@ -20,6 +20,7 @@ interface WidgetSidebarProps {
 
   // Properties panel
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
+  onSaveConfig: (widgetId: string, config: Record<string, unknown>) => Promise<void>;
 }
 
 export function WidgetSidebar({
@@ -29,6 +30,7 @@ export function WidgetSidebar({
   addingWidgetType,
   onAddWidget,
   selectedWidget,
+  onSaveConfig,
 }: WidgetSidebarProps) {
   return (
     <View style={styles.sidebar}>
@@ -75,7 +77,9 @@ export function WidgetSidebar({
 
       <View style={styles.propertiesPanel}>
         <WidgetPropertiesPanel
+          key={selectedWidget?.widgetInstanceId ?? "none"}
           selectedWidget={selectedWidget}
+          onSaveConfig={onSaveConfig}
         />
       </View>
     </View>

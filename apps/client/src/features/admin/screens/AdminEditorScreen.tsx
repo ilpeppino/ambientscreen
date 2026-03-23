@@ -8,6 +8,7 @@ import { colors } from "../../../shared/ui/theme";
 import {
   createWidget,
 } from "../../../services/api/widgetsApi";
+import { updateWidgetConfig } from "../../../services/api/displayLayoutApi";
 import {
   deleteDevice,
   getDevices,
@@ -218,6 +219,12 @@ export function AdminEditorScreen({
     }
   }
 
+  async function handleSaveWidgetConfig(widgetId: string, config: Record<string, unknown>) {
+    if (!activeProfileId) return;
+    await updateWidgetConfig(widgetId, { config }, activeProfileId);
+    await loadDisplayLayout(false);
+  }
+
   // ---- Profile actions ----
   async function handleCreateProfile() {
     const trimmedName = newProfileName.trim();
@@ -390,6 +397,7 @@ export function AdminEditorScreen({
           addingWidgetType={addingWidgetType}
           onAddWidget={(type) => void handleAddWidgetToCanvas(type)}
           selectedWidget={selectedWidget}
+          onSaveConfig={(id, config) => handleSaveWidgetConfig(id, config)}
         />
 
         <DashboardCanvas
