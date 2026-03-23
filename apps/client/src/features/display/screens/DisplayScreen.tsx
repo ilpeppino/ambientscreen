@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Animated,
   AppState,
+  BackHandler,
   Easing,
   Pressable,
   StyleSheet,
@@ -9,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { ConfirmDialog } from "../../../shared/ui/overlays";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import {
@@ -106,6 +108,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   const [savingSlideshow, setSavingSlideshow] = useState(false);
   const [newSharedSessionName, setNewSharedSessionName] = useState("Main shared session");
   const [isAppActive, setIsAppActive] = useState(true);
+  const [pendingExitDisplay, setPendingExitDisplay] = useState(false);
   const [dashboardTransitionType] = useState<TransitionType>(DISPLAY_TRANSITION_TYPE);
   const [renderedWidgets, setRenderedWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
   const [outgoingWidgets, setOutgoingWidgets] = useState<DisplayLayoutWidgetEnvelope[] | null>(null);
@@ -673,6 +676,52 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     setWidgetConfigError(null);
   }, [widgets]);
 
+  // Guard exit when in edit mode with unsaved layout changes.
+  const handleExitDisplayRequest = useCallback(() => {
+    if (editMode && hasLayoutChanges) {
+      setPendingExitDisplay(true);
+      return;
+    }
+
+    if (editMode) {
+      handleCancelLayout();
+    }
+
+    onExitDisplayMode?.();
+  }, [editMode, handleCancelLayout, hasLayoutChanges, onExitDisplayMode]);
+
+  // Android hardware back: close modal → cancel edit → exit display.
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (settingsWidgetId !== null && !savingWidgetConfig) {
+        setSettingsWidgetId(null);
+        setWidgetConfigError(null);
+        return true;
+      }
+
+      if (pendingExitDisplay) {
+        setPendingExitDisplay(false);
+        return true;
+      }
+
+      if (editMode) {
+        handleCancelLayout();
+        return true;
+      }
+
+      if (onExitDisplayMode) {
+        onExitDisplayMode();
+        return true;
+      }
+
+      return false;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [editMode, handleCancelLayout, onExitDisplayMode, pendingExitDisplay, savingWidgetConfig, settingsWidgetId]);
+
   const handleSaveLayout = useCallback(async () => {
     if (!hasLayoutChanges || savingLayout) {
       return;
@@ -851,7 +900,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
           <Pressable
             accessibilityRole="button"
             style={styles.exitButton}
-            onPress={onExitDisplayMode}
+            onPress={handleExitDisplayRequest}
           >
             <Text style={styles.exitButtonLabel}>Exit Display</Text>
           </Pressable>
@@ -1072,6 +1121,21 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
           onSave={handleSaveWidgetConfig}
         />
       ) : null}
+      <ConfirmDialog
+        visible={pendingExitDisplay}
+        title="Exit without saving?"
+        message="Your unsaved layout changes will be lost."
+        confirmLabel="Exit"
+        confirmTone="destructive"
+        onConfirm={() => {
+          setPendingExitDisplay(false);
+          handleCancelLayout();
+          onExitDisplayMode?.();
+        }}
+        onCancel={() => {
+          setPendingExitDisplay(false);
+        }}
+      />
     </View>
   );
 }
