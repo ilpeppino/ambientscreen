@@ -17,12 +17,11 @@ interface TestWidget {
     w: number;
     h: number;
   };
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-type RouteMethod = "get" | "post" | "patch";
+type RouteMethod = "get" | "post";
 
 interface InvokeRouteOptions {
   body?: unknown;
@@ -97,32 +96,11 @@ beforeEach(() => {
       type: input.type,
       config: input.config as Record<string, unknown>,
       layout: input.layout,
-      isActive: input.isActive,
       createdAt: now,
       updatedAt: now,
     };
     widgetsStore.push(newWidget);
     return newWidget as never;
-  });
-  vi.spyOn(widgetsRepository, "activateWidget").mockImplementation(async (profileId: string, widgetId: string) => {
-    const widget = widgetsStore.find((item) => item.id === widgetId && item.profileId === profileId);
-    if (!widget) {
-      throw new Error("Widget not found");
-    }
-
-    widgetsStore = widgetsStore.map((item) => {
-      if (item.profileId !== profileId) {
-        return item;
-      }
-
-      return {
-        ...item,
-        isActive: item.id === widgetId,
-        updatedAt: new Date(),
-      };
-    });
-
-    return widgetsStore.find((item) => item.id === widgetId) as never;
   });
 
   globalThis.fetch = async (input) => {
@@ -283,24 +261,13 @@ test("M6-2: critical admin and display flows pass for clockDate, weather, and ca
   });
   expect(calendarCreateResponse.statusCode).toBe(201);
 
-  const activateWeatherResponse = await invokeRoute(widgetsRouter, "patch", "/:id/active", {
-    params: { id: (weatherCreateResponse.body as { id: string }).id },
-  });
-  expect(activateWeatherResponse.statusCode).toBe(200);
-  expect((activateWeatherResponse.body as { isActive: boolean }).isActive).toBe(true);
-
   const widgetsListResponse = await invokeRoute(widgetsRouter, "get", "/");
   expect(widgetsListResponse.statusCode).toBe(200);
   const widgets = widgetsListResponse.body as Array<{
     id: string;
     type: string;
-    isActive: boolean;
   }>;
   expect(widgets.length).toBe(3);
-  expect(widgets.filter((widget) => widget.isActive).length).toBe(1);
-  expect(
-    widgets.some((widget) => widget.type === "weather" && widget.isActive),
-  ).toBe(true);
 
   const clockEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: (clockCreateResponse.body as { id: string }).id },

@@ -38,7 +38,6 @@ export const widgetsService = {
       w: number;
       h: number;
     };
-    isActive: boolean;
   }) {
     const parsedLayout = widgetLayoutSchema.safeParse(data.layout ?? defaultWidgetLayout);
 
@@ -54,7 +53,6 @@ export const widgetsService = {
           ? getDefaultWidgetConfig(data.type)
           : normalizeWidgetConfig(data.type, data.config),
       layout: parsedLayout.data,
-      isActive: data.isActive,
     });
 
     publishRealtimeEvent(
@@ -87,7 +85,6 @@ export const widgetsService = {
     };
   }) {
     const widgets = await widgetsRepository.findAll(data.profileId);
-    const hasActiveWidget = widgets.some((widget) => widget.isActive);
     const parsedLayout = widgetLayoutSchema.safeParse(data.layout ?? defaultWidgetLayout);
 
     if (!parsedLayout.success) {
@@ -115,35 +112,7 @@ export const widgetsService = {
       type: data.type,
       config: data.config,
       layout: nextLayout,
-      isActive: !hasActiveWidget,
     });
-  },
-
-  async activateWidgetForProfile(data: { profileId: string; widgetId: string }) {
-    const widget = await widgetsRepository.findById(data.widgetId);
-
-    if (!widget || widget.profileId !== data.profileId) {
-      return null;
-    }
-
-    const updatedWidget = await widgetsRepository.activateWidget(data.profileId, data.widgetId);
-
-    publishRealtimeEvent(
-      createRealtimeEvent({
-        type: "widget.updated",
-        profileId: data.profileId,
-        widgetId: updatedWidget.id,
-      }),
-    );
-    publishRealtimeEvent(
-      createRealtimeEvent({
-        type: "display.refreshRequested",
-        profileId: data.profileId,
-        widgetId: updatedWidget.id,
-      }),
-    );
-
-    return updatedWidget;
   },
 
   async updateWidgetsLayoutForProfile(data: {

@@ -25,7 +25,6 @@ interface TestWidget {
     w: number;
     h: number;
   };
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -99,32 +98,11 @@ beforeEach(() => {
       type: input.type,
       config: input.config as Record<string, unknown>,
       layout: input.layout,
-      isActive: input.isActive,
       createdAt: now,
       updatedAt: now
     };
     widgetsStore.push(newWidget);
     return newWidget as never;
-  });
-  vi.spyOn(widgetsRepository, "activateWidget").mockImplementation(async (profileId: string, widgetId: string) => {
-    const widget = widgetsStore.find((item) => item.id === widgetId && item.profileId === profileId);
-    if (!widget) {
-      throw new Error("Widget not found");
-    }
-
-    widgetsStore = widgetsStore.map((item) => {
-      if (item.profileId !== profileId) {
-        return item;
-      }
-
-      return {
-        ...item,
-        isActive: item.id === widgetId,
-        updatedAt: new Date()
-      };
-    });
-
-    return widgetsStore.find((item) => item.id === widgetId) as never;
   });
 });
 

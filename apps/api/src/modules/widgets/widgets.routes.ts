@@ -151,26 +151,6 @@ widgetsRouter.patch(
   }),
 );
 
-widgetsRouter.patch(
-  "/:id/active",
-  asyncHandler(async (req, res) => {
-    const userId = getRequestUserId(req);
-    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
-    const idParam = req.params.id;
-    const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
-    const activatedWidget = await widgetsService.activateWidgetForProfile({
-      profileId,
-      widgetId
-    });
-
-    if (!activatedWidget) {
-      throw apiErrors.notFound("Widget not found");
-    }
-
-    res.json(activatedWidget);
-  })
-);
-
 widgetsRouter.delete(
   "/:id",
   asyncHandler(async (req, res) => {

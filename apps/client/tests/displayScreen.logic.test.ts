@@ -5,59 +5,8 @@ import {
   getDisplayFrameModel,
   getDisplayRefreshIntervalMs,
   resolveDisplayUiState,
-  selectDisplayWidget,
   shouldShowDisplayEditControls,
 } from "../src/features/display/displayScreen.logic";
-
-const widgetA = {
-  id: "widget-a",
-  userId: "user-1",
-  type: "weather",
-  config: {},
-  position: 0,
-  isActive: false,
-  createdAt: "2026-03-20T12:00:00.000Z",
-  updatedAt: "2026-03-20T12:00:00.000Z",
-};
-
-const widgetB = {
-  id: "widget-b",
-  userId: "user-1",
-  type: "clockDate",
-  config: {},
-  position: 1,
-  isActive: true,
-  createdAt: "2026-03-20T12:00:00.000Z",
-  updatedAt: "2026-03-20T12:00:00.000Z",
-};
-
-test("selectDisplayWidget picks the active widget when there is no previous selection", () => {
-  const selected = selectDisplayWidget([widgetA, widgetB], null);
-  expect(selected?.id).toBe("widget-b");
-});
-
-test("selectDisplayWidget prefers active widget over previous selection", () => {
-  const selected = selectDisplayWidget([widgetA, widgetB], widgetA);
-  expect(selected?.id).toBe("widget-b");
-});
-
-test("selectDisplayWidget keeps previous selection if no active widget exists", () => {
-  const selected = selectDisplayWidget(
-    [{ ...widgetA, isActive: false }, { ...widgetB, isActive: false }],
-    widgetB,
-  );
-  expect(selected?.id).toBe("widget-b");
-});
-
-test("selectDisplayWidget keeps previous selection if it is still active", () => {
-  const selected = selectDisplayWidget([widgetA, widgetB], widgetB);
-  expect(selected?.id).toBe("widget-b");
-});
-
-test("selectDisplayWidget falls back to first widget when previous is gone", () => {
-  const selected = selectDisplayWidget([widgetA], widgetB);
-  expect(selected?.id).toBe("widget-a");
-});
 
 test("getDisplayRefreshIntervalMs follows widget refresh policy rules", () => {
   expect(getDisplayRefreshIntervalMs("clockDate")).toBe(1000);

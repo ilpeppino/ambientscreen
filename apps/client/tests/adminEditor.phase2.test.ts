@@ -126,12 +126,18 @@ describe("WidgetLibraryPanel", () => {
 describe("WidgetPropertiesPanel", () => {
   const emptyProps = {
     selectedWidget: null,
-    selectedWidgetInstance: null,
-    settingActiveWidgetId: null,
-    onSetActive: vi.fn(),
-    error: null,
-    onRetry: vi.fn(),
   } as const;
+
+  const clockWidget = {
+    widgetInstanceId: "abc-123",
+    widgetKey: "clockDate" as const,
+    layout: { x: 0, y: 0, w: 4, h: 2 },
+    state: "ready" as const,
+    config: { format: "24h" },
+    configSchema: { format: ["12h", "24h"] as unknown as import("@ambient/shared-contracts").WidgetConfigFieldSchema },
+    data: null,
+    meta: { resolvedAt: "2026-01-01T00:00:00Z" },
+  };
 
   test("shows empty state when no widget is selected", () => {
     const tree = TestRenderer.create(
@@ -143,22 +149,9 @@ describe("WidgetPropertiesPanel", () => {
   });
 
   test("shows widget details when a widget is selected", () => {
-    const widget = {
-      widgetInstanceId: "abc-123",
-      widgetKey: "clockDate" as const,
-      layout: { x: 0, y: 0, w: 4, h: 2 },
-      state: "ready" as const,
-      config: { format: "24h" },
-      configSchema: {},
-      data: null,
-      meta: { resolvedAt: "2026-01-01T00:00:00Z" },
-    };
-
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
-        ...emptyProps,
-        selectedWidget: widget,
-        selectedWidgetInstance: null,
+        selectedWidget: clockWidget,
       }),
     );
 
@@ -169,43 +162,111 @@ describe("WidgetPropertiesPanel", () => {
     expect(texts.some((t) => String(t).includes("24h"))).toBe(true);
   });
 
-  test("Set Active button is disabled when widget is already active", () => {
-    const widget = {
-      widgetInstanceId: "abc-123",
-      widgetKey: "clockDate" as const,
-      layout: { x: 0, y: 0, w: 4, h: 2 },
-      state: "ready" as const,
-      config: {},
-      configSchema: {},
-      data: null,
-      meta: { resolvedAt: "2026-01-01T00:00:00Z" },
-    };
-    const instance = {
-      id: "abc-123",
-      profileId: "p1",
-      type: "clockDate" as const,
-      config: {},
-      layout: { x: 0, y: 0, w: 4, h: 2 },
-      isActive: true,
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:00Z",
-    };
-
+  test("shows pencil icon when onSaveConfig is provided", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
-        ...emptyProps,
-        selectedWidget: widget,
-        selectedWidgetInstance: instance,
+        selectedWidget: clockWidget,
+        onSaveConfig: vi.fn(),
       }),
     );
 
-    // Find pressable buttons and verify the "Set Active" one is disabled
     const pressables = tree.root.findAllByType("pressable" as any);
-    const setActiveBtn = pressables.find(
-      (p: { props: { accessibilityState?: { disabled?: boolean } } }) =>
-        p.props.accessibilityState?.disabled === true,
+    const editButton = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Edit config",
     );
-    expect(setActiveBtn).toBeDefined();
+    expect(editButton).toBeDefined();
+  });
+
+  test("switches to edit mode when pencil is pressed", async () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: clockWidget,
+        onSaveConfig: vi.fn(),
+      }),
+    );
+
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const editButton = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Edit config",
+    );
+    await TestRenderer.act(async () => {
+      editButton?.props.onPress();
+    });
+
+    // Should now show save and cancel buttons
+    const updatedPressables = tree.root.findAllByType("pressable" as any);
+    const saveButton = updatedPressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Save config",
+    );
+    expect(saveButton).toBeDefined();
+    const cancelButton = updatedPressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Cancel edit",
+    );
+    expect(cancelButton).toBeDefined();
+  });
+
+  test("calls onSaveConfig with updated draft when save is pressed", async () => {
+    const onSaveConfig = vi.fn().mockResolvedValue(undefined);
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: clockWidget,
+        onSaveConfig,
+      }),
+    );
+
+    // Enter edit mode
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const editButton = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Edit config",
+    );
+    await TestRenderer.act(async () => {
+      editButton?.props.onPress();
+    });
+
+    // Press save
+    const updatedPressables = tree.root.findAllByType("pressable" as any);
+    const saveButton = updatedPressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Save config",
+    );
+    await TestRenderer.act(async () => {
+      await saveButton?.props.onPress();
+    });
+
+    expect(onSaveConfig).toHaveBeenCalledWith("abc-123", expect.objectContaining({ format: "24h" }));
+  });
+
+  test("returns to read mode when cancel is pressed", async () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: clockWidget,
+        onSaveConfig: vi.fn(),
+      }),
+    );
+
+    // Enter edit mode
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const editButton = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Edit config",
+    );
+    await TestRenderer.act(async () => {
+      editButton?.props.onPress();
+    });
+
+    // Press cancel
+    const updatedPressables = tree.root.findAllByType("pressable" as any);
+    const cancelButton = updatedPressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Cancel edit",
+    );
+    await TestRenderer.act(async () => {
+      cancelButton?.props.onPress();
+    });
+
+    // Should be back in read mode — pencil button visible again
+    const finalPressables = tree.root.findAllByType("pressable" as any);
+    const pencilButton = finalPressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Edit config",
+    );
+    expect(pencilButton).toBeDefined();
   });
 });
 

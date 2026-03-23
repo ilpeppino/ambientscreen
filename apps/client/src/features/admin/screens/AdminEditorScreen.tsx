@@ -7,10 +7,8 @@ import { ErrorState } from "../../../shared/ui/ErrorState";
 import { colors } from "../../../shared/ui/theme";
 import {
   createWidget,
-  getWidgets,
-  setActiveWidget,
-  type WidgetInstance,
 } from "../../../services/api/widgetsApi";
+import { updateWidgetConfig } from "../../../services/api/displayLayoutApi";
 import {
   deleteDevice,
   getDevices,
@@ -92,11 +90,7 @@ export function AdminEditorScreen({
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [confirmDeleteDeviceId, setConfirmDeleteDeviceId] = useState<string | null>(null);
 
-  // Widget instances — needed for isActive status in properties panel
-  const [widgetInstances, setWidgetInstances] = useState<WidgetInstance[]>([]);
   const [addingWidgetType, setAddingWidgetType] = useState<CreatableWidgetType | null>(null);
-  const [settingActiveWidgetId, setSettingActiveWidgetId] = useState<string | null>(null);
-  const [activeError, setActiveError] = useState<string | null>(null);
 
   // ---- Canvas data ----
   // Realtime sync keeps canvas fresh without blocking edit mode
@@ -129,7 +123,6 @@ export function AdminEditorScreen({
     saveWidgetLayouts,
     onAfterSave: async () => {
       await loadDisplayLayout(false);
-      await loadWidgetInstances();
     },
   });
 
@@ -154,28 +147,6 @@ export function AdminEditorScreen({
       handleToggleEditModeRef.current();
     }
   }, [editMode]);
-
-  // ---- Widget instances ----
-  const loadWidgetInstances = useCallback(async () => {
-    if (!activeProfileId) {
-      setWidgetInstances([]);
-      return;
-    }
-    try {
-      const instances = await getWidgets(activeProfileId);
-      setWidgetInstances(instances);
-    } catch {
-      // Non-critical: properties panel still works without isActive status
-    }
-  }, [activeProfileId]);
-
-  useEffect(() => {
-    const signal = { cancelled: false };
-    void (async () => {
-      await loadWidgetInstances();
-    })();
-    return () => { signal.cancelled = true; };
-  }, [loadWidgetInstances]);
 
   // Sync profile error
   useEffect(() => {
@@ -239,7 +210,6 @@ export function AdminEditorScreen({
       const newWidget = await createWidget(payload, activeProfileId);
       // Reload layout so the new widget appears on canvas
       await loadDisplayLayout(false);
-      await loadWidgetInstances();
       // Auto-select the newly created widget in the properties panel
       setSelectedWidgetId(newWidget.id);
     } catch (err) {
@@ -249,19 +219,10 @@ export function AdminEditorScreen({
     }
   }
 
-  async function handleSetActiveWidget(widgetId: string) {
+  async function handleSaveWidgetConfig(widgetId: string, config: Record<string, unknown>) {
     if (!activeProfileId) return;
-    try {
-      setSettingActiveWidgetId(widgetId);
-      setActiveError(null);
-      await setActiveWidget(widgetId, activeProfileId);
-      await loadWidgetInstances();
-    } catch (err) {
-      console.error(err);
-      setActiveError("Failed to set active widget");
-    } finally {
-      setSettingActiveWidgetId(null);
-    }
+    await updateWidgetConfig(widgetId, { config }, activeProfileId);
+    await loadDisplayLayout(false);
   }
 
   // ---- Profile actions ----
@@ -347,11 +308,6 @@ export function AdminEditorScreen({
   const selectedWidget = useMemo(
     () => layoutWidgets.find((w) => w.widgetInstanceId === selectedWidgetId) ?? null,
     [layoutWidgets, selectedWidgetId],
-  );
-
-  const selectedWidgetInstance = useMemo(
-    () => widgetInstances.find((w) => w.id === selectedWidgetId) ?? null,
-    [widgetInstances, selectedWidgetId],
   );
 
   // ---- Render ----
@@ -441,11 +397,7 @@ export function AdminEditorScreen({
           addingWidgetType={addingWidgetType}
           onAddWidget={(type) => void handleAddWidgetToCanvas(type)}
           selectedWidget={selectedWidget}
-          selectedWidgetInstance={selectedWidgetInstance}
-          settingActiveWidgetId={settingActiveWidgetId}
-          onSetActive={(id) => void handleSetActiveWidget(id)}
-          activeError={activeError}
-          onRetryActiveWidget={() => void loadWidgetInstances()}
+          onSaveConfig={(id, config) => handleSaveWidgetConfig(id, config)}
         />
 
         <DashboardCanvas

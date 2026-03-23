@@ -15,7 +15,6 @@ test("widgetsService createWidget validates layout", async () => {
     type: input.type,
     config: input.config,
     layout: input.layout,
-    isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
   })) as never);
@@ -25,7 +24,6 @@ test("widgetsService createWidget validates layout", async () => {
       profileId: "user-1",
       type: "clockDate",
       layout: { x: 0, y: 0, w: 0, h: 1 },
-      isActive: true,
     }),
   ).rejects.toThrow();
 });
@@ -41,7 +39,6 @@ test("widgetsService createWidgetAtNextPosition falls back to default layout", a
     type: input.type,
     config: input.config,
     layout: input.layout,
-    isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
   })) as never);
@@ -63,7 +60,6 @@ test("widgetsService createWidgetAtNextPosition auto-places when default slot is
         type: "clockDate",
         config: {},
         layout: { x: 0, y: 0, w: 1, h: 1 },
-        isActive: true,
         createdAt: new Date("2026-03-21T10:00:00.000Z"),
         updatedAt: new Date("2026-03-21T10:00:00.000Z"),
       },
@@ -78,7 +74,6 @@ test("widgetsService createWidgetAtNextPosition auto-places when default slot is
     type: input.type,
     config: input.config,
     layout: input.layout,
-    isActive: input.isActive,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
     updatedAt: new Date("2026-03-21T10:00:00.000Z"),
   })) as never);
@@ -100,7 +95,6 @@ test("widgetsService createWidgetAtNextPosition rejects explicit overlapping lay
         type: "clockDate",
         config: {},
         layout: { x: 0, y: 0, w: 4, h: 2 },
-        isActive: true,
         createdAt: new Date("2026-03-21T10:00:00.000Z"),
         updatedAt: new Date("2026-03-21T10:00:00.000Z"),
       },
@@ -162,7 +156,6 @@ test("widgetsService updateWidgetsLayoutForProfile persists validated payload", 
       type: "clockDate",
       config: {},
       layout: item.layout,
-      isActive: true,
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
     }));

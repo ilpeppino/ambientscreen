@@ -17,7 +17,6 @@ test("widgetsRepository maps db layout fields to layout object on list", async (
       layoutY: 3,
       layoutW: 4,
       layoutH: 5,
-      isActive: true,
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
     },
@@ -42,7 +41,6 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
       layoutY: 2,
       layoutW: 3,
       layoutH: 4,
-      isActive: true,
       createdAt: new Date("2026-03-21T10:00:00.000Z"),
       updatedAt: new Date("2026-03-21T10:00:00.000Z"),
     };
@@ -53,7 +51,6 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
     type: "clockDate",
     config: {},
     layout: { x: 1, y: 2, w: 3, h: 4 },
-    isActive: true,
   });
 
   expect(created.layout).toEqual({ x: 1, y: 2, w: 3, h: 4 });
@@ -66,7 +63,6 @@ test("widgetsRepository maps layout input to db layout fields on create", async 
       layoutY: 2,
       layoutW: 3,
       layoutH: 4,
-      isActive: true,
     },
   });
 });
@@ -102,7 +98,6 @@ test("widgetsRepository updateLayouts maps payload to layout db fields", async (
         layoutY: 2,
         layoutW: 4,
         layoutH: 2,
-        isActive: true,
         createdAt: new Date("2026-03-21T10:00:00.000Z"),
         updatedAt: new Date("2026-03-21T10:00:00.000Z"),
       },

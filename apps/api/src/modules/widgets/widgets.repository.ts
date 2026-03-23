@@ -14,7 +14,6 @@ export interface WidgetRecord {
   type: string;
   config: Prisma.JsonValue;
   layout: WidgetLayout;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,7 +23,6 @@ interface CreateWidgetInput {
   type: string;
   config: Prisma.InputJsonValue;
   layout: WidgetLayout;
-  isActive: boolean;
 }
 
 interface UpdateWidgetLayoutInput {
@@ -52,7 +50,6 @@ function mapWidgetRecord(widget: {
   layoutY: number;
   layoutW: number;
   layoutH: number;
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }): WidgetRecord {
@@ -67,7 +64,6 @@ function mapWidgetRecord(widget: {
       w: widget.layoutW,
       h: widget.layoutH,
     },
-    isActive: widget.isActive,
     createdAt: widget.createdAt,
     updatedAt: widget.updatedAt,
   };
@@ -114,27 +110,10 @@ export const widgetsRepository = {
         layoutY: input.layout.y,
         layoutW: input.layout.w,
         layoutH: input.layout.h,
-        isActive: input.isActive,
       },
     });
 
     return mapWidgetRecord(widget);
-  },
-
-  async activateWidget(profileId: string, widgetId: string): Promise<WidgetRecord> {
-    return prisma.$transaction(async (transaction) => {
-      await transaction.widgetInstance.updateMany({
-        where: { profileId },
-        data: { isActive: false },
-      });
-
-      const widget = await transaction.widgetInstance.update({
-        where: { id: widgetId },
-        data: { isActive: true },
-      });
-
-      return mapWidgetRecord(widget);
-    });
   },
 
   async updateLayouts(profileId: string, inputs: UpdateWidgetLayoutInput[]): Promise<WidgetRecord[]> {

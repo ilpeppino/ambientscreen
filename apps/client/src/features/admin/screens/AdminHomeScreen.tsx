@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
@@ -25,7 +25,6 @@ import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import {
   createWidget,
   getWidgets,
-  setActiveWidget,
   type WidgetInstance,
 } from "../../../services/api/widgetsApi";
 import {
@@ -46,7 +45,6 @@ import {
   type CreatableWidgetType,
   WEATHER_UNITS,
   type WeatherUnit,
-  selectAdminActiveWidget,
 } from "../adminHome.logic";
 
 interface AdminHomeScreenProps {
@@ -92,10 +90,8 @@ export function AdminHomeScreen({
   const [calendarTimeWindow, setCalendarTimeWindow] = useState<CalendarTimeWindow>("next7d");
   const [loading, setLoading] = useState(true);
   const [creatingWidget, setCreatingWidget] = useState(false);
-  const [settingActiveWidgetId, setSettingActiveWidgetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
-  const [activeError, setActiveError] = useState<string | null>(null);
   const [devices, setDevices] = useState<Device[]>([]);
   const [loadingDevices, setLoadingDevices] = useState(true);
   const [devicesError, setDevicesError] = useState<string | null>(null);
@@ -199,7 +195,6 @@ export function AdminHomeScreen({
     try {
       setCreatingWidget(true);
       setCreateError(null);
-      setActiveError(null);
 
       await createWidget(
         buildCreateWidgetInput({
@@ -264,27 +259,6 @@ export function AdminHomeScreen({
     }
   }
 
-  async function handleSetActiveWidget(widgetId: string) {
-    if (!activeProfileId) {
-      setActiveError("No active profile selected");
-      return;
-    }
-
-    try {
-      setSettingActiveWidgetId(widgetId);
-      setActiveError(null);
-      setCreateError(null);
-
-      await setActiveWidget(widgetId, activeProfileId ?? undefined);
-      await loadWidgets();
-    } catch (err) {
-      console.error(err);
-      setActiveError("Failed to set active widget");
-    } finally {
-      setSettingActiveWidgetId(null);
-    }
-  }
-
   async function handleCreateProfile() {
     const trimmedName = newProfileName.trim();
     if (!trimmedName) {
@@ -346,8 +320,6 @@ export function AdminHomeScreen({
     }
   }
 
-  const activeWidget = useMemo(() => selectAdminActiveWidget(widgets), [widgets]);
-
   if (loading) {
     return (
       <View style={styles.screen}>
@@ -386,7 +358,7 @@ export function AdminHomeScreen({
 
         <ManagementCard
           title="Profile Management"
-          subtitle={`Active widget: ${activeWidget ? `${activeWidget.type} (${activeWidget.id})` : "none"}`}
+          subtitle="Switch profiles and manage your display layouts."
           icon="calendar"
           badges={activeProfileId ? <InlineStatusBadge label="Active profile selected" tone="info" icon="check" /> : null}
         >
@@ -592,7 +564,7 @@ export function AdminHomeScreen({
           {createError ? <ErrorState compact message={createError} /> : null}
         </ManagementCard>
 
-        <ManagementCard title="Configured Widgets" subtitle="Set which widget is active in the display." icon="clock">
+        <ManagementCard title="Configured Widgets" subtitle="Widgets on the canvas for the selected profile." icon="clock">
           {widgets.length === 0 ? (
             <EmptyPanel title="No widgets configured" message="Create a widget to start building your screen." />
           ) : (
@@ -603,31 +575,10 @@ export function AdminHomeScreen({
                   title={widget.type}
                   subtitle={`Widget ID: ${widget.id}`}
                   icon={widget.type === "calendar" ? "calendar" : widget.type === "weather" ? "weather" : "clock"}
-                  badges={
-                    widget.isActive ? (
-                      <InlineStatusBadge label="Active" tone="success" icon="check" />
-                    ) : (
-                      <InlineStatusBadge label="Inactive" tone="neutral" icon="close" />
-                    )
-                  }
-                  footer={
-                    <ActionRow>
-                      <ManagementActionButton
-                        label="Set Active"
-                        tone="secondary"
-                        disabled={widget.isActive}
-                        loading={settingActiveWidgetId === widget.id}
-                        onPress={() => {
-                          void handleSetActiveWidget(widget.id);
-                        }}
-                      />
-                    </ActionRow>
-                  }
                 />
               ))}
             </View>
           )}
-          {activeError ? <ErrorState compact message={activeError} onRetry={() => void loadWidgets()} /> : null}
         </ManagementCard>
 
         <ManagementCard title="Navigation" subtitle="Switch product modes." icon="chevronRight">
