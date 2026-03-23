@@ -1192,7 +1192,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 24,
+    paddingVertical: spacing.xl,
   },
   hiddenEditTrigger: {
     position: "absolute",
@@ -1212,7 +1212,7 @@ const styles = StyleSheet.create({
   statusCard: {
     width: "100%",
     maxWidth: 560,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.xl,
     paddingVertical: 26,
     alignItems: "center",
     justifyContent: "center",
@@ -1224,7 +1224,7 @@ const styles = StyleSheet.create({
   },
   profileTabsRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: spacing.sm,
     marginBottom: 10,
     justifyContent: "flex-end",
     flexWrap: "wrap",
@@ -1270,13 +1270,13 @@ const styles = StyleSheet.create({
     padding: 10,
     backgroundColor: "rgba(0, 0, 0, 0.82)",
     minWidth: 360,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     gap: spacing.sm,
   },
   sharedSessionRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: spacing.sm,
   },
   sharedSessionLabel: {
     color: colors.textSecondary,
@@ -1336,7 +1336,7 @@ const styles = StyleSheet.create({
   sharedSessionSessionsRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
+    gap: spacing.sm,
   },
   sharedSessionChip: {
     borderWidth: 1,
@@ -1359,7 +1359,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
   },
   editModeButton: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     borderWidth: 1,
     borderColor: colors.accentBlue,
     borderRadius: radius.pill,
@@ -1419,7 +1419,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   slideshowLabel: {
     color: colors.textSecondary,
@@ -1428,9 +1428,9 @@ const styles = StyleSheet.create({
   },
   slideshowProfileRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: spacing.sm,
     flexWrap: "wrap",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   slideshowProfileChip: {
     borderWidth: 1,

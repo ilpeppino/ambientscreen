@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceAuth,
   },
   button: {
-    marginTop: 4,
+    marginTop: spacing.xs,
     borderRadius: radius.sm,
     backgroundColor: colors.accentTeal,
     paddingVertical: spacing.md,

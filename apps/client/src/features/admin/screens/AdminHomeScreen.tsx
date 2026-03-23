@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
   },
   inlineFields: {
     flexDirection: "row",
-    gap: 8,
+    gap: spacing.sm,
     alignItems: "center",
     flexWrap: "wrap",
   },

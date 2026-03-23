@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   },
   toggleRow: {
     marginTop: 6,
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
