@@ -15,10 +15,11 @@ interface WidgetSidebarProps {
   onUpgradePress: () => void;
 
   // Library panel
-  addingWidgetType: CreatableWidgetType | null;
-  onAddWidget: (type: CreatableWidgetType) => void;
+  selectedLibraryWidgetType: CreatableWidgetType | null;
+  onSelectLibraryWidget: (type: CreatableWidgetType) => void;
 
   // Properties panel
+  inspectorMode: "canvas" | "library" | null;
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
   onSaveConfig: (widgetId: string, config: Record<string, unknown>) => Promise<void>;
 }
@@ -27,11 +28,18 @@ export function WidgetSidebar({
   plan,
   hasFeature,
   onUpgradePress,
-  addingWidgetType,
-  onAddWidget,
+  selectedLibraryWidgetType,
+  onSelectLibraryWidget,
+  inspectorMode,
   selectedWidget,
   onSaveConfig,
 }: WidgetSidebarProps) {
+  const panelSubtitle = inspectorMode === "canvas"
+    ? (selectedWidget ? `Canvas widget · ${selectedWidget.widgetKey}` : "Canvas widget")
+    : inspectorMode === "library" && selectedLibraryWidgetType
+      ? `Library type · ${selectedLibraryWidgetType}`
+      : null;
+
   return (
     <View style={styles.sidebar}>
       {/* Widget Library */}
@@ -54,9 +62,9 @@ export function WidgetSidebar({
 
       <View style={styles.libraryPanel}>
         <WidgetLibraryPanel
-          addingWidgetType={addingWidgetType}
+          selectedLibraryWidgetType={selectedLibraryWidgetType}
           hasFeature={hasFeature}
-          onAddWidget={onAddWidget}
+          onSelectLibraryWidget={onSelectLibraryWidget}
           onUpgradePress={onUpgradePress}
         />
       </View>
@@ -70,14 +78,14 @@ export function WidgetSidebar({
           <AppIcon name="settings" size="sm" color="textSecondary" />
           <Text style={styles.panelTitle}>Properties</Text>
         </View>
-        {selectedWidget ? (
-          <Text style={styles.panelSubtitle}>{selectedWidget.widgetKey}</Text>
-        ) : null}
+        {panelSubtitle ? <Text style={styles.panelSubtitle}>{panelSubtitle}</Text> : null}
       </View>
 
       <View style={styles.propertiesPanel}>
         <WidgetPropertiesPanel
           key={selectedWidget?.widgetInstanceId ?? "none"}
+          inspectorMode={inspectorMode}
+          selectedLibraryWidgetType={selectedLibraryWidgetType}
           selectedWidget={selectedWidget}
           onSaveConfig={onSaveConfig}
         />

@@ -16,6 +16,43 @@ import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 import { getWidgetDefaultSize } from "../widgetPlacement.logic";
 
 const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
+const DRAG_WIDGET_PAYLOAD_MIME = "application/x-ambient-widget-payload";
+
+interface DragWidgetPayload {
+  widgetType: CreatableWidgetType;
+  defaultLayout?: {
+    w: number;
+    h: number;
+  };
+}
+
+function parseDragWidgetPayload(dataTransfer: DataTransfer | null | undefined): DragWidgetPayload | null {
+  const payload = dataTransfer?.getData(DRAG_WIDGET_PAYLOAD_MIME);
+  if (!payload) return null;
+
+  try {
+    const parsed = JSON.parse(payload) as Partial<DragWidgetPayload>;
+    if (!parsed.widgetType || !CREATABLE_WIDGET_TYPES.includes(parsed.widgetType)) {
+      return null;
+    }
+    return parsed as DragWidgetPayload;
+  } catch {
+    return null;
+  }
+}
+
+function getDraggedWidgetType(dataTransfer: DataTransfer | null | undefined): CreatableWidgetType | null {
+  const payload = parseDragWidgetPayload(dataTransfer);
+  if (payload?.widgetType) return payload.widgetType;
+
+  const widgetType = dataTransfer?.getData(DRAG_WIDGET_TYPE_MIME)
+    || dataTransfer?.getData("text/plain")
+    || undefined;
+  if (!widgetType || !CREATABLE_WIDGET_TYPES.includes(widgetType as CreatableWidgetType)) {
+    return null;
+  }
+  return widgetType as CreatableWidgetType;
+}
 
 interface DashboardCanvasProps {
   widgets: DisplayLayoutWidgetEnvelope[];
@@ -62,12 +99,11 @@ export function DashboardCanvas({
     event.preventDefault();
     setIsDragOver(false);
 
-    const widgetType = event.dataTransfer?.getData(DRAG_WIDGET_TYPE_MIME)
-      || event.dataTransfer?.getData("text/plain")
-      || undefined;
-    if (!widgetType || !CREATABLE_WIDGET_TYPES.includes(widgetType as CreatableWidgetType)) {
+    const widgetType = getDraggedWidgetType(event.dataTransfer);
+    if (!widgetType) {
       return;
     }
+    const dragPayload = parseDragWidgetPayload(event.dataTransfer);
 
     // Use getBoundingClientRect for pixel-accurate canvas-relative coords
     const target = event.currentTarget as HTMLElement;
@@ -79,7 +115,12 @@ export function DashboardCanvas({
       widgets.map((w) => [w.widgetInstanceId, w.layout]),
     );
 
-    const defaultSize = getWidgetDefaultSize(widgetType as CreatableWidgetType);
+    const defaultSize = dragPayload?.defaultLayout
+      ? {
+          w: dragPayload.defaultLayout.w,
+          h: dragPayload.defaultLayout.h,
+        }
+      : getWidgetDefaultSize(widgetType);
     const layout = computeDropLayout({
       dropX,
       dropY,
@@ -90,13 +131,21 @@ export function DashboardCanvas({
       widgetH: defaultSize.h,
     });
 
-    onWidgetDropped?.(widgetType as CreatableWidgetType, layout);
+    onWidgetDropped?.(widgetType, layout);
   }
 
   // Web-only DnD event handlers spread onto the canvas body View
   const dropZoneProps = {
     onDragOver: (event: DragEvent) => {
       event.preventDefault();
+      const widgetType = getDraggedWidgetType(event.dataTransfer);
+      if (!widgetType) {
+        if (event.dataTransfer) {
+          event.dataTransfer.dropEffect = "none";
+        }
+        setIsDragOver(false);
+        return;
+      }
       if (event.dataTransfer) {
         event.dataTransfer.dropEffect = "copy";
       }
@@ -177,7 +226,7 @@ export function DashboardCanvas({
               <Text style={styles.emptyMessage}>
                 {isDragOver
                   ? "The widget will be placed at this position."
-                  : "Drag a widget from the sidebar or click + Add to place it here."}
+                  : "Long press and drag a widget from the sidebar to place it here."}
               </Text>
             </View>
           </View>

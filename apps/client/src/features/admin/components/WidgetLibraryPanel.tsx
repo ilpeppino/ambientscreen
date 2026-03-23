@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import type { FeatureFlagKey, WidgetKey } from "@ambient/shared-contracts";
@@ -8,6 +8,8 @@ import type { CreatableWidgetType } from "../adminHome.logic";
 import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 
 const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
+const DRAG_WIDGET_PAYLOAD_MIME = "application/x-ambient-widget-payload";
+const LONG_PRESS_MS = 320;
 
 const WIDGET_ICON: Record<WidgetKey, "clock" | "weather" | "calendar"> = {
   clockDate: "clock",
@@ -16,24 +18,64 @@ const WIDGET_ICON: Record<WidgetKey, "clock" | "weather" | "calendar"> = {
 };
 
 interface WidgetLibraryPanelProps {
-  addingWidgetType: CreatableWidgetType | null;
+  selectedLibraryWidgetType: CreatableWidgetType | null;
   hasFeature: (key: FeatureFlagKey) => boolean;
-  onAddWidget: (type: CreatableWidgetType) => void;
+  onSelectLibraryWidget: (type: CreatableWidgetType) => void;
   onUpgradePress: () => void;
 }
 
 export function WidgetLibraryPanel({
-  addingWidgetType,
+  selectedLibraryWidgetType,
   hasFeature,
-  onAddWidget,
+  onSelectLibraryWidget,
   onUpgradePress,
 }: WidgetLibraryPanelProps) {
   const [search, setSearch] = useState("");
+  const [armedWidgetType, setArmedWidgetType] = useState<CreatableWidgetType | null>(null);
+  const [draggingWidgetType, setDraggingWidgetType] = useState<CreatableWidgetType | null>(null);
+  const pressStateRef = useRef<{
+    widgetType: CreatableWidgetType;
+    startedAt: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    longPressArmed: boolean;
+  } | null>(null);
 
   const filtered = CREATABLE_WIDGET_TYPES.filter((key) => {
     const name = widgetBuiltinDefinitions[key].manifest.name.toLowerCase();
     return name.includes(search.toLowerCase()) || key.toLowerCase().includes(search.toLowerCase());
   });
+
+  function clearPressTimer() {
+    if (pressStateRef.current?.timer) {
+      clearTimeout(pressStateRef.current.timer);
+    }
+  }
+
+  function beginPress(widgetType: CreatableWidgetType) {
+    clearPressTimer();
+    const startedAt = Date.now();
+    const timer = setTimeout(() => {
+      if (!pressStateRef.current || pressStateRef.current.widgetType !== widgetType) return;
+      pressStateRef.current.longPressArmed = true;
+      setArmedWidgetType(widgetType);
+    }, LONG_PRESS_MS);
+
+    pressStateRef.current = {
+      widgetType,
+      startedAt,
+      timer,
+      longPressArmed: false,
+    };
+  }
+
+  function endPress(widgetType: CreatableWidgetType) {
+    if (!pressStateRef.current || pressStateRef.current.widgetType !== widgetType) return;
+    clearPressTimer();
+    if (draggingWidgetType !== widgetType) {
+      setArmedWidgetType(null);
+    }
+    pressStateRef.current = null;
+  }
 
   return (
     <View style={styles.panel}>
@@ -61,18 +103,21 @@ export function WidgetLibraryPanel({
             const manifest = widgetBuiltinDefinitions[widgetKey].manifest;
             const isPremium = manifest.premium === true;
             const locked = isPremium && !hasFeature("premium_widgets");
-            const isAdding = addingWidgetType === widgetKey;
-
-            const draggable = !isAdding && !locked;
+            const draggable = !locked;
+            const isSelected = selectedLibraryWidgetType === widgetKey;
+            const isArmed = armedWidgetType === widgetKey;
+            const isDragging = draggingWidgetType === widgetKey;
 
             return (
               <Pressable
                 key={widgetKey}
                 accessibilityRole="button"
-                accessibilityLabel={`Add ${manifest.name} widget`}
+                accessibilityLabel={`${manifest.name} widget`}
                 style={[
                   styles.widgetRow,
-                  isAdding ? styles.widgetRowAdding : null,
+                  isSelected ? styles.widgetRowSelected : null,
+                  isArmed ? styles.widgetRowArmed : null,
+                  isDragging ? styles.widgetRowDragging : null,
                   // web-only cursor — ignored on native
                   { cursor: draggable ? "grab" : "default" } as object,
                 ]}
@@ -81,19 +126,63 @@ export function WidgetLibraryPanel({
                     onUpgradePress();
                     return;
                   }
-                  onAddWidget(widgetKey);
+                  if (pressStateRef.current?.widgetType === widgetKey && pressStateRef.current.longPressArmed) {
+                    return;
+                  }
+                  onSelectLibraryWidget(widgetKey);
                 }}
-                disabled={isAdding}
+                {...({
+                  onMouseDown: () => {
+                    if (locked) return;
+                    beginPress(widgetKey);
+                  },
+                  onMouseUp: () => endPress(widgetKey),
+                  onMouseLeave: () => endPress(widgetKey),
+                  onTouchStart: () => {
+                    if (locked) return;
+                    beginPress(widgetKey);
+                  },
+                  onTouchEnd: () => endPress(widgetKey),
+                  onTouchCancel: () => endPress(widgetKey),
+                } as object)}
                 // HTML5 Drag-and-Drop — web only, passed through by React Native Web
                 {...(draggable
                   ? ({
                       draggable: true,
                       onDragStart: (event: DragEvent) => {
+                        const pressState = pressStateRef.current;
+                        const longPressReached = Boolean(
+                          pressState
+                          && pressState.widgetType === widgetKey
+                          && (pressState.longPressArmed || Date.now() - pressState.startedAt >= LONG_PRESS_MS),
+                        );
+                        if (!longPressReached) {
+                          event.preventDefault();
+                          return;
+                        }
+                        clearPressTimer();
+
+                        const defaultLayout = manifest.defaultLayout;
+                        const payload = JSON.stringify({
+                          widgetType: widgetKey,
+                          defaultLayout: {
+                            w: defaultLayout.w,
+                            h: defaultLayout.h,
+                          },
+                        });
                         event.dataTransfer?.setData(DRAG_WIDGET_TYPE_MIME, widgetKey);
+                        event.dataTransfer?.setData(DRAG_WIDGET_PAYLOAD_MIME, payload);
                         event.dataTransfer?.setData("text/plain", widgetKey);
                         if (event.dataTransfer) {
                           event.dataTransfer.effectAllowed = "copy";
                         }
+                        setDraggingWidgetType(widgetKey);
+                        setArmedWidgetType(null);
+                      },
+                      onDragEnd: () => {
+                        setDraggingWidgetType(null);
+                        setArmedWidgetType(null);
+                        pressStateRef.current = null;
                       },
                     } as object)
                   : undefined)}
@@ -102,17 +191,15 @@ export function WidgetLibraryPanel({
                   <AppIcon name={WIDGET_ICON[widgetKey]} size="sm" color="textSecondary" />
                   <View style={styles.widgetTextBlock}>
                     <Text style={styles.widgetName}>{manifest.name}</Text>
-                    <Text style={styles.widgetKey}>{widgetKey}</Text>
+                    <Text style={styles.widgetCategory}>{manifest.category}</Text>
                   </View>
                 </View>
                 <View style={styles.widgetActions}>
                   {locked ? (
                     <Text style={styles.premiumLabel}>Pro</Text>
-                  ) : isAdding ? (
-                    <Text style={styles.addingLabel}>Adding…</Text>
-                  ) : (
-                    <Text style={styles.addLabel}>+ Add</Text>
-                  )}
+                  ) : isDragging ? (
+                    <Text style={styles.draggingLabel}>Dragging…</Text>
+                  ) : null}
                 </View>
               </Pressable>
             );
@@ -165,8 +252,16 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: spacing.sm,
   },
-  widgetRowAdding: {
-    opacity: 0.6,
+  widgetRowSelected: {
+    backgroundColor: colors.surfaceInput,
+  },
+  widgetRowArmed: {
+    borderLeftWidth: 2,
+    borderLeftColor: colors.accentBlue,
+    backgroundColor: colors.statusInfoBg,
+  },
+  widgetRowDragging: {
+    opacity: 0.75,
   },
   widgetInfo: {
     flex: 1,
@@ -183,19 +278,15 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: "600",
   },
-  widgetKey: {
+  widgetCategory: {
     fontSize: 11,
     color: colors.textSecondary,
+    textTransform: "capitalize",
   },
   widgetActions: {
     alignItems: "flex-end",
   },
-  addLabel: {
-    ...typography.small,
-    color: colors.accentBlue,
-    fontWeight: "700",
-  },
-  addingLabel: {
+  draggingLabel: {
     ...typography.small,
     color: colors.textSecondary,
   },

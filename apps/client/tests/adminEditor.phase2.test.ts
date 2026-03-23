@@ -63,9 +63,9 @@ beforeAll(async () => {
 // ---------------------------------------------------------------------------
 describe("WidgetLibraryPanel", () => {
   const defaultProps = {
-    addingWidgetType: null,
+    selectedLibraryWidgetType: null,
     hasFeature: (_key: string) => true,
-    onAddWidget: vi.fn(),
+    onSelectLibraryWidget: vi.fn(),
     onUpgradePress: vi.fn(),
   } as const;
 
@@ -80,28 +80,26 @@ describe("WidgetLibraryPanel", () => {
     expect(texts.some((t) => String(t).includes("Calendar"))).toBe(true);
   });
 
-  test("calls onAddWidget when a widget row is pressed", () => {
-    const onAddWidget = vi.fn();
+  test("calls onSelectLibraryWidget when a widget row is pressed", () => {
+    const onSelectLibraryWidget = vi.fn();
     const tree = TestRenderer.create(
-      React.createElement(WidgetLibraryPanel, { ...defaultProps, onAddWidget }),
+      React.createElement(WidgetLibraryPanel, { ...defaultProps, onSelectLibraryWidget }),
     );
 
     // Find the first pressable (first widget row after the search field area is a pressable)
     const pressables = tree.root.findAllByType("pressable" as any);
     pressables[0]?.props.onPress();
-    expect(onAddWidget).toHaveBeenCalled();
+    expect(onSelectLibraryWidget).toHaveBeenCalled();
   });
 
-  test("shows adding state for the widget being created", () => {
+  test("removes + Add label and duplicate widget key text", () => {
     const tree = TestRenderer.create(
-      React.createElement(WidgetLibraryPanel, {
-        ...defaultProps,
-        addingWidgetType: "clockDate",
-      }),
+      React.createElement(WidgetLibraryPanel, defaultProps),
     );
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
-    expect(texts.some((t) => String(t).includes("Adding"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("+ Add"))).toBe(false);
+    expect(texts.some((t) => String(t) === "clockDate")).toBe(false);
   });
 
   test("search input filters widget list", async () => {
@@ -119,7 +117,7 @@ describe("WidgetLibraryPanel", () => {
     expect(texts.some((t) => String(t).includes("Clock"))).toBe(false);
   });
 
-  test("publishes widget type metadata on drag start", () => {
+  test("short press does not start drag mode", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetLibraryPanel, defaultProps),
     );
@@ -132,6 +130,37 @@ describe("WidgetLibraryPanel", () => {
     expect(draggableRow).toBeDefined();
 
     const setData = vi.fn();
+    const preventDefault = vi.fn();
+    draggableRow?.props.onMouseDown?.();
+    draggableRow?.props.onDragStart?.({
+      preventDefault,
+      dataTransfer: {
+        setData,
+      },
+    });
+
+    expect(preventDefault).toHaveBeenCalled();
+    expect(setData).not.toHaveBeenCalled();
+  });
+
+  test("long press publishes widget drag metadata on drag start", async () => {
+    vi.useFakeTimers();
+    const tree = TestRenderer.create(
+      React.createElement(WidgetLibraryPanel, defaultProps),
+    );
+
+    const draggableRow = tree.root.findAllByType("pressable" as any)
+      .find((node: { props: { draggable?: boolean; onDragStart?: (event: unknown) => void } }) => (
+        node.props.draggable === true && typeof node.props.onDragStart === "function"
+      ));
+
+    expect(draggableRow).toBeDefined();
+
+    const setData = vi.fn();
+    draggableRow?.props.onMouseDown?.();
+    await TestRenderer.act(async () => {
+      vi.advanceTimersByTime(330);
+    });
     draggableRow?.props.onDragStart?.({
       dataTransfer: {
         setData,
@@ -140,7 +169,9 @@ describe("WidgetLibraryPanel", () => {
     });
 
     expect(setData).toHaveBeenCalledWith("application/x-ambient-widget", expect.any(String));
+    expect(setData).toHaveBeenCalledWith("application/x-ambient-widget-payload", expect.any(String));
     expect(setData).toHaveBeenCalledWith("text/plain", expect.any(String));
+    vi.useRealTimers();
   });
 });
 
@@ -170,6 +201,21 @@ describe("WidgetPropertiesPanel", () => {
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
     expect(texts.some((t) => String(t).toLowerCase().includes("no widget selected"))).toBe(true);
+  });
+
+  test("shows widget type metadata in library inspector mode", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: null,
+        inspectorMode: "library",
+        selectedLibraryWidgetType: "weather",
+      }),
+    );
+
+    const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
+    expect(texts.some((t) => String(t).includes("Weather"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("Default Size"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("Long press and drag"))).toBe(true);
   });
 
   test("shows widget details when a widget is selected", () => {
@@ -321,6 +367,7 @@ describe("DashboardCanvas", () => {
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
     expect(texts.some((t) => String(t).toLowerCase().includes("canvas is empty"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("+ Add"))).toBe(false);
   });
 
   test("renders LayoutGrid when widgets are present", () => {
