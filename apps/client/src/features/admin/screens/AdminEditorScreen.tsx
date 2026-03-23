@@ -29,6 +29,7 @@ import {
   type CreatableWidgetType,
   type WeatherUnit,
 } from "../adminHome.logic";
+import { resolveClickAddLayout } from "../widgetPlacement.logic";
 import { AdminTopBar } from "../components/AdminTopBar";
 import { DashboardCanvas } from "../components/DashboardCanvas";
 import { WidgetSidebar } from "../components/WidgetSidebar";
@@ -91,6 +92,7 @@ export function AdminEditorScreen({
   const [confirmDeleteDeviceId, setConfirmDeleteDeviceId] = useState<string | null>(null);
 
   const [addingWidgetType, setAddingWidgetType] = useState<CreatableWidgetType | null>(null);
+  const [widgetPlacementError, setWidgetPlacementError] = useState<string | null>(null);
 
   // ---- Canvas data ----
   // Realtime sync keeps canvas fresh without blocking edit mode
@@ -198,6 +200,8 @@ export function AdminEditorScreen({
     if (!activeProfileId) return;
     try {
       setAddingWidgetType(widgetType);
+      setWidgetPlacementError(null);
+      const resolvedLayout = layout ?? resolveClickAddLayout(layoutWidgets, widgetType);
       const payload = {
         ...buildCreateWidgetInput({
           profileId: activeProfileId,
@@ -205,7 +209,7 @@ export function AdminEditorScreen({
           weatherConfig: { location: "Amsterdam", units: "metric" },
           calendarConfig: { provider: "ical", timeWindow: "next7d" },
         }),
-        ...(layout ? { layout } : {}),
+        layout: resolvedLayout,
       };
       const newWidget = await createWidget(payload, activeProfileId);
       // Reload layout so the new widget appears on canvas
@@ -214,6 +218,11 @@ export function AdminEditorScreen({
       setSelectedWidgetId(newWidget.id);
     } catch (err) {
       console.error("Failed to add widget:", err);
+      setWidgetPlacementError(
+        err instanceof Error
+          ? err.message
+          : "Failed to add widget. Please try again.",
+      );
     } finally {
       setAddingWidgetType(null);
     }
@@ -414,6 +423,7 @@ export function AdminEditorScreen({
           layoutError={layoutError}
           onSaveLayout={() => void handleSaveLayout()}
           onCancelLayout={() => handleCancelLayout()}
+          widgetPlacementError={widgetPlacementError}
           onWidgetDropped={(widgetType, layout) =>
             void handleAddWidgetToCanvas(widgetType, layout)
           }

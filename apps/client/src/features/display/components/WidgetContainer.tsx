@@ -392,11 +392,11 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   debugOuterContainer: {
-    borderColor: "#FF4D4D",
+    borderColor: colors.statusDangerText,
     borderWidth: 1,
   },
   debugPressArea: {
-    borderColor: "#4DA3FF",
+    borderColor: colors.statusInfoText,
     borderWidth: 1,
   },
   editModeContainer: {

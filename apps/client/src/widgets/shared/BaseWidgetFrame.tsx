@@ -3,7 +3,7 @@ import type { WidgetDataState } from "@ambient/shared-contracts";
 import type { AppIconName } from "../../shared/ui/components";
 import { WidgetHeader, WidgetState, type WidgetStateType, WidgetSurface } from "../../shared/ui/widgets";
 import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
-import { spacing } from "../../shared/ui/theme";
+import { colors, spacing } from "../../shared/ui/theme";
 
 interface BaseWidgetFrameProps {
   title: string;
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   debugContent: {
-    borderColor: "#8B5CF6",
+    borderColor: colors.accentBlue,
     borderWidth: 1,
   },
 });
