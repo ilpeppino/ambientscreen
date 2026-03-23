@@ -20,6 +20,7 @@ import {
   enterRemoteControlMode,
   exitDisplayMode,
   exitMarketplaceMode,
+  exitRemoteControlMode,
   getInitialAppMode,
   type AppMode,
 } from "./src/features/navigation/appMode.logic";
@@ -30,6 +31,15 @@ import { EntitlementsProvider } from "./src/features/entitlements/entitlements.c
 function AuthenticatedApp() {
   const { isLoading, token, logout } = useAuth();
   const [mode, setMode] = useState<AppMode>(getInitialAppMode);
+
+  const applyModeChange = React.useCallback((nextMode: AppMode) => {
+    setMode((currentMode) => {
+      if (currentMode !== nextMode) {
+        console.info(`[nav] ${currentMode} → ${nextMode}`);
+      }
+      return nextMode;
+    });
+  }, []);
   const [deviceId, setDeviceId] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -115,16 +125,16 @@ function AuthenticatedApp() {
   }
 
   if (mode === "marketplace") {
-    return <MarketplaceScreen onBack={() => setMode(exitMarketplaceMode())} />;
+    return <MarketplaceScreen onBack={() => applyModeChange(exitMarketplaceMode())} />;
   }
 
   if (mode === "admin") {
     return (
       <AdminHomeScreen
         currentDeviceId={deviceId}
-        onEnterDisplayMode={() => setMode(enterDisplayMode())}
-        onEnterRemoteControlMode={() => setMode(enterRemoteControlMode())}
-        onEnterMarketplace={() => setMode(enterMarketplaceMode())}
+        onEnterDisplayMode={() => applyModeChange(enterDisplayMode())}
+        onEnterRemoteControlMode={() => applyModeChange(enterRemoteControlMode())}
+        onEnterMarketplace={() => applyModeChange(enterMarketplaceMode())}
         onLogout={() => {
           void logout();
         }}
@@ -133,10 +143,10 @@ function AuthenticatedApp() {
   }
 
   if (mode === "remoteControl") {
-    return <RemoteControlScreen currentDeviceId={deviceId} onBack={() => setMode(exitDisplayMode())} />;
+    return <RemoteControlScreen currentDeviceId={deviceId} onBack={() => applyModeChange(exitRemoteControlMode())} />;
   }
 
-  return <DisplayScreen deviceId={deviceId} onExitDisplayMode={() => setMode(exitDisplayMode())} />;
+  return <DisplayScreen deviceId={deviceId} onExitDisplayMode={() => applyModeChange(exitDisplayMode())} />;
 }
 
 export default function App() {

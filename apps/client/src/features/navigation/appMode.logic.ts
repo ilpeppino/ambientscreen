@@ -16,6 +16,10 @@ export function exitDisplayMode(): AppMode {
   return "admin";
 }
 
+export function exitRemoteControlMode(): AppMode {
+  return "admin";
+}
+
 export function enterMarketplaceMode(): AppMode {
   return "marketplace";
 }
