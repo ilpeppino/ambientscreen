@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
+import type { WidgetKey } from "@ambient/shared-contracts";
 import type { WidgetConfigFieldDescriptor } from "../../display/components/WidgetSettingsModal.logic";
 import {
   buildConfigDraft,
@@ -20,11 +21,15 @@ const WIDGET_ICON = {
 
 interface WidgetPropertiesPanelProps {
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
+  selectedLibraryWidgetType?: WidgetKey | null;
+  inspectorMode?: "canvas" | "library" | null;
   onSaveConfig?: (widgetId: string, config: Record<string, unknown>) => Promise<void>;
 }
 
 export function WidgetPropertiesPanel({
   selectedWidget,
+  selectedLibraryWidgetType = null,
+  inspectorMode = null,
   onSaveConfig,
 }: WidgetPropertiesPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -32,6 +37,17 @@ export function WidgetPropertiesPanel({
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    setIsEditing(false);
+    setSaveError(null);
+    setValidationError(null);
+  }, [selectedWidget?.widgetInstanceId, selectedLibraryWidgetType, inspectorMode]);
 
   const handleStartEdit = useCallback(() => {
     if (!selectedWidget) return;
@@ -73,6 +89,75 @@ export function WidgetPropertiesPanel({
     setDraft((prev) => ({ ...prev, [key]: value }));
   }, []);
 
+  if (inspectorMode === "library" && selectedLibraryWidgetType) {
+    const definition = widgetBuiltinDefinitions[selectedLibraryWidgetType];
+    const manifest = definition.manifest;
+    const iconName = WIDGET_ICON[selectedLibraryWidgetType] ?? "grid";
+    const defaultConfigEntries = Object.entries(definition.defaultConfig ?? {}).filter(
+      ([, value]) => value !== null && value !== undefined && value !== "",
+    );
+
+    return (
+      <ScrollView
+        style={styles.panel}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.identityRow}>
+          <View style={styles.identityIconWrap}>
+            <AppIcon name={iconName} size="sm" color="textSecondary" />
+          </View>
+          <View style={styles.identityText}>
+            <Text style={styles.widgetName}>{manifest.name}</Text>
+            <Text style={styles.widgetId} numberOfLines={1}>
+              {manifest.key}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Metadata</Text>
+          <Text style={styles.libraryText}>Category: {manifest.category}</Text>
+          <Text style={styles.libraryText}>Description: {manifest.description}</Text>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Default Size</Text>
+          <View style={styles.layoutGrid}>
+            <LayoutCell label="W" value={manifest.defaultLayout.w} />
+            <LayoutCell label="H" value={manifest.defaultLayout.h} />
+          </View>
+        </View>
+
+        {defaultConfigEntries.length > 0 ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Default Configuration</Text>
+              <View style={styles.configList}>
+                {defaultConfigEntries.map(([key, value]) => (
+                  <View key={key} style={styles.configRow}>
+                    <Text style={styles.configKey}>{key}</Text>
+                    <Text style={styles.configValue} numberOfLines={2}>
+                      {String(value)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </>
+        ) : null}
+
+        <View style={styles.divider} />
+        <Text style={styles.libraryHint}>Long press and drag onto the canvas to place this widget.</Text>
+      </ScrollView>
+    );
+  }
+
   if (!selectedWidget) {
     return (
       <View style={styles.emptyState}>
@@ -81,7 +166,7 @@ export function WidgetPropertiesPanel({
         </View>
         <Text style={styles.emptyTitle}>No widget selected</Text>
         <Text style={styles.emptyMessage}>
-          Click a widget on the canvas to inspect and edit its properties.
+          Select a widget in the library to inspect defaults, or click a canvas widget to edit it.
         </Text>
       </View>
     );
@@ -509,5 +594,15 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.error,
     marginTop: spacing.xs,
+  },
+  libraryText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  libraryHint: {
+    fontSize: 12,
+    color: colors.statusInfoText,
+    lineHeight: 18,
   },
 });

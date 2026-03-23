@@ -26,11 +26,9 @@ import {
   buildCreateWidgetInput,
   type CalendarProvider,
   type CalendarTimeWindow,
-  CREATABLE_WIDGET_TYPES,
   type CreatableWidgetType,
   type WeatherUnit,
 } from "../adminHome.logic";
-import { resolveClickAddLayout } from "../widgetPlacement.logic";
 import { AdminTopBar } from "../components/AdminTopBar";
 import { DashboardCanvas } from "../components/DashboardCanvas";
 import { WidgetSidebar } from "../components/WidgetSidebar";
@@ -92,7 +90,8 @@ export function AdminEditorScreen({
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [confirmDeleteDeviceId, setConfirmDeleteDeviceId] = useState<string | null>(null);
 
-  const [addingWidgetType, setAddingWidgetType] = useState<CreatableWidgetType | null>(null);
+  const [selectedLibraryWidgetType, setSelectedLibraryWidgetType] = useState<CreatableWidgetType | null>(null);
+  const [inspectorMode, setInspectorMode] = useState<"canvas" | "library" | null>(null);
   const [widgetPlacementError, setWidgetPlacementError] = useState<string | null>(null);
 
   // ---- Canvas data ----
@@ -189,20 +188,16 @@ export function AdminEditorScreen({
 
   // ---- Widget actions ----
   /**
-   * Create a new widget and place it on the canvas.
-   * When `layout` is provided (drag-and-drop), the widget is created at that exact position.
-   * When omitted (click-to-add), the server assigns the next available slot.
-   * In both cases the new widget is auto-selected in the properties panel.
+   * Create a new widget from a library drag-drop operation.
+   * The widget is persisted through the backend and auto-selected on success.
    */
-  async function handleAddWidgetToCanvas(
+  async function handlePlaceWidgetFromLibrary(
     widgetType: CreatableWidgetType,
-    layout?: import("../../display/components/LayoutGrid.logic").WidgetLayout,
+    layout: import("../../display/components/LayoutGrid.logic").WidgetLayout,
   ) {
     if (!activeProfileId) return;
     try {
-      setAddingWidgetType(widgetType);
       setWidgetPlacementError(null);
-      const resolvedLayout = layout ?? resolveClickAddLayout(layoutWidgets, widgetType);
       const payload = {
         ...buildCreateWidgetInput({
           profileId: activeProfileId,
@@ -210,13 +205,14 @@ export function AdminEditorScreen({
           weatherConfig: { location: "Amsterdam", units: "metric" },
           calendarConfig: { provider: "ical", timeWindow: "next7d" },
         }),
-        layout: resolvedLayout,
+        layout,
       };
       const newWidget = await createWidget(payload, activeProfileId);
       // Reload layout so the new widget appears on canvas
       await loadDisplayLayout(false);
       // Auto-select the newly created widget in the properties panel
       setSelectedWidgetId(newWidget.id);
+      setInspectorMode("canvas");
     } catch (err) {
       console.error("Failed to add widget:", err);
       setWidgetPlacementError(
@@ -224,8 +220,6 @@ export function AdminEditorScreen({
           ? err.message
           : "Failed to add widget. Please try again.",
       );
-    } finally {
-      setAddingWidgetType(null);
     }
   }
 
@@ -241,6 +235,10 @@ export function AdminEditorScreen({
       setWidgetPlacementError(null);
       await deleteWidget(widgetId, activeProfileId);
       setSelectedWidgetId((current) => (current === widgetId ? null : current));
+      setInspectorMode((current) => {
+        if (current !== "canvas") return current;
+        return selectedLibraryWidgetType ? "library" : null;
+      });
       await loadDisplayLayout(false);
     } catch (err) {
       console.error("Failed to delete widget:", err);
@@ -421,8 +419,12 @@ export function AdminEditorScreen({
           plan={plan}
           hasFeature={hasFeature}
           onUpgradePress={() => setUpgradeModalVisible(true)}
-          addingWidgetType={addingWidgetType}
-          onAddWidget={(type) => void handleAddWidgetToCanvas(type)}
+          selectedLibraryWidgetType={selectedLibraryWidgetType}
+          onSelectLibraryWidget={(type) => {
+            setSelectedLibraryWidgetType(type);
+            setInspectorMode("library");
+          }}
+          inspectorMode={inspectorMode}
           selectedWidget={selectedWidget}
           onSaveConfig={(id, config) => handleSaveWidgetConfig(id, config)}
         />
@@ -430,8 +432,14 @@ export function AdminEditorScreen({
         <DashboardCanvas
           widgets={layoutWidgets}
           selectedWidgetId={selectedWidgetId}
-          onSelectWidget={setSelectedWidgetId}
-          onClearSelection={() => setSelectedWidgetId(null)}
+          onSelectWidget={(widgetId) => {
+            setSelectedWidgetId(widgetId);
+            setInspectorMode("canvas");
+          }}
+          onClearSelection={() => {
+            setSelectedWidgetId(null);
+            setInspectorMode(selectedLibraryWidgetType ? "library" : null);
+          }}
           onWidgetLayoutChange={handleWidgetLayoutChange}
           onRemoveWidget={(widgetId) => void handleRemoveWidgetFromCanvas(widgetId)}
           loadingLayout={loadingLayout}
@@ -444,7 +452,7 @@ export function AdminEditorScreen({
           onCancelLayout={() => handleCancelLayout()}
           widgetPlacementError={widgetPlacementError}
           onWidgetDropped={(widgetType, layout) =>
-            void handleAddWidgetToCanvas(widgetType, layout)
+            void handlePlaceWidgetFromLibrary(widgetType, layout)
           }
         />
       </View>
