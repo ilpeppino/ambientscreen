@@ -38,7 +38,9 @@ export function WidgetPropertiesPanel({
   if (!selectedWidget) {
     return (
       <View style={styles.emptyState}>
-        <AppIcon name="grid" size="sm" color="textSecondary" />
+        <View style={styles.emptyIconWrap}>
+          <AppIcon name="grid" size="md" color="textSecondary" />
+        </View>
         <Text style={styles.emptyTitle}>No widget selected</Text>
         <Text style={styles.emptyMessage}>
           Click a widget on the canvas to inspect and edit its properties.
@@ -64,7 +66,9 @@ export function WidgetPropertiesPanel({
     >
       {/* Widget identity */}
       <View style={styles.identityRow}>
-        <AppIcon name={iconName} size="sm" color="textSecondary" />
+        <View style={styles.identityIconWrap}>
+          <AppIcon name={iconName} size="sm" color="textSecondary" />
+        </View>
         <View style={styles.identityText}>
           <Text style={styles.widgetName}>{widgetName}</Text>
           <Text style={styles.widgetId} numberOfLines={1}>
@@ -77,6 +81,8 @@ export function WidgetPropertiesPanel({
           icon={isActive ? "check" : "close"}
         />
       </View>
+
+      <View style={styles.divider} />
 
       {/* Layout */}
       <View style={styles.section}>
@@ -91,20 +97,25 @@ export function WidgetPropertiesPanel({
 
       {/* Config */}
       {configEntries.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Configuration</Text>
-          <View style={styles.configList}>
-            {configEntries.map(([key, value]) => (
-              <View key={key} style={styles.configRow}>
-                <Text style={styles.configKey}>{key}</Text>
-                <Text style={styles.configValue} numberOfLines={2}>
-                  {String(value)}
-                </Text>
-              </View>
-            ))}
+        <>
+          <View style={styles.divider} />
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Configuration</Text>
+            <View style={styles.configList}>
+              {configEntries.map(([key, value]) => (
+                <View key={key} style={styles.configRow}>
+                  <Text style={styles.configKey}>{key}</Text>
+                  <Text style={styles.configValue} numberOfLines={2}>
+                    {String(value)}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        </>
       ) : null}
+
+      <View style={styles.divider} />
 
       {/* Actions */}
       <View style={styles.section}>
@@ -171,6 +182,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
   },
+  emptyIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surfaceInput,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: spacing.xs,
+  },
   emptyTitle: {
     ...typography.small,
     color: colors.textSecondary,
@@ -190,10 +212,25 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     gap: spacing.md,
   },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: -spacing.lg,
+  },
   identityRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+  },
+  identityIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceInput,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
   identityText: {
     flex: 1,

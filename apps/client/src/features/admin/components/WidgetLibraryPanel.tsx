@@ -36,7 +36,7 @@ export function WidgetLibraryPanel({
   return (
     <View style={styles.panel}>
       <View style={styles.searchRow}>
-        <AppIcon name="settings" size="sm" color="textSecondary" />
+        <AppIcon name="search" size="sm" color="textSecondary" />
         <TextInput
           style={styles.searchInput}
           value={search}

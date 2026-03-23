@@ -256,6 +256,8 @@ const styles = StyleSheet.create({
   canvasBody: {
     flex: 1,
     position: "relative",
+    padding: spacing.sm,
+    backgroundColor: "#050709",
   },
   canvasBodyDragOver: {
     borderWidth: 2,

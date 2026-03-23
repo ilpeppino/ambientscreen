@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { FeatureFlagKey, WidgetInstance } from "@ambient/shared-contracts";
+import { AppIcon } from "../../../shared/ui/components";
 import { InlineStatusBadge, ManagementActionButton } from "../../../shared/ui/management";
 import { colors, spacing, typography } from "../../../shared/ui/theme";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
@@ -43,7 +44,10 @@ export function WidgetSidebar({
     <View style={styles.sidebar}>
       {/* Widget Library */}
       <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Widget Library</Text>
+        <View style={styles.panelTitleRow}>
+          <AppIcon name="grid" size="sm" color="textSecondary" />
+          <Text style={styles.panelTitle}>Widget Library</Text>
+        </View>
         {plan === "free" ? (
           <ManagementActionButton
             label="Upgrade"
@@ -70,7 +74,10 @@ export function WidgetSidebar({
 
       {/* Properties Inspector */}
       <View style={styles.panelHeader}>
-        <Text style={styles.panelTitle}>Properties</Text>
+        <View style={styles.panelTitleRow}>
+          <AppIcon name="settings" size="sm" color="textSecondary" />
+          <Text style={styles.panelTitle}>Properties</Text>
+        </View>
         {selectedWidget ? (
           <Text style={styles.panelSubtitle}>{selectedWidget.widgetKey}</Text>
         ) : null}
@@ -107,6 +114,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
     minHeight: 44,
+  },
+  panelTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
   },
   panelTitle: {
     ...typography.small,

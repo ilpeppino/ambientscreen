@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { AppIcon } from "../../../shared/ui/components";
 import { InlineStatusBadge } from "../../../shared/ui/management";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 
@@ -32,25 +33,32 @@ export function AdminTopBar({
           tone={plan === "pro" ? "premium" : "neutral"}
           icon={plan === "pro" ? "star" : "grid"}
         />
+        <View style={styles.separator} />
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Marketplace"
           style={styles.actionButton}
           onPress={onEnterMarketplace}
         >
+          <AppIcon name="star" size="sm" color="textSecondary" />
           <Text style={styles.actionLabel}>Marketplace</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Display Mode"
           style={[styles.actionButton, styles.actionButtonPrimary]}
           onPress={onEnterDisplayMode}
         >
+          <AppIcon name="grid" size="sm" color="statusInfoText" />
           <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Display</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Settings"
           style={styles.settingsButton}
           onPress={onOpenSettings}
         >
+          <AppIcon name="settings" size="sm" color="textPrimary" />
           <Text style={styles.settingsLabel}>Settings</Text>
         </Pressable>
       </View>
@@ -95,7 +103,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.sm,
   },
+  separator: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.xs,
+  },
   actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderWidth: 1,
@@ -116,6 +133,9 @@ const styles = StyleSheet.create({
     color: colors.statusInfoText,
   },
   settingsButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
     paddingHorizontal: spacing.md,
     paddingVertical: 7,
     borderWidth: 1,
