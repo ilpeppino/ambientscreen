@@ -105,8 +105,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   title: {
-    fontSize: 24,
-    fontWeight: "700",
+    ...typography.titleLg,
     color: colors.textOnLight,
   },
   input: {
@@ -123,10 +122,10 @@ const styles = StyleSheet.create({
     marginTop: 6,
     color: colors.accentTeal,
     textAlign: "center",
-    fontWeight: "600",
+    ...typography.titleSm,
   },
   error: {
     color: colors.errorStrong,
-    fontSize: typography.label.fontSize,
+    ...typography.body,
   },
 });

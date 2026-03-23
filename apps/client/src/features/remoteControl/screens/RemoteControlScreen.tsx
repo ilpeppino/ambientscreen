@@ -251,7 +251,6 @@ const styles = StyleSheet.create({
   },
   toggleLabel: {
     color: colors.textPrimary,
-    fontSize: typography.small.fontSize,
-    fontWeight: "600",
+    ...typography.titleSm,
   },
 });

@@ -4,7 +4,7 @@ import type {
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
 import { Text } from "../../shared/ui/components";
-import { colors, spacing } from "../../shared/ui/theme";
+import { colors, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
 export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDate">) {
@@ -25,8 +25,8 @@ export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDat
         style={[
           styles.time,
           {
-            fontSize: Math.round(112 * scale),
-            lineHeight: Math.round(118 * scale),
+            fontSize: Math.round(typography.displayLg.fontSize * scale),
+            lineHeight: Math.round((typography.displayLg.lineHeight ?? typography.displayLg.fontSize) * scale),
           },
         ]}
         adjustsFontSizeToFit
@@ -37,12 +37,12 @@ export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDat
       </Text>
       <View style={styles.metaGroup}>
         {data?.weekdayLabel ? (
-          <Text style={[styles.weekday, { fontSize: Math.round(28 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          <Text style={[styles.weekday, { fontSize: Math.round(typography.titleLg.fontSize * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {data.weekdayLabel}
           </Text>
         ) : null}
         {data?.formattedDate ? (
-          <Text style={[styles.date, { fontSize: Math.round(24 * scale), lineHeight: Math.round(30 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+          <Text style={[styles.date, { fontSize: Math.round(typography.titleMd.fontSize * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {data.formattedDate}
           </Text>
         ) : null}
@@ -62,12 +62,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   time: {
-    fontSize: 112,
-    fontWeight: "700",
+    ...typography.displayLg,
     color: colors.textPrimary,
     letterSpacing: 0.8,
     textAlign: "center",
-    lineHeight: 118,
   },
   metaGroup: {
     marginTop: spacing.md,
@@ -75,16 +73,15 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   weekday: {
-    fontSize: 28,
+    ...typography.titleLg,
     color: colors.textPrimary,
     letterSpacing: 1.5,
     textTransform: "uppercase",
     textAlign: "center",
   },
   date: {
-    fontSize: 24,
+    ...typography.titleMd,
     color: colors.textSecondary,
-    lineHeight: 30,
     textAlign: "center",
   },
 });

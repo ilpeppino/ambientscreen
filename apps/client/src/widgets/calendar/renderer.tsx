@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import type { WidgetRendererProps } from "@ambient/shared-contracts";
 import { AppIcon, Text } from "../../shared/ui/components";
-import { colors, radius, spacing } from "../../shared/ui/theme";
+import { colors, radius, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
 const MAX_VISIBLE_EVENTS = 3;
@@ -28,8 +28,7 @@ export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar"
         style={[
           styles.count,
           {
-            fontSize: Math.round(40 * scale),
-            lineHeight: Math.round(46 * scale),
+            fontSize: Math.round(typography.displaySm.fontSize * scale),
           },
         ]}
         adjustsFontSizeToFit
@@ -41,17 +40,17 @@ export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar"
       <View style={styles.eventsList}>
         {visibleEvents.map((event) => (
           <View key={event.id} style={styles.eventRow}>
-            <Text style={[styles.eventTitle, { fontSize: Math.round(22 * scale), lineHeight: Math.round(28 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            <Text style={[styles.eventTitle, { fontSize: Math.round(typography.titleMd.fontSize * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
               {event.title}
             </Text>
             <View style={styles.metaRow}>
               <AppIcon name="clock" size="sm" color="textSecondary" />
-              <Text style={[styles.eventMeta, { fontSize: Math.round(17 * scale), lineHeight: Math.round(22 * scale) }]} numberOfLines={1}>
+              <Text style={[styles.eventMeta, { fontSize: Math.round(typography.titleSm.fontSize * scale) }]} numberOfLines={1}>
                 {formatEventTime(event.startIso, event.allDay)}
               </Text>
             </View>
             {event.location ? (
-              <Text style={[styles.eventMeta, { fontSize: Math.round(17 * scale), lineHeight: Math.round(22 * scale) }]} numberOfLines={1}>
+              <Text style={[styles.eventMeta, { fontSize: Math.round(typography.titleSm.fontSize * scale) }]} numberOfLines={1}>
                 {event.location}
               </Text>
             ) : null}
@@ -74,9 +73,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   count: {
-    fontSize: 40,
-    lineHeight: 46,
-    fontWeight: "700",
+    ...typography.displaySm,
     color: colors.textPrimary,
     textAlign: "center",
   },
@@ -100,24 +97,20 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   eventTitle: {
-    fontSize: 22,
-    lineHeight: 28,
+    ...typography.titleMd,
     color: colors.textPrimary,
-    fontWeight: "600",
     textAlign: "center",
     maxWidth: "100%",
   },
   eventMeta: {
-    fontSize: 17,
-    lineHeight: 22,
+    ...typography.titleSm,
     color: colors.textSecondary,
     textAlign: "center",
     maxWidth: "100%",
   },
   moreLabel: {
     marginTop: spacing.xs,
-    fontSize: 14,
-    lineHeight: 20,
+    ...typography.body,
     color: colors.textSecondary,
     textAlign: "center",
   },
