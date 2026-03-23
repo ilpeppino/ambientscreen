@@ -17,7 +17,7 @@ import { WidgetState } from "../../../shared/ui/widgets";
 import { WidgetSkeleton } from "../../../shared/ui/Skeleton";
 import type { AnimatedItemPhase } from "../animations/transitionManager";
 import { renderWidgetFromKey } from "../../../widgets/pluginRegistry";
-import { computeWidgetScale, getWidgetErrorLabel } from "./WidgetContainer.logic";
+import { getWidgetErrorLabel } from "./WidgetContainer.logic";
 import {
   applyDragDelta,
   applyResizeDelta,
@@ -42,6 +42,8 @@ interface WidgetContainerProps {
   onOpenWidgetSettings?: (widgetId: string) => void;
 }
 
+const DEBUG_WIDGET_BOUNDS = process.env.EXPO_PUBLIC_DEBUG_WIDGET_BOUNDS === "1";
+
 function clampValue(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(value, max));
 }
@@ -63,7 +65,6 @@ function WidgetContainerBase({
   const height = typeof frame.height === "number" ? frame.height : 0;
   const left = typeof frame.left === "number" ? frame.left : 0;
   const top = typeof frame.top === "number" ? frame.top : 0;
-  const scale = computeWidgetScale(width, height);
 
   const [snapLabel, setSnapLabel] = useState<string | null>(null);
 
@@ -266,34 +267,34 @@ function WidgetContainerBase({
       );
     }
 
-    if (widget.state === "empty") {
+    const rendered = renderWidgetFromKey(widget.widgetKey, {
+      widgetInstanceId: widget.widgetInstanceId,
+      state: widget.state,
+      data: widget.data,
+      config: widget.config,
+      meta: widget.meta,
+    });
+
+    if (!rendered) {
       return (
         <View style={styles.centered}>
-          <WidgetState type="empty" compact message="No data available" />
+          {widget.state === "empty" ? (
+            <WidgetState type="empty" compact message="No data available" />
+          ) : (
+            <Text variant="caption" color="textSecondary">
+              Unsupported widget plugin
+            </Text>
+          )}
         </View>
       );
     }
 
     return (
       <View style={styles.readyViewport}>
-        <View style={[styles.readyCanvas, { transform: [{ scale }] }]}> 
-          {renderWidgetFromKey(widget.widgetKey, {
-            widgetInstanceId: widget.widgetInstanceId,
-            state: widget.state,
-            data: widget.data,
-            config: widget.config,
-            meta: widget.meta,
-          }) ?? (
-            <View style={styles.centered}>
-              <Text variant="caption" color="textSecondary">
-                Unsupported widget plugin
-              </Text>
-            </View>
-          )}
-        </View>
+        {rendered}
       </View>
     );
-  }, [scale, widget]);
+  }, [widget]);
 
   const AnimatedView = Animated.View as unknown as React.ComponentType<any>;
 
@@ -302,6 +303,7 @@ function WidgetContainerBase({
       <AnimatedView
         style={[
           styles.container,
+          DEBUG_WIDGET_BOUNDS ? styles.debugOuterContainer : null,
           frameStyle,
           animatedContainerStyle,
           editMode ? styles.editModeContainer : null,
@@ -309,11 +311,11 @@ function WidgetContainerBase({
           editMode && hasSelectedWidget && isSelected === false ? styles.secondaryInEditMode : null,
         ] as any}
       >
-        <AnimatedView style={animatedContentStyle}>
+        <AnimatedView style={[styles.contentLayer, animatedContentStyle]}>
           <Pressable
             accessibilityRole={editMode ? "button" : undefined}
             disabled={editMode === false}
-            style={styles.contentPressArea}
+            style={[styles.contentPressArea, DEBUG_WIDGET_BOUNDS ? styles.debugPressArea : null]}
             onPress={() => {
               if (editMode && onSelectWidget) {
                 onSelectWidget(widget.widgetInstanceId);
@@ -381,6 +383,21 @@ const styles = StyleSheet.create({
   },
   contentPressArea: {
     flex: 1,
+    minHeight: 0,
+    overflow: "hidden",
+  },
+  contentLayer: {
+    flex: 1,
+    minHeight: 0,
+    overflow: "hidden",
+  },
+  debugOuterContainer: {
+    borderColor: "#FF4D4D",
+    borderWidth: 1,
+  },
+  debugPressArea: {
+    borderColor: "#4DA3FF",
+    borderWidth: 1,
   },
   editModeContainer: {
     borderColor: `${colors.textSecondary}CC`,
@@ -395,18 +412,13 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
+    minHeight: 0,
     alignItems: "center",
     justifyContent: "center",
   },
   readyViewport: {
     flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  readyCanvas: {
-    width: 640,
-    height: 360,
+    minHeight: 0,
   },
   resizeHandle: {
     position: "absolute",

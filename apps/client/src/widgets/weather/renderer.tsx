@@ -1,15 +1,28 @@
 import React from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
 import type { WidgetRendererProps } from "@ambient/shared-contracts";
 import { AppIcon, Text } from "../../shared/ui/components";
 import { colors, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
 export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">) {
-  const { width } = useWindowDimensions();
-  const scale = clamp(width / 1280, 0.55, 1);
+  const [contentSize, setContentSize] = React.useState({ width: 260, height: 160 });
+  const scale = clamp(
+    Math.min(contentSize.width / 300, contentSize.height / 190),
+    0.5,
+    1,
+  );
+  const compact = contentSize.height < 145;
+
   const hasData = data !== null
     && (data.temperatureC !== null || Boolean(data.conditionLabel) || Boolean(data.location));
+
+  function handleContentLayout(event: LayoutChangeEvent) {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setContentSize({ width, height });
+    }
+  }
 
   return (
     <BaseWidgetFrame
@@ -18,34 +31,42 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
       state={state}
       hasData={hasData}
       emptyMessage="No weather data was returned."
-      contentStyle={styles.content}
+      surfaceStyle={styles.surfaceFrame}
+      contentStyle={styles.contentFrame}
+      onContentLayout={handleContentLayout}
     >
       <View style={styles.heroRow}>
-        <AppIcon name="weather" size="xl" color="textSecondary" />
+        <AppIcon name="weather" size="lg" color="textSecondary" />
         <View style={styles.temperatureGroup}>
           <Text
-            style={[
-              styles.temperature,
-              {
-                fontSize: Math.round(typography.displayLg.fontSize * scale),
-                lineHeight: Math.round((typography.displayLg.lineHeight ?? typography.displayLg.fontSize) * scale),
-              },
-            ]}
+            style={[styles.temperature, { fontSize: Math.round(50 * scale), lineHeight: Math.round(52 * scale) }]}
             adjustsFontSizeToFit
             numberOfLines={1}
-            minimumFontScale={0.55}
+            minimumFontScale={0.45}
           >
             {data?.temperatureC === null ? "--" : data?.temperatureC}
           </Text>
-          <Text style={[styles.temperatureUnit, { fontSize: Math.round(typography.titleMd.fontSize * scale) }]}>C</Text>
+          <Text style={[styles.temperatureUnit, { fontSize: Math.round(16 * scale) }]}>C</Text>
         </View>
       </View>
-      <Text style={[styles.location, { fontSize: Math.round(typography.titleMd.fontSize * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+      <Text
+        style={[styles.location, { fontSize: Math.round(14 * scale) }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+      >
         {data?.location ?? "Unknown location"}
       </Text>
-      <Text style={[styles.condition, { fontSize: Math.round(typography.titleLg.fontSize * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
-        {data?.conditionLabel ?? "No condition available"}
-      </Text>
+      {!compact ? (
+        <Text
+          style={[styles.condition, { fontSize: Math.round(16 * scale) }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
+          {data?.conditionLabel ?? "No condition available"}
+        </Text>
+      ) : null}
     </BaseWidgetFrame>
   );
 }
@@ -55,43 +76,56 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 const styles = StyleSheet.create({
-  content: {
+  surfaceFrame: {
+    flex: 1,
+    width: "100%",
+    alignSelf: "stretch",
+  },
+  contentFrame: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
   heroRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.lg,
+    gap: spacing.sm,
+    maxWidth: "100%",
   },
   temperatureGroup: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: spacing.xs,
+    maxWidth: "100%",
   },
   location: {
-    marginTop: spacing.md,
-    ...typography.titleMd,
+    marginTop: spacing.sm,
+    ...typography.body,
     color: colors.textSecondary,
     textAlign: "center",
+    maxWidth: "100%",
   },
   temperature: {
-    ...typography.displayLg,
+    fontSize: 42,
+    lineHeight: 44,
+    fontWeight: "700",
     color: colors.textPrimary,
-    letterSpacing: 0.8,
+    letterSpacing: 0.4,
     textAlign: "center",
   },
   temperatureUnit: {
-    marginTop: spacing.md,
-    ...typography.titleMd,
+    marginTop: spacing.sm,
+    fontSize: 16,
+    fontWeight: "600",
     color: colors.textSecondary,
   },
   condition: {
     marginTop: spacing.xs,
-    ...typography.titleLg,
+    ...typography.titleSm,
     color: colors.textPrimary,
     textAlign: "center",
+    maxWidth: "100%",
   },
 });
