@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "../../../shared/ui/overlays";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
+import { ErrorState } from "../../../shared/ui/ErrorState";
 import {
   WidgetHeader,
   WidgetState,
@@ -586,9 +587,9 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         {content}
       </DisplayFrame>
       {profilesError || sharedSessionError ? (
-        <Text
+        <View
           style={[
-            styles.profileError,
+            styles.profileErrorContainer,
             {
               bottom: insets.bottom + 10,
               left: Math.max(insets.left, 0) + 18,
@@ -596,8 +597,15 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             },
           ]}
         >
-          {profilesError ?? sharedSessionError}
-        </Text>
+          <ErrorState
+            compact
+            message={profilesError ?? sharedSessionError ?? "Failed to load screen data"}
+            onRetry={() => {
+              void loadDisplayLayout(false);
+              void refreshSharedSessions();
+            }}
+          />
+        </View>
       ) : null}
       {settingsWidget ? (
         <WidgetSettingsModal
@@ -710,11 +718,8 @@ const styles = StyleSheet.create({
     fontSize: typography.small.fontSize,
     letterSpacing: 0.4,
   },
-  profileError: {
+  profileErrorContainer: {
     position: "absolute",
-    color: colors.error,
-    fontSize: typography.caption.fontSize,
-    textAlign: "center",
   },
   layoutActionsContainer: {
     position: "absolute",

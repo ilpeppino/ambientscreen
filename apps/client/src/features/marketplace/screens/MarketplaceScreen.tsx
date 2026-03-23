@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "../../../shared/ui/components";
+import { ErrorState } from "../../../shared/ui/ErrorState";
 import {
   EmptyPanel,
   FilterChipItem,
@@ -200,13 +201,7 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
             ))}
           </View>
         ) : error ? (
-          <EmptyPanel
-            variant="error"
-            title="Unable to load marketplace"
-            message={error}
-            actionLabel="Retry"
-            onAction={refresh}
-          />
+          <ErrorState message={error} onRetry={refresh} />
         ) : visiblePlugins.length === 0 ? (
           <EmptyPanel
             title="No plugins found"

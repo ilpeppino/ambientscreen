@@ -11,6 +11,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import { AppIcon } from "../../../shared/ui/components";
 import { Text } from "../../../shared/ui/components/Text";
+import { ErrorState } from "../../../shared/ui/ErrorState";
 import { colors, motion, radius, shadows, spacing } from "../../../shared/ui/theme";
 import { WidgetState } from "../../../shared/ui/widgets";
 import { WidgetSkeleton } from "../../../shared/ui/Skeleton";
@@ -260,7 +261,7 @@ function WidgetContainerBase({
     if (widget.state === "error") {
       return (
         <View style={styles.centered}>
-          <WidgetState type="error" compact message={getWidgetErrorLabel(widget)} />
+          <ErrorState compact message={getWidgetErrorLabel(widget)} />
         </View>
       );
     }
