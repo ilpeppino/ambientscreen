@@ -3,22 +3,37 @@ import {
   Animated,
   AppState,
   BackHandler,
-  Easing,
   Pressable,
   StyleSheet,
-  Switch,
   Text,
   View,
 } from "react-native";
 import { ConfirmDialog } from "../../../shared/ui/overlays";
-import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
+import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
 import {
-  getDisplayLayout,
-  type DisplayLayoutWidgetEnvelope,
-  updateWidgetConfig,
-  updateWidgetsLayout,
-} from "../../../services/api/displayLayoutApi";
+  WidgetHeader,
+  WidgetState,
+  WidgetSurface,
+} from "../../../shared/ui/widgets";
+import {
+  getDisplayFrameModel,
+  getDisplayStatusModel,
+  shouldShowDisplayEditControls,
+} from "../displayScreen.logic";
+import { LayoutGrid } from "../components/LayoutGrid";
+import { EditModeHint } from "../components/EditModeHint";
+import { WidgetSettingsModal } from "../components/WidgetSettingsModal";
+import { shouldShowEditModeHint } from "../components/editMode.logic";
+import { getWidgetPlugin } from "../../../widgets/pluginRegistry";
+import { registerBuiltinWidgetPlugins } from "../../../widgets/registerBuiltinPlugins";
+import { useCloudProfiles } from "../../profiles/useCloudProfiles";
+import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
+import { useSharedScreenSession } from "../hooks/useSharedScreenSession";
+import { API_BASE_URL } from "../../../core/config/api";
+import { createOrchestrationEngine } from "../services/orchestrationEngine";
+import { subscribeRemoteCommands } from "../../remoteControl/services/remoteCommandBus";
+import { updateOrchestrationRule } from "../../../services/api/orchestrationRulesApi";
 import {
   disableDisplayKeepAwake,
   enableDisplayKeepAwake,
@@ -27,58 +42,19 @@ import {
   lockDisplayLandscape,
   unlockDisplayOrientation,
 } from "../services/orientation";
-import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
-import {
-  WidgetHeader,
-  WidgetState,
-  WidgetSurface,
-} from "../../../shared/ui/widgets";
-import {
-  getEffectivePollingIntervalMs,
-  getDisplayFrameModel,
-  getDisplayRefreshIntervalMs,
-  getDisplayStatusModel,
-  shouldShowDisplayEditControls,
-} from "../displayScreen.logic";
-import { LayoutGrid } from "../components/LayoutGrid";
-import { EditModeHint } from "../components/EditModeHint";
-import { WidgetSettingsModal } from "../components/WidgetSettingsModal";
+import { useDisplayData } from "../hooks/useDisplayData";
+import { useEditModeOps } from "../hooks/useEditMode";
+import { useSlideshowConfig } from "../hooks/useSlideshowConfig";
+import { useWidgetSettings } from "../hooks/useWidgetSettings";
+import { useDashboardTransition } from "../hooks/useDashboardTransition";
+import { DisplayEditPanel } from "../components/DisplayEditPanel";
 import { applyWidgetConfigUpdate } from "../components/WidgetSettingsModal.logic";
-import {
-  clampWidgetLayout,
-  normalizeWidgetLayouts,
-  resolveWidgetLayoutCollision,
-  type WidgetLayout,
-} from "../components/LayoutGrid.logic";
-import { shouldShowEditModeHint } from "../components/editMode.logic";
-import {
-  getWidgetPlugin,
-} from "../../../widgets/pluginRegistry";
-import { registerBuiltinWidgetPlugins } from "../../../widgets/registerBuiltinPlugins";
-import { useCloudProfiles } from "../../profiles/useCloudProfiles";
-import { useRealtimeDisplaySync } from "../hooks/useRealtimeDisplaySync";
-import { useSharedScreenSession } from "../hooks/useSharedScreenSession";
-import { API_BASE_URL } from "../../../core/config/api";
-import { createOrchestrationEngine } from "../services/orchestrationEngine";
-import {
-  createTransitionManager,
-  transitionPresets,
-  type TransitionType,
-} from "../animations/transitionManager";
-import {
-  createOrchestrationRule,
-  getOrchestrationRules,
-  updateOrchestrationRule,
-} from "../../../services/api/orchestrationRulesApi";
-import { subscribeRemoteCommands } from "../../remoteControl/services/remoteCommandBus";
 
 interface DisplayScreenProps {
   deviceId?: string | null;
   onExitDisplayMode?: () => void;
 }
 
-const FALLBACK_REFRESH_INTERVAL_MS = 30000;
-const DISPLAY_TRANSITION_TYPE: TransitionType = "fade";
 const WIDGET_TRANSITION_LIBRARY = "react-native Animated API";
 
 export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProps) {
@@ -90,39 +66,15 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     profilesError,
     activateProfile,
   } = useCloudProfiles();
-  const [widgets, setWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
-  const [draftLayoutsByWidgetId, setDraftLayoutsByWidgetId] = useState<Record<string, WidgetLayout>>({});
-  const [loadingLayout, setLoadingLayout] = useState(true);
-  const [savingLayout, setSavingLayout] = useState(false);
-  const [savingWidgetConfig, setSavingWidgetConfig] = useState(false);
+
   const [editMode, setEditMode] = useState(false);
-  const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
-  const [settingsWidgetId, setSettingsWidgetId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [widgetConfigError, setWidgetConfigError] = useState<string | null>(null);
-  const [slideshowEnabled, setSlideshowEnabled] = useState(false);
-  const [slideshowIntervalSecInput, setSlideshowIntervalSecInput] = useState("60");
-  const [slideshowProfileIds, setSlideshowProfileIds] = useState<string[]>([]);
-  const [slideshowRuleId, setSlideshowRuleId] = useState<string | null>(null);
-  const [slideshowSaveError, setSlideshowSaveError] = useState<string | null>(null);
-  const [savingSlideshow, setSavingSlideshow] = useState(false);
-  const [newSharedSessionName, setNewSharedSessionName] = useState("Main shared session");
   const [isAppActive, setIsAppActive] = useState(true);
   const [pendingExitDisplay, setPendingExitDisplay] = useState(false);
-  const [dashboardTransitionType] = useState<TransitionType>(DISPLAY_TRANSITION_TYPE);
-  const [renderedWidgets, setRenderedWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
-  const [outgoingWidgets, setOutgoingWidgets] = useState<DisplayLayoutWidgetEnvelope[] | null>(null);
-  const transitionManagerRef = useRef(createTransitionManager<DisplayLayoutWidgetEnvelope[]>({
-    transitionType: DISPLAY_TRANSITION_TYPE,
-    initialDashboard: [],
-  }));
-  const transitionPendingRef = useRef(false);
-  const dashboardTransitionAnimationRef = useRef<Animated.CompositeAnimation | null>(null);
-  const dashboardIncomingOpacity = useRef(new Animated.Value(1)).current;
-  const dashboardOutgoingOpacity = useRef(new Animated.Value(0)).current;
-  const dashboardIncomingSlide = useRef(new Animated.Value(0)).current;
+  const [newSharedSessionName, setNewSharedSessionName] = useState("Main shared session");
+
   const fallbackDeviceIdRef = useRef(`display-${Math.random().toString(36).slice(2, 10)}`);
   const effectiveDeviceId = deviceId ?? fallbackDeviceIdRef.current;
+  const markTransitionPendingRef = useRef(() => undefined as void);
 
   const {
     availableSessions,
@@ -141,6 +93,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     deviceId: effectiveDeviceId,
     displayName: "Display device",
   });
+
   const isSharedMode = sharedSession !== null;
   const effectiveActiveProfileId = isSharedMode ? sharedSession.activeProfileId : activeProfileId;
 
@@ -149,93 +102,36 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
       return;
     }
 
-    transitionPendingRef.current = true;
+    markTransitionPendingRef.current();
     await activateProfile(profileId);
   }, [activeProfileId, activateProfile]);
 
-  useEffect(() => {
-    enableDisplayKeepAwake();
-    lockDisplayLandscape();
+  const realtimeConnectionState = useRealtimeDisplaySync({
+    apiBaseUrl: API_BASE_URL,
+    activeProfileId: effectiveActiveProfileId,
+    enabled: !editMode,
+    onRefreshRequested: () => {
+      void displayData.loadDisplayLayout(false);
+    },
+  });
 
-    return () => {
-      disableDisplayKeepAwake();
-      unlockDisplayOrientation();
-    };
-  }, []);
+  const displayData = useDisplayData({
+    effectiveActiveProfileId,
+    editMode,
+    isAppActive,
+    realtimeConnectionState,
+  });
 
-  const refreshIntervalMs = useMemo(() => {
-    const intervals = widgets
-      .map((widget) => getDisplayRefreshIntervalMs(widget.widgetKey))
-      .filter((interval): interval is number => interval !== null);
-
-    if (intervals.length === 0) {
-      return FALLBACK_REFRESH_INTERVAL_MS;
-    }
-
-    return Math.min(...intervals);
-  }, [widgets]);
-
-  const loadDisplayLayout = useCallback(async (showInitialLoading: boolean) => {
-    if (!effectiveActiveProfileId) {
-      setWidgets([]);
-      setDraftLayoutsByWidgetId({});
-      setLoadingLayout(false);
-      return;
-    }
-
-    try {
-      if (showInitialLoading) {
-        setLoadingLayout(true);
-      }
-
-      const response = await getDisplayLayout(effectiveActiveProfileId);
-      const normalizedWidgets = withNormalizedLayouts(response.widgets);
-      setWidgets(normalizedWidgets);
-      setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(normalizedWidgets));
-      setError(null);
-      setWidgetConfigError(null);
-    } catch (err) {
-      console.error(err);
-      setError(toErrorMessage(err, "Failed to load display layout"));
-      if (showInitialLoading) {
-        setWidgets([]);
-      }
-    } finally {
-      if (showInitialLoading) {
-        setLoadingLayout(false);
-      }
-    }
-  }, [effectiveActiveProfileId]);
-
-  const loadDisplayLayoutRef = useRef(loadDisplayLayout);
-  loadDisplayLayoutRef.current = loadDisplayLayout;
-
-  const loadSlideshowConfiguration = useCallback(async () => {
-    if (isSharedMode) {
-      return;
-    }
-
-    try {
-      setSlideshowSaveError(null);
-      const rules = await getOrchestrationRules();
-      const rotationRule = rules.find((rule) => rule.type === "rotation") ?? null;
-      if (!rotationRule) {
-        setSlideshowRuleId(null);
-        setSlideshowEnabled(false);
-        setSlideshowIntervalSecInput("60");
-        setSlideshowProfileIds([]);
-        return;
-      }
-
-      setSlideshowRuleId(rotationRule.id);
-      setSlideshowEnabled(rotationRule.isActive);
-      setSlideshowIntervalSecInput(String(rotationRule.intervalSec));
-      setSlideshowProfileIds(rotationRule.rotationProfileIds);
-    } catch (error) {
-      console.error(error);
-      setSlideshowSaveError("Failed to load slideshow settings");
-    }
-  }, [isSharedMode]);
+  const {
+    widgets,
+    setWidgets,
+    loadingLayout,
+    error,
+    setError,
+    loadDisplayLayout,
+    loadDisplayLayoutRef,
+    saveWidgetLayouts,
+  } = displayData;
 
   const orchestrationEngineRef = useRef(
     createOrchestrationEngine({
@@ -248,46 +144,101 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     }),
   );
 
-  const realtimeConnectionState = useRealtimeDisplaySync({
-    apiBaseUrl: API_BASE_URL,
-    activeProfileId: effectiveActiveProfileId,
-    enabled: !editMode,
-    onRefreshRequested: () => {
-      void loadDisplayLayout(false);
+  const editOps = useEditModeOps({
+    editMode,
+    setEditMode,
+    widgets,
+    effectiveActiveProfileId,
+    saveWidgetLayouts,
+    onAfterSave: async () => {
+      await loadDisplayLayout(false);
     },
   });
 
-  const effectivePollingIntervalMs = useMemo(
-    () => getEffectivePollingIntervalMs(refreshIntervalMs, realtimeConnectionState),
-    [refreshIntervalMs, realtimeConnectionState],
-  );
+  const {
+    selectedWidgetId,
+    setSelectedWidgetId,
+    savingLayout,
+    layoutError,
+    setLayoutError,
+    hasLayoutChanges,
+    layoutWidgets,
+    handleToggleEditMode,
+    handleWidgetLayoutChange,
+    handleCancelLayout,
+    handleSaveLayout,
+  } = editOps;
 
+  const {
+    slideshowEnabled,
+    setSlideshowEnabled,
+    slideshowIntervalSecInput,
+    setSlideshowIntervalSecInput,
+    slideshowProfileIds,
+    slideshowRuleId,
+    slideshowSaveError,
+    savingSlideshow,
+    handleSaveSlideshow,
+    toggleSlideshowProfileId,
+  } = useSlideshowConfig({
+    isSharedMode,
+    profiles,
+    effectiveActiveProfileId,
+    patchCurrentSession,
+    sharedSessionSlideshowEnabled: sharedSession?.slideshowEnabled,
+    sharedSessionIntervalSec: sharedSession?.slideshowIntervalSec,
+    sharedSessionRotationProfileIds: sharedSession?.rotationProfileIds,
+    onAfterSave: async () => {
+      await orchestrationEngineRef.current.reload();
+    },
+  });
+
+  const widgetSettings = useWidgetSettings({
+    widgets,
+    effectiveActiveProfileId,
+    onAfterSave: async () => {
+      await loadDisplayLayout(false);
+    },
+    onWidgetConfigUpdated: (widgetInstanceId, config) => {
+      setWidgets((current) => applyWidgetConfigUpdate(current, widgetInstanceId, config));
+    },
+  });
+
+  const {
+    settingsWidgetId,
+    settingsWidget,
+    savingWidgetConfig,
+    widgetConfigError,
+    setWidgetConfigError,
+    handleOpenWidgetSettings,
+    handleCloseWidgetSettings,
+    handleSaveWidgetConfig,
+  } = widgetSettings;
+
+  const {
+    renderedWidgets,
+    outgoingWidgets,
+    dashboardTransitionType,
+    dashboardIncomingOpacity,
+    dashboardOutgoingOpacity,
+    dashboardIncomingSlide,
+    markTransitionPending,
+  } = useDashboardTransition({ layoutWidgets, editMode, isAppActive });
+
+  markTransitionPendingRef.current = markTransitionPending;
+
+  // Keep screen awake and lock orientation while in display mode
   useEffect(() => {
-    if (profiles.length === 0 || isSharedMode) {
-      return;
-    }
+    enableDisplayKeepAwake();
+    lockDisplayLandscape();
 
-    void loadSlideshowConfiguration();
-  }, [isSharedMode, loadSlideshowConfiguration, profiles.length]);
+    return () => {
+      disableDisplayKeepAwake();
+      unlockDisplayOrientation();
+    };
+  }, []);
 
-  useEffect(() => {
-    if (!sharedSession) {
-      return;
-    }
-
-    setSlideshowEnabled(sharedSession.slideshowEnabled);
-    setSlideshowIntervalSecInput(String(sharedSession.slideshowIntervalSec));
-    setSlideshowProfileIds(sharedSession.rotationProfileIds);
-  }, [sharedSession]);
-
-  useEffect(() => {
-    const availableProfileIds = new Set(profiles.map((profile) => profile.id));
-    setSlideshowProfileIds((current) => current.filter((profileId) => availableProfileIds.has(profileId)));
-    if (profiles.length < 2) {
-      setSlideshowEnabled(false);
-    }
-  }, [profiles]);
-
+  // Track app foreground/background state
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
       setIsAppActive(nextState === "active");
@@ -298,31 +249,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     };
   }, []);
 
-  useEffect(() => {
-    transitionManagerRef.current.setTransitionType(dashboardTransitionType);
-  }, [dashboardTransitionType]);
-
-  const previousEffectiveProfileIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    const previousProfileId = previousEffectiveProfileIdRef.current;
-    if (previousProfileId && effectiveActiveProfileId && previousProfileId !== effectiveActiveProfileId) {
-      transitionPendingRef.current = true;
-    }
-    previousEffectiveProfileIdRef.current = effectiveActiveProfileId;
-  }, [effectiveActiveProfileId]);
-
-  useEffect(() => {
-    if (isAppActive) {
-      return;
-    }
-
-    transitionPendingRef.current = false;
-    dashboardTransitionAnimationRef.current?.stop();
-    dashboardTransitionAnimationRef.current = null;
-    transitionManagerRef.current.cancelDashboardTransition();
-    setOutgoingWidgets(null);
-  }, [isAppActive]);
-
+  // Log animation stack on mount
   useEffect(() => {
     console.info("[display] animation stack", {
       dashboardTransitionType,
@@ -330,38 +257,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     });
   }, [dashboardTransitionType]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function runInitialLoad() {
-      if (cancelled) {
-        return;
-      }
-
-      await loadDisplayLayout(true);
-    }
-
-    void runInitialLoad();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [effectiveActiveProfileId, loadDisplayLayout]);
-
-  useEffect(() => {
-    if (editMode || !isAppActive) {
-      return () => undefined;
-    }
-
-    const intervalId = setInterval(() => {
-      void loadDisplayLayout(false);
-    }, effectivePollingIntervalMs);
-
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [editMode, effectivePollingIntervalMs, isAppActive, loadDisplayLayout]);
-
+  // Orchestration engine lifecycle
   useEffect(() => {
     const orchestrationEngine = orchestrationEngineRef.current;
     if (!activeProfileId || isSharedMode || editMode || !isAppActive) {
@@ -375,6 +271,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     };
   }, [activeProfileId, editMode, isAppActive, isSharedMode]);
 
+  // Remote command subscription
   useEffect(() => {
     const unsubscribe = subscribeRemoteCommands((command) => {
       if (command.type === "REFRESH") {
@@ -391,25 +288,21 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
 
       setSlideshowEnabled(command.enabled);
       if (isSharedMode) {
-        void patchCurrentSession({
-          slideshowEnabled: command.enabled,
-        });
+        void patchCurrentSession({ slideshowEnabled: command.enabled });
         return;
       }
 
-      if (!slideshowRuleId) {
+      const ruleId = slideshowRuleId;
+      if (!ruleId) {
         return;
       }
 
       void (async () => {
         try {
-          await updateOrchestrationRule(slideshowRuleId, {
-            isActive: command.enabled,
-          });
+          await updateOrchestrationRule(ruleId, { isActive: command.enabled });
           await orchestrationEngineRef.current.reload();
         } catch (error) {
           console.error(error);
-          setSlideshowSaveError(toErrorMessage(error, "Failed to apply remote slideshow command"));
         }
       })();
     });
@@ -420,263 +313,11 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     loadDisplayLayout,
     patchCurrentSession,
     setActiveProfile,
+    setSlideshowEnabled,
     slideshowRuleId,
   ]);
 
-  const toggleSlideshowProfileId = useCallback((profileId: string) => {
-    setSlideshowProfileIds((current) => {
-      if (current.includes(profileId)) {
-        return current.filter((id) => id !== profileId);
-      }
-      return [...current, profileId];
-    });
-  }, []);
-
-  const handleSaveSlideshow = useCallback(async () => {
-    if (savingSlideshow) {
-      return;
-    }
-
-    try {
-      setSavingSlideshow(true);
-      setSlideshowSaveError(null);
-
-      if (isSharedMode) {
-        const parsedIntervalSec = Number.parseInt(slideshowIntervalSecInput.trim(), 10);
-        if (Number.isNaN(parsedIntervalSec) || parsedIntervalSec <= 0) {
-          setSlideshowSaveError("Slideshow interval must be a positive number");
-          return;
-        }
-
-        const normalizedProfileIds = slideshowEnabled ? slideshowProfileIds : [];
-        if (slideshowEnabled && normalizedProfileIds.length < 2) {
-          setSlideshowSaveError("Select at least two profiles for slideshow mode");
-          return;
-        }
-
-        await patchCurrentSession({
-          slideshowEnabled,
-          slideshowIntervalSec: parsedIntervalSec,
-          rotationProfileIds: normalizedProfileIds,
-          currentIndex: 0,
-          activeProfileId: normalizedProfileIds.length > 0
-            ? normalizedProfileIds[0]
-            : effectiveActiveProfileId,
-        });
-        return;
-      }
-
-      if (!slideshowEnabled) {
-        if (!slideshowRuleId) {
-          return;
-        }
-
-        await updateOrchestrationRule(slideshowRuleId, {
-          isActive: false,
-        });
-      } else {
-        const parsedIntervalSec = Number.parseInt(slideshowIntervalSecInput.trim(), 10);
-        if (Number.isNaN(parsedIntervalSec) || parsedIntervalSec <= 0) {
-          setSlideshowSaveError("Slideshow interval must be a positive number");
-          return;
-        }
-
-        if (slideshowProfileIds.length < 2) {
-          setSlideshowSaveError("Select at least two profiles for slideshow mode");
-          return;
-        }
-
-        if (!slideshowRuleId) {
-          const createdRule = await createOrchestrationRule({
-            type: "rotation",
-            intervalSec: parsedIntervalSec,
-            isActive: true,
-            rotationProfileIds: slideshowProfileIds,
-          });
-          setSlideshowRuleId(createdRule.id);
-        } else {
-          await updateOrchestrationRule(slideshowRuleId, {
-            type: "rotation",
-            intervalSec: parsedIntervalSec,
-            isActive: true,
-            rotationProfileIds: slideshowProfileIds,
-            currentIndex: 0,
-          });
-        }
-      }
-
-      await orchestrationEngineRef.current.reload();
-    } catch (error) {
-      console.error(error);
-      setSlideshowSaveError(toErrorMessage(error, "Failed to save slideshow settings"));
-    } finally {
-      setSavingSlideshow(false);
-    }
-  }, [
-    effectiveActiveProfileId,
-    isSharedMode,
-    patchCurrentSession,
-    savingSlideshow,
-    slideshowEnabled,
-    slideshowIntervalSecInput,
-    slideshowProfileIds,
-    slideshowRuleId,
-  ]);
-
-  const layoutWidgets = useMemo<DisplayLayoutWidgetEnvelope[]>(() => {
-    if (!editMode) {
-      return widgets;
-    }
-
-    return widgets.map((widget) => ({
-      ...widget,
-      layout: draftLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
-    }));
-  }, [draftLayoutsByWidgetId, editMode, widgets]);
-
-  useEffect(() => {
-    const transitionManager = transitionManagerRef.current;
-    const shouldAnimate = transitionPendingRef.current
-      && !editMode
-      && isAppActive
-      && dashboardTransitionType !== "none";
-
-    if (!shouldAnimate) {
-      const nextState = transitionManager.replaceDashboard(layoutWidgets);
-      setRenderedWidgets(nextState.currentDashboard ?? []);
-      setOutgoingWidgets(null);
-      transitionPendingRef.current = false;
-      dashboardTransitionAnimationRef.current?.stop();
-      dashboardTransitionAnimationRef.current = null;
-      return;
-    }
-
-    const nextState = transitionManager.beginDashboardTransition(layoutWidgets);
-    setRenderedWidgets(nextState.currentDashboard ?? []);
-
-    if (nextState.phase !== "animating" || !nextState.previousDashboard) {
-      setOutgoingWidgets(null);
-      transitionPendingRef.current = false;
-      return;
-    }
-
-    setOutgoingWidgets(nextState.previousDashboard);
-    transitionPendingRef.current = false;
-
-    dashboardTransitionAnimationRef.current?.stop();
-    const preset = transitionPresets[dashboardTransitionType];
-    dashboardIncomingOpacity.setValue(dashboardTransitionType === "fade" ? 0.72 : 0.78);
-    dashboardOutgoingOpacity.setValue(1);
-    dashboardIncomingSlide.setValue(dashboardTransitionType === "slide" ? 14 : 0);
-
-    const transitionId = nextState.transitionId;
-    dashboardTransitionAnimationRef.current = Animated.parallel([
-      Animated.timing(dashboardOutgoingOpacity, {
-        toValue: 0,
-        duration: preset.durationMs,
-        easing: Easing.inOut(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.timing(dashboardIncomingOpacity, {
-        toValue: 1,
-        duration: preset.durationMs,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(dashboardIncomingSlide, {
-        toValue: 0,
-        duration: preset.durationMs,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
-
-    dashboardTransitionAnimationRef.current.start(({ finished }) => {
-      if (!finished) {
-        return;
-      }
-
-      const completedState = transitionManager.completeDashboardTransition(transitionId);
-      setRenderedWidgets(completedState.currentDashboard ?? []);
-      setOutgoingWidgets(completedState.previousDashboard);
-    });
-  }, [
-    dashboardIncomingOpacity,
-    dashboardIncomingSlide,
-    dashboardOutgoingOpacity,
-    dashboardTransitionType,
-    editMode,
-    isAppActive,
-    layoutWidgets,
-  ]);
-
-  useEffect(() => () => {
-    dashboardTransitionAnimationRef.current?.stop();
-    dashboardTransitionAnimationRef.current = null;
-  }, []);
-
-  const hasLayoutChanges = useMemo(() => {
-    if (!editMode) {
-      return false;
-    }
-
-    return widgets.some((widget) => {
-      const draftLayout = draftLayoutsByWidgetId[widget.widgetInstanceId];
-      if (!draftLayout) {
-        return false;
-      }
-
-      return (
-        draftLayout.x !== widget.layout.x
-        || draftLayout.y !== widget.layout.y
-        || draftLayout.w !== widget.layout.w
-        || draftLayout.h !== widget.layout.h
-      );
-    });
-  }, [draftLayoutsByWidgetId, editMode, widgets]);
-
-  const handleToggleEditMode = useCallback(() => {
-    setError(null);
-    setWidgetConfigError(null);
-    setEditMode((current) => {
-      if (!current) {
-        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
-      } else {
-        setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
-        setSelectedWidgetId(null);
-        setSettingsWidgetId(null);
-      }
-
-      return !current;
-    });
-  }, [widgets]);
-
-  const handleWidgetLayoutChange = useCallback((widgetId: string, layout: WidgetLayout) => {
-    setDraftLayoutsByWidgetId((current) => {
-      const clampedLayout = clampWidgetLayout({ layout });
-      const resolvedLayout = resolveWidgetLayoutCollision({
-        widgetId,
-        proposedLayout: clampedLayout,
-        layoutsById: current,
-      });
-
-      return {
-        ...current,
-        [widgetId]: resolvedLayout,
-      };
-    });
-  }, []);
-
-  const handleCancelLayout = useCallback(() => {
-    setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(widgets));
-    setSelectedWidgetId(null);
-    setSettingsWidgetId(null);
-    setEditMode(false);
-    setError(null);
-    setWidgetConfigError(null);
-  }, [widgets]);
-
-  // Guard exit when in edit mode with unsaved layout changes.
+  // Guard exit when in edit mode with unsaved layout changes
   const handleExitDisplayRequest = useCallback(() => {
     if (editMode && hasLayoutChanges) {
       setPendingExitDisplay(true);
@@ -690,12 +331,12 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     onExitDisplayMode?.();
   }, [editMode, handleCancelLayout, hasLayoutChanges, onExitDisplayMode]);
 
-  // Android hardware back: close modal → cancel edit → exit display.
+  // Android hardware back: close modal → cancel edit → exit display
   useEffect(() => {
     const subscription = BackHandler.addEventListener("hardwareBackPress", () => {
       if (settingsWidgetId !== null && !savingWidgetConfig) {
-        setSettingsWidgetId(null);
         setWidgetConfigError(null);
+        widgetSettings.handleCloseWidgetSettings();
         return true;
       }
 
@@ -705,6 +346,8 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
       }
 
       if (editMode) {
+        setError(null);
+        setLayoutError(null);
         handleCancelLayout();
         return true;
       }
@@ -720,85 +363,24 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     return () => {
       subscription.remove();
     };
-  }, [editMode, handleCancelLayout, onExitDisplayMode, pendingExitDisplay, savingWidgetConfig, settingsWidgetId]);
-
-  const handleSaveLayout = useCallback(async () => {
-    if (!hasLayoutChanges || savingLayout) {
-      return;
-    }
-
-    try {
-      setSavingLayout(true);
-      setError(null);
-
-      await updateWidgetsLayout({
-        widgets: widgets.map((widget) => ({
-          id: widget.widgetInstanceId,
-          layout: clampWidgetLayout({
-            layout: draftLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
-          }),
-        })),
-      }, effectiveActiveProfileId ?? undefined);
-
-      await loadDisplayLayout(false);
-      setEditMode(false);
-      setSelectedWidgetId(null);
-    } catch (err) {
-      console.error(err);
-      setError(toErrorMessage(err, "Failed to save display layout"));
-    } finally {
-      setSavingLayout(false);
-    }
-  }, [draftLayoutsByWidgetId, hasLayoutChanges, loadDisplayLayout, savingLayout, widgets]);
-
-  const settingsWidget = useMemo(
-    () => widgets.find((widget) => widget.widgetInstanceId === settingsWidgetId) ?? null,
-    [settingsWidgetId, widgets],
-  );
-
-  const handleOpenWidgetSettings = useCallback((widgetId: string) => {
-    setWidgetConfigError(null);
-    setSettingsWidgetId(widgetId);
-    setSelectedWidgetId(widgetId);
-  }, []);
-
-  const handleCloseWidgetSettings = useCallback(() => {
-    if (savingWidgetConfig) {
-      return;
-    }
-
-    setWidgetConfigError(null);
-    setSettingsWidgetId(null);
-  }, [savingWidgetConfig]);
-
-  const handleSaveWidgetConfig = useCallback(async (config: Record<string, unknown>) => {
-    if (!settingsWidget) {
-      return;
-    }
-
-    try {
-      setSavingWidgetConfig(true);
-      setWidgetConfigError(null);
-      await updateWidgetConfig(settingsWidget.widgetInstanceId, { config }, effectiveActiveProfileId ?? undefined);
-
-      setWidgets((current) =>
-        applyWidgetConfigUpdate(current, settingsWidget.widgetInstanceId, config),
-      );
-
-      await loadDisplayLayout(false);
-      setSettingsWidgetId(null);
-    } catch (err) {
-      console.error(err);
-      setWidgetConfigError(toErrorMessage(err, "Failed to save widget settings"));
-    } finally {
-      setSavingWidgetConfig(false);
-    }
-  }, [loadDisplayLayout, settingsWidget]);
+  }, [
+    editMode,
+    handleCancelLayout,
+    onExitDisplayMode,
+    pendingExitDisplay,
+    savingWidgetConfig,
+    setError,
+    setLayoutError,
+    setWidgetConfigError,
+    settingsWidgetId,
+    widgetSettings,
+  ]);
 
   const frameModel = getDisplayFrameModel(undefined);
   const hasWidgets = renderedWidgets.length > 0;
   const hasAnyDashboardWidgets = hasWidgets || Boolean(outgoingWidgets?.length);
   const showEditControls = shouldShowDisplayEditControls(editMode);
+  const displayError = error ?? layoutError;
 
   const content = useMemo(() => {
     if (loadingLayout && !hasAnyDashboardWidgets) {
@@ -813,8 +395,8 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
       );
     }
 
-    if (!hasAnyDashboardWidgets && error) {
-      const model = getDisplayStatusModel("error", error);
+    if (!hasAnyDashboardWidgets && displayError) {
+      const model = getDisplayStatusModel("error", displayError);
       return (
         <DisplayStatusContent
           icon="close"
@@ -853,11 +435,11 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             editMode={editMode}
             selectedWidgetId={selectedWidgetId}
             onSelectWidget={setSelectedWidgetId}
-            onClearWidgetSelection={() => {
-              setSelectedWidgetId(null);
-            }}
+            onClearWidgetSelection={() => setSelectedWidgetId(null)}
             onWidgetLayoutChange={handleWidgetLayoutChange}
-            onOpenWidgetSettings={handleOpenWidgetSettings}
+            onOpenWidgetSettings={(widgetId) => {
+              handleOpenWidgetSettings(widgetId, setSelectedWidgetId);
+            }}
           />
         </Animated.View>
         {outgoingWidgets ? (
@@ -865,32 +447,29 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
             pointerEvents="none"
             style={[
               styles.dashboardLayer,
-              {
-                opacity: dashboardOutgoingOpacity,
-              },
+              { opacity: dashboardOutgoingOpacity },
             ]}
           >
             <LayoutGrid widgets={outgoingWidgets} />
           </Animated.View>
         ) : null}
-        <EditModeHint
-          visible={shouldShowEditModeHint(editMode, selectedWidgetId)}
-        />
+        <EditModeHint visible={shouldShowEditModeHint(editMode, selectedWidgetId)} />
       </View>
     );
   }, [
     dashboardIncomingOpacity,
     dashboardIncomingSlide,
     dashboardOutgoingOpacity,
+    displayError,
     editMode,
-    error,
+    handleOpenWidgetSettings,
     handleWidgetLayoutChange,
     hasAnyDashboardWidgets,
-    hasWidgets,
     loadingLayout,
     outgoingWidgets,
     renderedWidgets,
     selectedWidgetId,
+    setSelectedWidgetId,
   ]);
 
   return (
@@ -916,171 +495,50 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         />
       ) : null}
       {showEditControls ? (
-        <View style={styles.editModeButtonContainer}>
-          <WidgetSurface mode="edit" style={styles.sharedSessionPanel}>
-            <WidgetHeader mode="edit" icon="grid" title="Shared Session" />
-            <View style={styles.sharedSessionRow}>
-              <Text style={styles.sharedSessionLabel}>
-                {isSharedMode
-                  ? `Shared: ${sharedSession.name}`
-                  : "Shared session: off"}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                style={styles.sharedSessionRefreshButton}
-                onPress={() => {
-                  void refreshSharedSessions();
-                }}
-              >
-                <Text style={styles.sharedSessionRefreshLabel}>Refresh</Text>
-              </Pressable>
-              {isSharedMode ? (
-                <Pressable
-                  accessibilityRole="button"
-                  style={styles.sharedSessionLeaveButton}
-                  onPress={() => {
-                    void leaveCurrentSession();
-                  }}
-                >
-                  <Text style={styles.sharedSessionLeaveLabel}>Leave</Text>
-                </Pressable>
-              ) : null}
-            </View>
-            {!isSharedMode ? (
-              <View style={styles.sharedSessionRow}>
-                <AppTextInput
-                  value={newSharedSessionName}
-                  onChangeText={setNewSharedSessionName}
-                  inputStyle={styles.sharedSessionNameInput}
-                  placeholder="Session name"
-                  placeholderTextColor={colors.textSecondary}
-                />
-                <Pressable
-                  accessibilityRole="button"
-                  style={styles.sharedSessionCreateButton}
-                  onPress={() => {
-                    void createAndJoinSession(newSharedSessionName);
-                  }}
-                >
-                  <Text style={styles.sharedSessionCreateLabel}>Create & Join</Text>
-                </Pressable>
-              </View>
-            ) : null}
-            <View style={styles.sharedSessionSessionsRow}>
-              {availableSessions.map((session) => {
-                const selected = session.id === sharedSession?.id;
-                return (
-                  <Pressable
-                    key={session.id}
-                    accessibilityRole="button"
-                    style={[styles.sharedSessionChip, selected ? styles.sharedSessionChipActive : null]}
-                    onPress={() => {
-                      void joinSessionById(session.id);
-                    }}
-                  >
-                    <Text style={styles.sharedSessionChipLabel}>
-                      {session.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.sharedSessionMeta}>
-              Connection: {sharedSessionConnectionState}
-              {loadingSharedSessions || loadingSharedSessionState ? " • syncing..." : ""}
-            </Text>
-          </WidgetSurface>
-          <View style={styles.profileTabsRow}>
-            {profiles.map((profile) => {
-              const selected = profile.id === effectiveActiveProfileId;
-              return (
-                <Pressable
-                  key={profile.id}
-                  accessibilityRole="button"
-                  style={[styles.profileTab, selected ? styles.profileTabSelected : null]}
-                  onPress={() => {
-                    if (isSharedMode) {
-                      void patchCurrentSession({
-                        activeProfileId: profile.id,
-                      });
-                      return;
-                    }
-
-                    void setActiveProfile(profile.id);
-                  }}
-                >
-                  <Text style={[styles.profileTabLabel, selected ? styles.profileTabLabelSelected : null]}>
-                    {profile.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-          <WidgetSurface mode="edit" style={styles.slideshowPanel}>
-            <WidgetHeader mode="edit" icon="refresh" title="Slideshow" />
-            <View style={styles.slideshowRow}>
-              <Text style={styles.slideshowLabel}>Enabled</Text>
-              <Switch
-                value={slideshowEnabled}
-                onValueChange={setSlideshowEnabled}
-                disabled={profiles.length < 2}
-              />
-            </View>
-            <View style={styles.slideshowProfileRow}>
-              {profiles.map((profile) => {
-                const selected = slideshowProfileIds.includes(profile.id);
-                return (
-                  <Pressable
-                    key={`${profile.id}-slideshow`}
-                    accessibilityRole="button"
-                    style={[styles.slideshowProfileChip, selected ? styles.slideshowProfileChipSelected : null]}
-                    onPress={() => {
-                      toggleSlideshowProfileId(profile.id);
-                    }}
-                  >
-                    <Text style={[styles.slideshowProfileChipLabel, selected ? styles.slideshowProfileChipLabelSelected : null]}>
-                      {profile.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={styles.slideshowRow}>
-              <Text style={styles.slideshowLabel}>Interval (s)</Text>
-              <AppTextInput
-                value={slideshowIntervalSecInput}
-                onChangeText={setSlideshowIntervalSecInput}
-                keyboardType="numeric"
-                inputStyle={styles.slideshowIntervalInput}
-                placeholder="60"
-                placeholderTextColor={colors.textSecondary}
-              />
-              <Pressable
-                accessibilityRole="button"
-                style={[styles.slideshowSaveButton, savingSlideshow ? styles.slideshowSaveButtonDisabled : null]}
-                onPress={handleSaveSlideshow}
-                disabled={savingSlideshow}
-              >
-                <Text style={styles.slideshowSaveButtonLabel}>{savingSlideshow ? "Saving..." : "Save"}</Text>
-              </Pressable>
-            </View>
-            {slideshowSaveError ? <Text style={styles.slideshowError}>{slideshowSaveError}</Text> : null}
-          </WidgetSurface>
-          <Pressable
-            accessibilityRole="button"
-            style={[styles.editModeButton, editMode ? styles.editModeButtonActive : null]}
-            onPress={handleToggleEditMode}
-          >
-            <Text style={styles.editModeButtonLabel}>{editMode ? "Done Editing" : "Edit Layout"}</Text>
-          </Pressable>
-        </View>
+        <DisplayEditPanel
+          isSharedMode={isSharedMode}
+          sharedSession={sharedSession}
+          availableSessions={availableSessions}
+          sharedSessionConnectionState={sharedSessionConnectionState}
+          loadingSharedSessions={loadingSharedSessions}
+          loadingSharedSessionState={loadingSharedSessionState}
+          newSharedSessionName={newSharedSessionName}
+          setNewSharedSessionName={setNewSharedSessionName}
+          onRefreshSessions={() => void refreshSharedSessions()}
+          onCreateAndJoinSession={(name) => void createAndJoinSession(name)}
+          onJoinSessionById={(sessionId) => void joinSessionById(sessionId)}
+          onLeaveSession={() => void leaveCurrentSession()}
+          onPatchSession={(patch) => void patchCurrentSession(patch)}
+          profiles={profiles}
+          effectiveActiveProfileId={effectiveActiveProfileId}
+          onSetActiveProfile={(profileId) => void setActiveProfile(profileId)}
+          slideshowEnabled={slideshowEnabled}
+          setSlideshowEnabled={setSlideshowEnabled}
+          slideshowProfileIds={slideshowProfileIds}
+          slideshowIntervalSecInput={slideshowIntervalSecInput}
+          setSlideshowIntervalSecInput={setSlideshowIntervalSecInput}
+          slideshowSaveError={slideshowSaveError}
+          savingSlideshow={savingSlideshow}
+          onToggleSlideshowProfileId={toggleSlideshowProfileId}
+          onSaveSlideshow={() => void handleSaveSlideshow()}
+          editMode={editMode}
+          onToggleEditMode={handleToggleEditMode}
+        />
       ) : null}
       {showEditControls ? (
         <View style={styles.layoutActionsContainer}>
           <Pressable
             accessibilityRole="button"
             style={[styles.layoutActionButton, styles.layoutCancelButton]}
-            onPress={handleCancelLayout}
+            onPress={() => {
+              setError(null);
+              setLayoutError(null);
+              handleCancelLayout({
+                onCleared: () => {
+                  setWidgetConfigError(null);
+                },
+              });
+            }}
             disabled={savingLayout}
           >
             <Text style={styles.layoutActionLabel}>Cancel</Text>
@@ -1092,7 +550,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
               styles.layoutSaveButton,
               !hasLayoutChanges || savingLayout ? styles.layoutActionDisabled : null,
             ]}
-            onPress={handleSaveLayout}
+            onPress={() => void handleSaveLayout()}
             disabled={!hasLayoutChanges || savingLayout}
           >
             <Text style={styles.layoutActionLabel}>{savingLayout ? "Saving..." : "Save Layout"}</Text>
@@ -1129,6 +587,8 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         confirmTone="destructive"
         onConfirm={() => {
           setPendingExitDisplay(false);
+          setError(null);
+          setLayoutError(null);
           handleCancelLayout();
           onExitDisplayMode?.();
         }}
@@ -1196,8 +656,8 @@ const styles = StyleSheet.create({
   },
   hiddenEditTrigger: {
     position: "absolute",
-    left: 12,
-    top: 12,
+    left: spacing.md,
+    top: spacing.md,
     width: 60,
     height: 60,
     zIndex: 12,
@@ -1222,33 +682,6 @@ const styles = StyleSheet.create({
     fontSize: typography.small.fontSize,
     letterSpacing: 0.4,
   },
-  profileTabsRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginBottom: 10,
-    justifyContent: "flex-end",
-    flexWrap: "wrap",
-  },
-  profileTab: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 6,
-    backgroundColor: "rgba(0, 0, 0, 0.82)",
-  },
-  profileTabSelected: {
-    borderColor: colors.textPrimary,
-    backgroundColor: "rgba(30, 30, 30, 0.95)",
-  },
-  profileTabLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  profileTabLabelSelected: {
-    color: colors.textPrimary,
-  },
   profileError: {
     position: "absolute",
     bottom: 10,
@@ -1258,129 +691,10 @@ const styles = StyleSheet.create({
     fontSize: typography.caption.fontSize,
     textAlign: "center",
   },
-  editModeButtonContainer: {
-    position: "absolute",
-    top: 18,
-    right: 130,
-    zIndex: 20,
-  },
-  sharedSessionPanel: {
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.82)",
-    minWidth: 360,
-    marginBottom: spacing.sm,
-    gap: spacing.sm,
-  },
-  sharedSessionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  sharedSessionLabel: {
-    color: colors.textSecondary,
-    fontSize: typography.caption.fontSize,
-    fontWeight: "600",
-    flex: 1,
-  },
-  sharedSessionRefreshButton: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-  sharedSessionRefreshLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  sharedSessionLeaveButton: {
-    borderWidth: 1,
-    borderColor: colors.statusDangerBorder,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: "rgba(57, 16, 16, 0.92)",
-  },
-  sharedSessionLeaveLabel: {
-    color: colors.statusDangerText,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  sharedSessionNameInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    color: colors.textPrimary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    fontSize: typography.caption.fontSize,
-    backgroundColor: "rgba(9, 9, 9, 0.9)",
-  },
-  sharedSessionCreateButton: {
-    borderWidth: 1,
-    borderColor: colors.accentBlue,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: "rgba(12, 42, 66, 0.92)",
-  },
-  sharedSessionCreateLabel: {
-    color: colors.statusInfoText,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  sharedSessionSessionsRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  sharedSessionChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  sharedSessionChipActive: {
-    borderColor: colors.accentBlue,
-    backgroundColor: "rgba(18, 49, 76, 0.95)",
-  },
-  sharedSessionChipLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  sharedSessionMeta: {
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
-  editModeButton: {
-    marginTop: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.accentBlue,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    backgroundColor: "rgba(12, 30, 45, 0.9)",
-  },
-  editModeButtonActive: {
-    borderColor: colors.accentBlue,
-    backgroundColor: "rgba(20, 52, 82, 0.95)",
-  },
-  editModeButtonLabel: {
-    color: colors.statusInfoText,
-    fontSize: typography.caption.fontSize,
-    letterSpacing: 0.4,
-    fontWeight: "600",
-  },
   layoutActionsContainer: {
     position: "absolute",
     top: 18,
-    left: 20,
+    left: spacing.screenPadding,
     zIndex: 20,
     flexDirection: "row",
     gap: 10,
@@ -1408,110 +722,4 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     fontWeight: "600",
   },
-  slideshowPanel: {
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    padding: 10,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    minWidth: 360,
-  },
-  slideshowRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: spacing.sm,
-  },
-  slideshowLabel: {
-    color: colors.textSecondary,
-    fontSize: typography.caption.fontSize,
-    fontWeight: "600",
-  },
-  slideshowProfileRow: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    flexWrap: "wrap",
-    marginBottom: spacing.sm,
-  },
-  slideshowProfileChip: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  slideshowProfileChipSelected: {
-    borderColor: colors.accentBlue,
-    backgroundColor: "rgba(18, 49, 76, 0.95)",
-  },
-  slideshowProfileChipLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: "600",
-  },
-  slideshowProfileChipLabelSelected: {
-    color: colors.statusInfoText,
-  },
-  slideshowIntervalInput: {
-    width: 90,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.sm,
-    color: colors.textPrimary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    fontSize: typography.caption.fontSize,
-    backgroundColor: "rgba(9, 9, 9, 0.9)",
-  },
-  slideshowSaveButton: {
-    borderWidth: 1,
-    borderColor: colors.accentBlue,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    backgroundColor: "rgba(18, 49, 76, 0.95)",
-  },
-  slideshowSaveButtonDisabled: {
-    opacity: 0.6,
-  },
-  slideshowSaveButtonLabel: {
-    color: colors.statusInfoText,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  slideshowError: {
-    color: colors.error,
-    fontSize: 11,
-  },
 });
-
-function toErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-
-  return fallback;
-}
-
-function buildLayoutsByWidgetId(
-  widgets: DisplayLayoutWidgetEnvelope[],
-): Record<string, WidgetLayout> {
-  return widgets.reduce<Record<string, WidgetLayout>>((accumulator, widget) => {
-    accumulator[widget.widgetInstanceId] = widget.layout;
-    return accumulator;
-  }, {});
-}
-
-function withNormalizedLayouts(
-  widgets: DisplayLayoutWidgetEnvelope[],
-): DisplayLayoutWidgetEnvelope[] {
-  const orderedWidgetIds = widgets.map((widget) => widget.widgetInstanceId);
-  const normalizedLayoutsByWidgetId = normalizeWidgetLayouts({
-    layoutsById: buildLayoutsByWidgetId(widgets),
-    orderedWidgetIds,
-  });
-
-  return widgets.map((widget) => ({
-    ...widget,
-    layout: normalizedLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
-  }));
-}
