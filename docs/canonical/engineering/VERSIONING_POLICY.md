@@ -25,7 +25,7 @@ Priority order:
 ## Branch and Tag Flow
 - CI quality gates run on PRs and pushes to `main` (`ci-quality.yml`).
 - Release tag workflow runs when a PR is merged from `main` into `prd`.
-- Tags are created only after API and client quality jobs pass in that workflow.
+- Tags are created only after API (generate+migrate+typecheck+lint+test) and client (typecheck+lint+test) jobs pass in that workflow.
 
 ## Commit and PR Convention
 Allowed commit/PR types are aligned across:

@@ -28,7 +28,7 @@ Run from repo root unless noted.
 | Workflow | Trigger | Gate summary |
 |---|---|---|
 | `ci-quality.yml` | PR/push to `main` | API: generate prisma + migrate + typecheck + lint + test + build; Client: typecheck + lint + token check + test + web smoke build |
-| `tag-on-main-to-prd-merge.yml` | merged PR `main -> prd` | Re-runs API/client quality before semantic version tag creation |
+| `tag-on-main-to-prd-merge.yml` | merged PR `main -> prd` | Re-runs API generate+migrate+typecheck+lint+test and Client typecheck+lint+test before semantic version tag creation |
 | `pr-title-lint.yml` | PR title edits | Enforces conventional PR title types |
 | `secret-scan.yml` | push to `main`/`prd` | Gitleaks secret scan |
 

@@ -40,14 +40,14 @@ Active route groups:
 - `/auth`: register, login, logout
 - `/users`: self-only user reads + protected user create
 - `/profiles`: profile CRUD + activate
-- `/widgets`: widget CRUD/layout/config/active toggles
+- `/widgets`: widget CRUD + layout/config updates
 - `/widget-data`: widget envelope resolution
 - `/display-layout`: layout read
 - `/orchestration-rules`: orchestration CRUD
-- `/shared-sessions`: session CRUD + join/leave
+- `/shared-sessions`: session list/create/read/update + join/leave
 - `/devices`: register/heartbeat/list/rename/delete + remote command dispatch
 - `/entitlements`: current plan + feature map
-- `/plugins`: approved registry + installation endpoints
+- `/plugins`: approved catalog reads + install/uninstall/enable + admin metadata/version endpoints
 - `/me/plugins`: current user installations
 - `/developer/plugins`: author publishing endpoints
 - `/admin/plugins`: moderation endpoints (admin-only)
@@ -56,6 +56,7 @@ Active route groups:
 - HTTP routes are JWT-protected except explicit public auth/health routes.
 - Ownership checks are server-side and module-specific.
 - Auth routes and command/install paths use rate-limit middleware.
+- Plugin catalog endpoints are authenticated; admin-only plugin writes use explicit `isAdmin` guards.
 - Realtime handshake validates JWT from query token or bearer header.
 - Realtime subscription requests are ownership-validated before channel attach.
 
@@ -91,7 +92,9 @@ Current modes:
 
 ### Client Feature Areas
 - `features/auth`: login/register/session persistence.
+- `features/admin`: web-first editor and native admin management shell.
 - `features/display`: display runtime, widget layout/edit, orchestration, realtime sync.
+- `features/devices`: registration + heartbeat identity lifecycle.
 - `features/remoteControl`: outbound device command UX.
 - `features/marketplace`: plugin catalog/install UX.
 - `features/entitlements`: plan/feature gating context.
@@ -106,9 +109,10 @@ Current modes:
 - Shared contracts define plugin manifest/config/data envelope types.
 - API and client each register built-in widget plugins at startup.
 - Runtime plugin map is in-memory on both sides, keyed by `WidgetKey`.
+- Installation checks are enforced only for DB-registered marketplace plugins; built-in plugins are available by default.
 - Built-in keys currently in contracts: `clockDate`, `weather`, `calendar`.
 
 ## Known Implementation Gaps
 - Billing integration is placeholder-only (`modules/billing/billing.hooks.ts`).
 - Realtime fan-out is not horizontally scalable yet.
-- Dynamic external plugin code loading path is not explicit in canonical runtime flow and needs confirmation if planned for production.
+- Dynamic third-party plugin code execution is not implemented in runtime; current behavior is built-in plugin execution with DB-backed marketplace metadata/workflows.

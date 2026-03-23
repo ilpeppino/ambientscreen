@@ -24,7 +24,7 @@
 
 2. Marketplace/runtime consistency hardening.
 - Confirm and document runtime behavior for non-builtin plugin delivery.
-- Add explicit compatibility checks between installed plugins and widget runtime registry.
+- Add stricter compatibility validation between plugin manifests/config and widget runtime handling.
 
 3. Quality hardening.
 - Expand integration tests for critical API flows (auth, plugin installation, moderation, device commands).
