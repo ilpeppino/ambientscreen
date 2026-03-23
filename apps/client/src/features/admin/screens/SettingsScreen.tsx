@@ -15,11 +15,15 @@ import {
 } from "../../../shared/ui/management";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { DeviceCard } from "../../devices/DeviceCard";
-import type { Device } from "@ambient/shared-contracts";
+import type { Device, UserPlan } from "@ambient/shared-contracts";
 import type { Profile } from "@ambient/shared-contracts";
 
 interface SettingsScreenProps {
   onBack: () => void;
+
+  // Account & plan
+  plan: UserPlan;
+  onUpgradePress: () => void;
 
   // Profile management
   profiles: Profile[];
@@ -63,6 +67,8 @@ interface SettingsScreenProps {
 
 export function SettingsScreen({
   onBack,
+  plan,
+  onUpgradePress,
   profiles,
   activeProfileId,
   profileError,
@@ -105,6 +111,7 @@ export function SettingsScreen({
       <View style={styles.topBar}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Back to editor"
           style={styles.backButton}
           onPress={onBack}
         >
@@ -241,6 +248,40 @@ export function SettingsScreen({
           ) : null}
         </ManagementCard>
 
+        {/* Account & Plan */}
+        <ManagementCard
+          title="Account & Plan"
+          subtitle="Your current subscription and available features."
+          icon="star"
+          badges={
+            <InlineStatusBadge
+              label={plan === "pro" ? "Pro" : "Free"}
+              tone={plan === "pro" ? "success" : "info"}
+            />
+          }
+        >
+          <View style={styles.planRow}>
+            <Text style={styles.planName}>
+              {plan === "pro" ? "Pro Plan" : "Free Plan"}
+            </Text>
+            <Text style={styles.planDescription}>
+              {plan === "pro"
+                ? "You have access to all features including premium widgets."
+                : "Upgrade to Pro to unlock premium widgets and advanced features."}
+            </Text>
+          </View>
+          {plan !== "pro" ? (
+            <ActionRow>
+              <ManagementActionButton
+                label="Upgrade to Pro"
+                tone="primary"
+                icon="star"
+                onPress={onUpgradePress}
+              />
+            </ActionRow>
+          ) : null}
+        </ManagementCard>
+
         {/* Navigation */}
         <ManagementCard title="Navigation" subtitle="Switch product modes." icon="chevronRight">
           <ActionRow>
@@ -372,5 +413,18 @@ const styles = StyleSheet.create({
   },
   stack: {
     gap: 10,
+  },
+  planRow: {
+    gap: spacing.xs,
+  },
+  planName: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "700",
+  },
+  planDescription: {
+    ...typography.small,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
 });

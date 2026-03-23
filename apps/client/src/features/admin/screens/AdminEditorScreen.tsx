@@ -380,6 +380,8 @@ export function AdminEditorScreen({
       <>
         <SettingsScreen
           onBack={() => setIsSettingsOpen(false)}
+          plan={plan}
+          onUpgradePress={() => setUpgradeModalVisible(true)}
           profiles={profiles}
           activeProfileId={activeProfileId}
           profileError={profileError}
