@@ -7,11 +7,6 @@ import type {
 } from "@ambient/shared-contracts";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 
-interface ActiveWidgetCandidate {
-  id: string;
-  isActive: boolean;
-}
-
 export const CREATABLE_WIDGET_TYPES = Object.keys(widgetBuiltinDefinitions) as WidgetKey[];
 export type CreatableWidgetType = WidgetKey;
 export type WeatherUnit = "metric" | "imperial";
@@ -61,8 +56,3 @@ export function buildCreateWidgetInput(input: {
   };
 }
 
-export function selectAdminActiveWidget<TWidget extends ActiveWidgetCandidate>(
-  widgets: TWidget[],
-): TWidget | null {
-  return widgets.find((widget) => widget.isActive) ?? null;
-}

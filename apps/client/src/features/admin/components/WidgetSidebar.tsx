@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import type { FeatureFlagKey, WidgetInstance } from "@ambient/shared-contracts";
+import type { FeatureFlagKey } from "@ambient/shared-contracts";
 import { AppIcon } from "../../../shared/ui/components";
 import { InlineStatusBadge, ManagementActionButton } from "../../../shared/ui/management";
 import { colors, spacing, typography } from "../../../shared/ui/theme";
@@ -20,11 +20,6 @@ interface WidgetSidebarProps {
 
   // Properties panel
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
-  selectedWidgetInstance: WidgetInstance | null;
-  settingActiveWidgetId: string | null;
-  onSetActive: (widgetId: string) => void;
-  activeError: string | null;
-  onRetryActiveWidget: () => void;
 }
 
 export function WidgetSidebar({
@@ -34,11 +29,6 @@ export function WidgetSidebar({
   addingWidgetType,
   onAddWidget,
   selectedWidget,
-  selectedWidgetInstance,
-  settingActiveWidgetId,
-  onSetActive,
-  activeError,
-  onRetryActiveWidget,
 }: WidgetSidebarProps) {
   return (
     <View style={styles.sidebar}>
@@ -86,11 +76,6 @@ export function WidgetSidebar({
       <View style={styles.propertiesPanel}>
         <WidgetPropertiesPanel
           selectedWidget={selectedWidget}
-          selectedWidgetInstance={selectedWidgetInstance}
-          settingActiveWidgetId={settingActiveWidgetId}
-          onSetActive={onSetActive}
-          error={activeError}
-          onRetry={onRetryActiveWidget}
         />
       </View>
     </View>

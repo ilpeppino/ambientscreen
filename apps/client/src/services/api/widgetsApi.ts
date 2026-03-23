@@ -49,20 +49,3 @@ export async function createWidget(input: CreateWidgetInput, profileId?: string)
   return response.json();
 }
 
-export async function setActiveWidget(widgetId: string, profileId?: string): Promise<WidgetInstance> {
-  const searchParams = new URLSearchParams();
-  if (profileId) {
-    searchParams.set("profileId", profileId);
-  }
-  const url = `${API_BASE_URL}/widgets/${widgetId}/active${searchParams.size > 0 ? `?${searchParams.toString()}` : ""}`;
-  const response = await apiFetchWithTimeout(url, {
-    method: "PATCH"
-  }, WIDGETS_TIMEOUT_MS);
-
-  if (!response.ok) {
-    const message = await toApiErrorMessage(response);
-    throw new Error(`Failed to set active widget: ${message}`);
-  }
-
-  return response.json();
-}

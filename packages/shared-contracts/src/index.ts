@@ -127,7 +127,6 @@ export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
     w: number;
     h: number;
   };
-  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }

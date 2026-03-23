@@ -126,11 +126,6 @@ describe("WidgetLibraryPanel", () => {
 describe("WidgetPropertiesPanel", () => {
   const emptyProps = {
     selectedWidget: null,
-    selectedWidgetInstance: null,
-    settingActiveWidgetId: null,
-    onSetActive: vi.fn(),
-    error: null,
-    onRetry: vi.fn(),
   } as const;
 
   test("shows empty state when no widget is selected", () => {
@@ -156,9 +151,7 @@ describe("WidgetPropertiesPanel", () => {
 
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
-        ...emptyProps,
         selectedWidget: widget,
-        selectedWidgetInstance: null,
       }),
     );
 
@@ -167,45 +160,6 @@ describe("WidgetPropertiesPanel", () => {
     expect(texts.some((t) => String(t).includes("Clock"))).toBe(true);
     expect(texts.some((t) => String(t).includes("format"))).toBe(true);
     expect(texts.some((t) => String(t).includes("24h"))).toBe(true);
-  });
-
-  test("Set Active button is disabled when widget is already active", () => {
-    const widget = {
-      widgetInstanceId: "abc-123",
-      widgetKey: "clockDate" as const,
-      layout: { x: 0, y: 0, w: 4, h: 2 },
-      state: "ready" as const,
-      config: {},
-      configSchema: {},
-      data: null,
-      meta: { resolvedAt: "2026-01-01T00:00:00Z" },
-    };
-    const instance = {
-      id: "abc-123",
-      profileId: "p1",
-      type: "clockDate" as const,
-      config: {},
-      layout: { x: 0, y: 0, w: 4, h: 2 },
-      isActive: true,
-      createdAt: "2026-01-01T00:00:00Z",
-      updatedAt: "2026-01-01T00:00:00Z",
-    };
-
-    const tree = TestRenderer.create(
-      React.createElement(WidgetPropertiesPanel, {
-        ...emptyProps,
-        selectedWidget: widget,
-        selectedWidgetInstance: instance,
-      }),
-    );
-
-    // Find pressable buttons and verify the "Set Active" one is disabled
-    const pressables = tree.root.findAllByType("pressable" as any);
-    const setActiveBtn = pressables.find(
-      (p: { props: { accessibilityState?: { disabled?: boolean } } }) =>
-        p.props.accessibilityState?.disabled === true,
-    );
-    expect(setActiveBtn).toBeDefined();
   });
 });
 

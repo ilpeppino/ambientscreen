@@ -1,14 +1,7 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
-import type { WidgetInstance } from "@ambient/shared-contracts";
 import { AppIcon } from "../../../shared/ui/components";
-import { ErrorState } from "../../../shared/ui/ErrorState";
-import {
-  ActionRow,
-  InlineStatusBadge,
-  ManagementActionButton,
-} from "../../../shared/ui/management";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 
@@ -20,20 +13,10 @@ const WIDGET_ICON = {
 
 interface WidgetPropertiesPanelProps {
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
-  selectedWidgetInstance: WidgetInstance | null;
-  settingActiveWidgetId: string | null;
-  onSetActive: (widgetId: string) => void;
-  error: string | null;
-  onRetry: () => void;
 }
 
 export function WidgetPropertiesPanel({
   selectedWidget,
-  selectedWidgetInstance,
-  settingActiveWidgetId,
-  onSetActive,
-  error,
-  onRetry,
 }: WidgetPropertiesPanelProps) {
   if (!selectedWidget) {
     return (
@@ -52,8 +35,6 @@ export function WidgetPropertiesPanel({
   const manifest = widgetBuiltinDefinitions[selectedWidget.widgetKey]?.manifest;
   const widgetName = manifest?.name ?? selectedWidget.widgetKey;
   const iconName = WIDGET_ICON[selectedWidget.widgetKey] ?? "grid";
-  const isActive = selectedWidgetInstance?.isActive ?? false;
-  const isSettingActive = settingActiveWidgetId === selectedWidget.widgetInstanceId;
   const configEntries = Object.entries(selectedWidget.config).filter(
     ([, value]) => value !== null && value !== undefined && value !== "",
   );
@@ -75,11 +56,6 @@ export function WidgetPropertiesPanel({
             {selectedWidget.widgetInstanceId.slice(0, 12)}…
           </Text>
         </View>
-        <InlineStatusBadge
-          label={isActive ? "Active" : "Inactive"}
-          tone={isActive ? "success" : "neutral"}
-          icon={isActive ? "check" : "close"}
-        />
       </View>
 
       <View style={styles.divider} />
@@ -115,23 +91,6 @@ export function WidgetPropertiesPanel({
         </>
       ) : null}
 
-      <View style={styles.divider} />
-
-      {/* Actions */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Actions</Text>
-        <ActionRow>
-          <ManagementActionButton
-            label="Set Active"
-            tone="secondary"
-            disabled={isActive}
-            loading={isSettingActive}
-            onPress={() => onSetActive(selectedWidget.widgetInstanceId)}
-          />
-        </ActionRow>
-      </View>
-
-      {error ? <ErrorState compact message={error} onRetry={onRetry} /> : null}
     </ScrollView>
   );
 }
