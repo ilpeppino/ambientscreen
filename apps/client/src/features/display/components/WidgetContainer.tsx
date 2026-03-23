@@ -13,6 +13,7 @@ import { AppIcon } from "../../../shared/ui/components";
 import { Text } from "../../../shared/ui/components/Text";
 import { colors, radius, shadows, spacing } from "../../../shared/ui/theme";
 import { WidgetState } from "../../../shared/ui/widgets";
+import { WidgetSkeleton } from "../../../shared/ui/Skeleton";
 import type { AnimatedItemPhase } from "../animations/transitionManager";
 import { renderWidgetFromKey } from "../../../widgets/pluginRegistry";
 import { computeWidgetScale, getWidgetErrorLabel } from "./WidgetContainer.logic";
@@ -253,11 +254,7 @@ function WidgetContainerBase({
 
   const content = useMemo(() => {
     if (widget.state === "loading") {
-      return (
-        <View style={styles.centered}>
-          <WidgetState type="loading" compact message="Refreshing..." />
-        </View>
-      );
+      return <WidgetSkeleton />;
     }
 
     if (widget.state === "error") {

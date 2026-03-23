@@ -22,6 +22,7 @@ import {
 import type { MarketplaceFilter, MarketplacePlugin } from "../marketplace.types";
 import { PluginCard } from "../components/PluginCard";
 import { PluginDetailModal } from "../components/PluginDetailModal";
+import { CardSkeleton } from "../../../shared/ui/Skeleton";
 
 interface MarketplaceScreenProps {
   onBack: () => void;
@@ -190,11 +191,13 @@ export function MarketplaceScreen({ onBack }: MarketplaceScreenProps) {
         ) : null}
 
         {loading ? (
-          <EmptyPanel
-            variant="loading"
-            title="Loading marketplace"
-            message="Fetching available plugins and installation status."
-          />
+          <View style={styles.skeletonGrid}>
+            {Array.from({ length: columns * 2 }).map((_, i) => (
+              <View key={i} style={[styles.cardWrap, columns > 1 && styles.cardWrapMultiCol]}>
+                <CardSkeleton />
+              </View>
+            ))}
+          </View>
         ) : error ? (
           <EmptyPanel
             variant="error"
@@ -303,5 +306,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 6,
     marginBottom: spacing.md,
+  },
+  cardWrapMultiCol: {
+    flexBasis: "50%",
+    flexGrow: 0,
+  },
+  skeletonGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
 });
