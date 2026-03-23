@@ -7,6 +7,7 @@ import { ErrorState } from "../../../shared/ui/ErrorState";
 import { colors } from "../../../shared/ui/theme";
 import {
   createWidget,
+  deleteWidget,
 } from "../../../services/api/widgetsApi";
 import { updateWidgetConfig } from "../../../services/api/displayLayoutApi";
 import {
@@ -234,6 +235,23 @@ export function AdminEditorScreen({
     await loadDisplayLayout(false);
   }
 
+  async function handleRemoveWidgetFromCanvas(widgetId: string) {
+    if (!activeProfileId) return;
+    try {
+      setWidgetPlacementError(null);
+      await deleteWidget(widgetId, activeProfileId);
+      setSelectedWidgetId((current) => (current === widgetId ? null : current));
+      await loadDisplayLayout(false);
+    } catch (err) {
+      console.error("Failed to delete widget:", err);
+      setWidgetPlacementError(
+        err instanceof Error
+          ? err.message
+          : "Failed to delete widget. Please try again.",
+      );
+    }
+  }
+
   // ---- Profile actions ----
   async function handleCreateProfile() {
     const trimmedName = newProfileName.trim();
@@ -415,6 +433,7 @@ export function AdminEditorScreen({
           onSelectWidget={setSelectedWidgetId}
           onClearSelection={() => setSelectedWidgetId(null)}
           onWidgetLayoutChange={handleWidgetLayoutChange}
+          onRemoveWidget={(widgetId) => void handleRemoveWidgetFromCanvas(widgetId)}
           loadingLayout={loadingLayout}
           error={layoutLoadError}
           onRetry={() => void loadDisplayLayout(true)}

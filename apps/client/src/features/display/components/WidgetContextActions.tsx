@@ -42,9 +42,7 @@ function ActionButton({
 
 export function WidgetContextActions({
   visible,
-  onSettings,
   onRemove,
-  onDuplicate,
 }: WidgetContextActionsProps) {
   if (!visible) {
     return null;
@@ -52,8 +50,6 @@ export function WidgetContextActions({
 
   return (
     <View style={styles.row}>
-      <ActionButton icon="settings" label="Widget settings" onPress={onSettings} />
-      <ActionButton icon="plus" label="Duplicate widget" onPress={onDuplicate} />
       <ActionButton icon="trash" label="Remove widget" onPress={onRemove} />
     </View>
   );

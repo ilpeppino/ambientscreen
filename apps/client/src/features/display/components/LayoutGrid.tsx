@@ -27,6 +27,7 @@ interface LayoutGridProps {
   onClearWidgetSelection?: () => void;
   onWidgetLayoutChange?: (widgetId: string, layout: WidgetLayout) => void;
   onOpenWidgetSettings?: (widgetId: string) => void;
+  onRemoveWidget?: (widgetId: string) => void;
 }
 
 interface PositionedWidget {
@@ -42,6 +43,7 @@ export function LayoutGrid({
   onClearWidgetSelection,
   onWidgetLayoutChange,
   onOpenWidgetSettings,
+  onRemoveWidget,
 }: LayoutGridProps) {
   const windowDimensions = useWindowDimensions();
   const [containerSize, setContainerSize] = useState({
@@ -152,6 +154,7 @@ export function LayoutGrid({
           onSelectWidget={onSelectWidget}
           onWidgetLayoutChange={onWidgetLayoutChange}
           onOpenWidgetSettings={onOpenWidgetSettings}
+          onRemoveWidget={onRemoveWidget}
         />
       ))}
       <GridOverlay

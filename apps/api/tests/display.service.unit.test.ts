@@ -195,3 +195,28 @@ test("displayService continues when one resolver throws", async () => {
   expect(weatherWidget!.state).toBe("error");
   expect(weatherWidget!.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
 });
+
+test("displayService returns unsupported envelope for unknown widget type", async () => {
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => {
+    return [
+      {
+        id: "widget-unknown",
+        profileId: "user-1",
+        type: "legacyWidget",
+        config: { any: "value" },
+        layout: { x: 0, y: 0, w: 2, h: 1 },
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    ] as never;
+  });
+
+  const result = await displayService.getDisplayLayout("user-1");
+
+  expect(result.widgets.length).toBe(1);
+  expect(result.widgets[0].widgetInstanceId).toBe("widget-unknown");
+  expect(result.widgets[0].widgetKey).toBe("legacyWidget");
+  expect(result.widgets[0].state).toBe("error");
+  expect(result.widgets[0].meta.errorCode).toBe("UNSUPPORTED_WIDGET_TYPE");
+});
