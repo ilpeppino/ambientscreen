@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
@@ -18,21 +18,26 @@ import {
 } from "../../../services/api/devicesApi";
 import type { Device } from "@ambient/shared-contracts";
 import { useCloudProfiles } from "../../profiles/useCloudProfiles";
+import { useDisplayData } from "../../display/hooks/useDisplayData";
+import { useEditModeOps } from "../../display/hooks/useEditMode";
+import { useRealtimeDisplaySync } from "../../display/hooks/useRealtimeDisplaySync";
+import { registerBuiltinWidgetPlugins } from "../../../widgets/registerBuiltinPlugins";
+import { API_BASE_URL } from "../../../core/config/api";
 import {
   buildCreateWidgetInput,
-  CALENDAR_PROVIDERS,
-  CALENDAR_TIME_WINDOWS,
   type CalendarProvider,
   type CalendarTimeWindow,
   CREATABLE_WIDGET_TYPES,
   type CreatableWidgetType,
-  WEATHER_UNITS,
   type WeatherUnit,
 } from "../adminHome.logic";
 import { AdminTopBar } from "../components/AdminTopBar";
 import { DashboardCanvas } from "../components/DashboardCanvas";
 import { WidgetSidebar } from "../components/WidgetSidebar";
 import { SettingsScreen } from "./SettingsScreen";
+
+// Register widget renderers once for the canvas
+registerBuiltinWidgetPlugins();
 
 interface AdminEditorScreenProps {
   currentDeviceId: string | null;
@@ -43,9 +48,9 @@ interface AdminEditorScreenProps {
 }
 
 /**
- * Web-first admin editor shell.
- * Renders a canvas-centered layout with a widget sidebar and top bar.
- * Non-editor sections (profiles, devices, navigation) live in SettingsScreen.
+ * Web-first admin editor — Phase 2.
+ * Canvas-centered layout with live LayoutGrid, widget library sidebar,
+ * and a properties inspector that updates on widget selection.
  */
 export function AdminEditorScreen({
   currentDeviceId,
@@ -58,6 +63,7 @@ export function AdminEditorScreen({
   const [upgradeModalVisible, setUpgradeModalVisible] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Profile management
   const {
     profiles,
     activeProfileId,
@@ -68,7 +74,7 @@ export function AdminEditorScreen({
     deleteProfile,
   } = useCloudProfiles();
 
-  // Profile management state
+  // Profile management UI state
   const [newProfileName, setNewProfileName] = useState("");
   const [renameProfileName, setRenameProfileName] = useState("");
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -76,23 +82,6 @@ export function AdminEditorScreen({
   const [renamingProfile, setRenamingProfile] = useState(false);
   const [deletingProfile, setDeletingProfile] = useState(false);
   const [confirmDeleteProfile, setConfirmDeleteProfile] = useState(false);
-
-  // Widget state
-  const [widgets, setWidgets] = useState<WidgetInstance[]>([]);
-  const [selectedWidgetType, setSelectedWidgetType] = useState<CreatableWidgetType>(
-    CREATABLE_WIDGET_TYPES[0] ?? "clockDate",
-  );
-  const [weatherLocation, setWeatherLocation] = useState("Amsterdam");
-  const [weatherUnits, setWeatherUnits] = useState<WeatherUnit>("metric");
-  const [calendarProvider, setCalendarProvider] = useState<CalendarProvider>("ical");
-  const [calendarAccount, setCalendarAccount] = useState("");
-  const [calendarTimeWindow, setCalendarTimeWindow] = useState<CalendarTimeWindow>("next7d");
-  const [loading, setLoading] = useState(true);
-  const [creatingWidget, setCreatingWidget] = useState(false);
-  const [settingActiveWidgetId, setSettingActiveWidgetId] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [activeError, setActiveError] = useState<string | null>(null);
 
   // Device management state
   const [devices, setDevices] = useState<Device[]>([]);
@@ -103,34 +92,97 @@ export function AdminEditorScreen({
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [confirmDeleteDeviceId, setConfirmDeleteDeviceId] = useState<string | null>(null);
 
-  const loadWidgets = useCallback(
-    async (signal?: { cancelled: boolean }) => {
-      if (!activeProfileId) {
-        setWidgets([]);
-        setLoading(false);
-        return;
-      }
+  // Widget instances — needed for isActive status in properties panel
+  const [widgetInstances, setWidgetInstances] = useState<WidgetInstance[]>([]);
+  const [addingWidgetType, setAddingWidgetType] = useState<CreatableWidgetType | null>(null);
+  const [settingActiveWidgetId, setSettingActiveWidgetId] = useState<string | null>(null);
+  const [activeError, setActiveError] = useState<string | null>(null);
 
-      try {
-        setLoading(true);
-        setError(null);
-        const response = await getWidgets(activeProfileId);
-        if (signal?.cancelled) return;
-        setWidgets(response);
-      } catch (err) {
-        if (signal?.cancelled) return;
-        console.error(err);
-        setWidgets([]);
-        setError("Failed to load widgets");
-      } finally {
-        if (!signal?.cancelled) {
-          setLoading(false);
-        }
-      }
+  // ---- Canvas data ----
+  // Realtime sync keeps canvas fresh without blocking edit mode
+  const realtimeConnectionState = useRealtimeDisplaySync({
+    apiBaseUrl: API_BASE_URL,
+    activeProfileId,
+    enabled: true,
+    onRefreshRequested: () => {
+      void displayData.loadDisplayLayout(false);
     },
-    [activeProfileId],
-  );
+  });
 
+  // editMode tracks whether we are in canvas editing state (always true in the editor)
+  const [editMode, setEditMode] = useState(false);
+
+  const displayData = useDisplayData({
+    effectiveActiveProfileId: activeProfileId,
+    editMode: false, // pass false so polling continues in the editor
+    isAppActive: true,
+    realtimeConnectionState,
+  });
+
+  const { widgets: layoutWidgetsSource, loadingLayout, error: layoutLoadError, loadDisplayLayout, saveWidgetLayouts } = displayData;
+
+  const editOps = useEditModeOps({
+    editMode,
+    setEditMode,
+    widgets: layoutWidgetsSource,
+    effectiveActiveProfileId: activeProfileId,
+    saveWidgetLayouts,
+    onAfterSave: async () => {
+      await loadDisplayLayout(false);
+      await loadWidgetInstances();
+    },
+  });
+
+  const {
+    selectedWidgetId,
+    setSelectedWidgetId,
+    hasLayoutChanges,
+    layoutWidgets,
+    layoutError,
+    savingLayout,
+    handleWidgetLayoutChange,
+    handleCancelLayout,
+    handleSaveLayout,
+    handleToggleEditMode,
+  } = editOps;
+
+  // Keep canvas always in edit mode
+  const handleToggleEditModeRef = useRef(handleToggleEditMode);
+  handleToggleEditModeRef.current = handleToggleEditMode;
+  useEffect(() => {
+    if (!editMode) {
+      handleToggleEditModeRef.current();
+    }
+  }, [editMode]);
+
+  // ---- Widget instances ----
+  const loadWidgetInstances = useCallback(async () => {
+    if (!activeProfileId) {
+      setWidgetInstances([]);
+      return;
+    }
+    try {
+      const instances = await getWidgets(activeProfileId);
+      setWidgetInstances(instances);
+    } catch {
+      // Non-critical: properties panel still works without isActive status
+    }
+  }, [activeProfileId]);
+
+  useEffect(() => {
+    const signal = { cancelled: false };
+    void (async () => {
+      await loadWidgetInstances();
+    })();
+    return () => { signal.cancelled = true; };
+  }, [loadWidgetInstances]);
+
+  // Sync profile error
+  useEffect(() => {
+    setProfileError(profilesError);
+  }, [profilesError]);
+
+  // ---- Devices ----
   const loadDevices = useCallback(async (signal?: { cancelled: boolean }) => {
     try {
       setLoadingDevices(true);
@@ -151,76 +203,47 @@ export function AdminEditorScreen({
       setDevices([]);
       setDevicesError("Failed to load devices");
     } finally {
-      if (!signal?.cancelled) {
-        setLoadingDevices(false);
-      }
+      if (!signal?.cancelled) setLoadingDevices(false);
     }
   }, []);
 
   useEffect(() => {
     const signal = { cancelled: false };
-    void loadWidgets(signal);
-    return () => {
-      signal.cancelled = true;
-    };
-  }, [loadWidgets]);
-
-  useEffect(() => {
-    const signal = { cancelled: false };
     void loadDevices(signal);
-    return () => {
-      signal.cancelled = true;
-    };
+    return () => { signal.cancelled = true; };
   }, [loadDevices]);
 
-  useEffect(() => {
-    setProfileError(profilesError);
-  }, [profilesError]);
-
-  async function handleCreateWidget() {
-    if (!activeProfileId) {
-      setCreateError("No active profile selected");
-      return;
-    }
-
+  // ---- Widget actions ----
+  async function handleAddWidgetToCanvas(widgetType: CreatableWidgetType) {
+    if (!activeProfileId) return;
     try {
-      setCreatingWidget(true);
-      setCreateError(null);
-      setActiveError(null);
+      setAddingWidgetType(widgetType);
       await createWidget(
         buildCreateWidgetInput({
-          profileId: activeProfileId ?? undefined,
-          widgetType: selectedWidgetType,
-          weatherConfig: { location: weatherLocation, units: weatherUnits },
-          calendarConfig: {
-            provider: calendarProvider,
-            account: calendarAccount || undefined,
-            timeWindow: calendarTimeWindow,
-          },
+          profileId: activeProfileId,
+          widgetType,
+          weatherConfig: { location: "Amsterdam", units: "metric" },
+          calendarConfig: { provider: "ical", timeWindow: "next7d" },
         }),
-        activeProfileId ?? undefined,
+        activeProfileId,
       );
-      await loadWidgets();
+      // Reload layout so new widget appears on canvas
+      await loadDisplayLayout(false);
+      await loadWidgetInstances();
     } catch (err) {
-      console.error(err);
-      setCreateError(err instanceof Error ? err.message : "Failed to create widget");
+      console.error("Failed to add widget:", err);
     } finally {
-      setCreatingWidget(false);
+      setAddingWidgetType(null);
     }
   }
 
   async function handleSetActiveWidget(widgetId: string) {
-    if (!activeProfileId) {
-      setActiveError("No active profile selected");
-      return;
-    }
-
+    if (!activeProfileId) return;
     try {
       setSettingActiveWidgetId(widgetId);
       setActiveError(null);
-      setCreateError(null);
-      await setActiveWidget(widgetId, activeProfileId ?? undefined);
-      await loadWidgets();
+      await setActiveWidget(widgetId, activeProfileId);
+      await loadWidgetInstances();
     } catch (err) {
       console.error(err);
       setActiveError("Failed to set active widget");
@@ -229,20 +252,16 @@ export function AdminEditorScreen({
     }
   }
 
+  // ---- Profile actions ----
   async function handleCreateProfile() {
     const trimmedName = newProfileName.trim();
-    if (!trimmedName) {
-      setProfileError("Profile name is required");
-      return;
-    }
-
+    if (!trimmedName) { setProfileError("Profile name is required"); return; }
     try {
       setCreatingProfile(true);
       setProfileError(null);
       await createProfile(trimmedName);
       setNewProfileName("");
     } catch (err) {
-      console.error(err);
       setProfileError(err instanceof Error ? err.message : "Failed to create profile");
     } finally {
       setCreatingProfile(false);
@@ -251,20 +270,14 @@ export function AdminEditorScreen({
 
   async function handleRenameActiveProfile() {
     if (!activeProfileId) return;
-
     const trimmedName = renameProfileName.trim();
-    if (!trimmedName) {
-      setProfileError("Profile name is required");
-      return;
-    }
-
+    if (!trimmedName) { setProfileError("Profile name is required"); return; }
     try {
       setRenamingProfile(true);
       setProfileError(null);
       await renameProfile(activeProfileId, trimmedName);
       setRenameProfileName("");
     } catch (err) {
-      console.error(err);
       setProfileError(err instanceof Error ? err.message : "Failed to rename profile");
     } finally {
       setRenamingProfile(false);
@@ -273,33 +286,27 @@ export function AdminEditorScreen({
 
   async function handleDeleteActiveProfile() {
     if (!activeProfileId || profiles.length <= 1) return;
-
     try {
       setDeletingProfile(true);
       setProfileError(null);
       await deleteProfile(activeProfileId);
     } catch (err) {
-      console.error(err);
       setProfileError(err instanceof Error ? err.message : "Failed to delete profile");
     } finally {
       setDeletingProfile(false);
     }
   }
 
+  // ---- Device actions ----
   async function handleRenameDevice(deviceId: string) {
     const nextName = (renameDraftByDeviceId[deviceId] ?? "").trim();
-    if (!nextName) {
-      setDevicesError("Device name cannot be empty");
-      return;
-    }
-
+    if (!nextName) { setDevicesError("Device name cannot be empty"); return; }
     try {
       setRenamingDeviceId(deviceId);
       setDevicesError(null);
       await updateDeviceName(deviceId, { name: nextName });
       await loadDevices();
     } catch (err) {
-      console.error(err);
       setDevicesError(err instanceof Error ? err.message : "Failed to rename device");
     } finally {
       setRenamingDeviceId(null);
@@ -313,34 +320,45 @@ export function AdminEditorScreen({
       await deleteDevice(deviceId);
       await loadDevices();
     } catch (err) {
-      console.error(err);
       setDevicesError(err instanceof Error ? err.message : "Failed to delete device");
     } finally {
       setDeletingDeviceId(null);
     }
   }
 
+  // ---- Derived state ----
   const activeProfile = useMemo(
     () => profiles.find((p) => p.id === activeProfileId) ?? null,
     [profiles, activeProfileId],
   );
 
-  if (loading) {
+  const selectedWidget = useMemo(
+    () => layoutWidgets.find((w) => w.widgetInstanceId === selectedWidgetId) ?? null,
+    [layoutWidgets, selectedWidgetId],
+  );
+
+  const selectedWidgetInstance = useMemo(
+    () => widgetInstances.find((w) => w.id === selectedWidgetId) ?? null,
+    [widgetInstances, selectedWidgetId],
+  );
+
+  // ---- Render ----
+  if (loadingLayout && layoutWidgets.length === 0 && !editMode) {
     return (
       <View style={styles.screen}>
         <EmptyPanel
           variant="loading"
           title="Loading editor"
-          message="Fetching widgets and profile data."
+          message="Fetching your dashboard layout."
         />
       </View>
     );
   }
 
-  if (error) {
+  if (layoutLoadError && layoutWidgets.length === 0) {
     return (
       <View style={styles.screen}>
-        <ErrorState message={error} onRetry={() => void loadWidgets()} />
+        <ErrorState message={layoutLoadError} onRetry={() => void loadDisplayLayout(true)} />
       </View>
     );
   }
@@ -386,10 +404,7 @@ export function AdminEditorScreen({
           onEnterMarketplace={onEnterMarketplace}
           onLogout={onLogout}
         />
-        <UpgradeModal
-          visible={upgradeModalVisible}
-          onDismiss={() => setUpgradeModalVisible(false)}
-        />
+        <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
       </>
     );
   }
@@ -409,35 +424,34 @@ export function AdminEditorScreen({
           plan={plan}
           hasFeature={hasFeature}
           onUpgradePress={() => setUpgradeModalVisible(true)}
-          selectedWidgetType={selectedWidgetType}
-          onSelectWidgetType={setSelectedWidgetType}
-          weatherLocation={weatherLocation}
-          setWeatherLocation={setWeatherLocation}
-          weatherUnits={weatherUnits}
-          setWeatherUnits={setWeatherUnits}
-          calendarProvider={calendarProvider}
-          setCalendarProvider={setCalendarProvider}
-          calendarAccount={calendarAccount}
-          setCalendarAccount={setCalendarAccount}
-          calendarTimeWindow={calendarTimeWindow}
-          setCalendarTimeWindow={setCalendarTimeWindow}
-          creatingWidget={creatingWidget}
-          createError={createError}
-          onCreateWidget={() => void handleCreateWidget()}
-          widgets={widgets}
-          activeError={activeError}
+          addingWidgetType={addingWidgetType}
+          onAddWidget={(type) => void handleAddWidgetToCanvas(type)}
+          selectedWidget={selectedWidget}
+          selectedWidgetInstance={selectedWidgetInstance}
           settingActiveWidgetId={settingActiveWidgetId}
-          onSetActiveWidget={(id) => void handleSetActiveWidget(id)}
-          onRetryLoadWidgets={() => void loadWidgets()}
+          onSetActive={(id) => void handleSetActiveWidget(id)}
+          activeError={activeError}
+          onRetryActiveWidget={() => void loadWidgetInstances()}
         />
 
-        <DashboardCanvas />
+        <DashboardCanvas
+          widgets={layoutWidgets}
+          selectedWidgetId={selectedWidgetId}
+          onSelectWidget={setSelectedWidgetId}
+          onClearSelection={() => setSelectedWidgetId(null)}
+          onWidgetLayoutChange={handleWidgetLayoutChange}
+          loadingLayout={loadingLayout}
+          error={layoutLoadError}
+          onRetry={() => void loadDisplayLayout(true)}
+          hasLayoutChanges={hasLayoutChanges}
+          savingLayout={savingLayout}
+          layoutError={layoutError}
+          onSaveLayout={() => void handleSaveLayout()}
+          onCancelLayout={() => handleCancelLayout()}
+        />
       </View>
 
-      <UpgradeModal
-        visible={upgradeModalVisible}
-        onDismiss={() => setUpgradeModalVisible(false)}
-      />
+      <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
     </View>
   );
 }
