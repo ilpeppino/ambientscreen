@@ -1,12 +1,9 @@
 import React from "react";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { colors, radius, spacing, typography } from "../../shared/ui/theme";
+import { StyleSheet, View } from "react-native";
+import { colors, spacing, typography } from "../../shared/ui/theme";
+import { Text } from "../../shared/ui/components";
+import { DialogModal } from "../../shared/ui/overlays";
+import { ManagementActionButton } from "../../shared/ui/management";
 
 interface UpgradeModalProps {
   visible: boolean;
@@ -21,37 +18,41 @@ interface UpgradeModalProps {
  */
 export function UpgradeModal({ visible, onDismiss }: UpgradeModalProps) {
   return (
-    <Modal
+    <DialogModal
       visible={visible}
-      transparent
-      animationType="fade"
+      title="Upgrade to Pro"
       onRequestClose={onDismiss}
-    >
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          <Text style={styles.title}>Upgrade to Pro</Text>
-          <Text style={styles.subtitle}>Unlock premium features:</Text>
-
-          <View style={styles.featureList}>
-            {PREMIUM_FEATURES.map((feature) => (
-              <View key={feature} style={styles.featureRow}>
-                <Text style={styles.checkmark}>✓</Text>
-                <Text style={styles.featureText}>{feature}</Text>
-              </View>
-            ))}
-          </View>
-
+      maxWidth={400}
+      footer={
+        <View style={styles.actions}>
           {/* BILLING HOOK: Replace onPress with your checkout/payment flow */}
-          <Pressable style={styles.upgradeButton} onPress={onDismiss} accessibilityRole="button">
-            <Text style={styles.upgradeButtonLabel}>Coming Soon</Text>
-          </Pressable>
-
-          <Pressable style={styles.dismissButton} onPress={onDismiss} accessibilityRole="button">
-            <Text style={styles.dismissButtonLabel}>Maybe Later</Text>
-          </Pressable>
+          <ManagementActionButton
+            label="Coming Soon"
+            tone="primary"
+            onPress={onDismiss}
+            fullWidth
+          />
+          <ManagementActionButton
+            label="Maybe Later"
+            tone="passive"
+            onPress={onDismiss}
+            fullWidth
+          />
+        </View>
+      }
+    >
+      <View style={styles.body}>
+        <Text style={styles.subtitle}>Unlock premium features:</Text>
+        <View style={styles.featureList}>
+          {PREMIUM_FEATURES.map((feature) => (
+            <View key={feature} style={styles.featureRow}>
+              <Text style={styles.checkmark}>✓</Text>
+              <Text style={styles.featureText}>{feature}</Text>
+            </View>
+          ))}
         </View>
       </View>
-    </Modal>
+    </DialogModal>
   );
 }
 
@@ -63,28 +64,8 @@ const PREMIUM_FEATURES = [
 ];
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.75)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: spacing.xl,
-  },
-  sheet: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.xl,
-    width: "100%",
-    maxWidth: 400,
-    gap: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: 22,
-    fontWeight: "800",
-    textAlign: "center",
+  body: {
+    gap: spacing.sm,
   },
   subtitle: {
     color: colors.textSecondary,
@@ -109,24 +90,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: 15,
   },
-  upgradeButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.lg,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  upgradeButtonLabel: {
-    color: colors.backgroundPrimary,
-    fontWeight: "800",
-    fontSize: typography.body.fontSize,
-  },
-  dismissButton: {
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  dismissButtonLabel: {
-    color: colors.textSecondary,
-    fontSize: typography.label.fontSize,
+  actions: {
+    gap: spacing.sm,
   },
 });

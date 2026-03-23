@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, ScrollView, StyleSheet, Switch, View } from "react-native";
+import { ScrollView, StyleSheet, Switch, View } from "react-native";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { Text } from "../../../shared/ui/components";
 import {
@@ -9,6 +9,7 @@ import {
   ManagementActionButton,
   SectionHeader,
 } from "../../../shared/ui/management";
+import { SheetModal, ConfirmDialog } from "../../../shared/ui/overlays";
 import { getRegistryPluginByKey, type RegistryPluginDetail } from "../../../services/api/pluginRegistryApi";
 import type { MarketplacePlugin } from "../marketplace.types";
 import { InstallActionButton } from "./InstallActionButton";
@@ -61,6 +62,7 @@ export function PluginDetailModal({
   const [detail, setDetail] = useState<RegistryPluginDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [confirmUninstall, setConfirmUninstall] = useState(false);
 
   useEffect(() => {
     if (!plugin) {
@@ -91,18 +93,25 @@ export function PluginDetailModal({
     };
   }, [plugin?.key]);
 
-  return (
-    <Modal
-      visible={plugin !== null}
-      animationType="slide"
-      presentationStyle="pageSheet"
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
-        <View style={styles.topBar}>
-          <ManagementActionButton label="Close" tone="passive" icon="close" onPress={onClose} />
-        </View>
+  function handleUninstallRequest() {
+    setConfirmUninstall(true);
+  }
 
+  function handleUninstallConfirm() {
+    setConfirmUninstall(false);
+    onUninstall();
+  }
+
+  function handleUninstallCancel() {
+    setConfirmUninstall(false);
+  }
+
+  return (
+    <>
+      <SheetModal
+        visible={plugin !== null}
+        onRequestClose={onClose}
+      >
         {detailLoading ? (
           <EmptyPanel
             variant="loading"
@@ -174,28 +183,29 @@ export function PluginDetailModal({
                 isInstallationLocked={isInstallationLocked}
                 loading={actionInProgress}
                 onInstall={onInstall}
-                onUninstall={onUninstall}
+                onUninstall={handleUninstallRequest}
               />
               <ManagementActionButton label="Back" tone="passive" icon="chevronLeft" onPress={onClose} />
             </ActionRow>
           </ScrollView>
         ) : null}
-      </View>
-    </Modal>
+      </SheetModal>
+
+      <ConfirmDialog
+        visible={confirmUninstall}
+        title="Uninstall Plugin"
+        message={`Are you sure you want to uninstall ${plugin?.name ?? "this plugin"}?`}
+        warningText="Any widgets using this plugin will stop working."
+        confirmLabel="Uninstall"
+        loading={actionInProgress}
+        onConfirm={handleUninstallConfirm}
+        onCancel={handleUninstallCancel}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.backgroundScreen,
-    paddingTop: spacing.lg,
-    paddingHorizontal: spacing.screenPadding,
-    gap: spacing.md,
-  },
-  topBar: {
-    alignItems: "flex-end",
-  },
   scroll: {
     flex: 1,
   },
