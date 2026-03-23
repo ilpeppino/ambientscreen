@@ -2,7 +2,7 @@ import React from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import type { WidgetRendererProps } from "@ambient/shared-contracts";
 import { AppIcon, Text } from "../../shared/ui/components";
-import { colors, spacing } from "../../shared/ui/theme";
+import { colors, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
 export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">) {
@@ -27,8 +27,8 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
             style={[
               styles.temperature,
               {
-                fontSize: Math.round(96 * scale),
-                lineHeight: Math.round(102 * scale),
+                fontSize: Math.round(typography.displayLg.fontSize * scale),
+                lineHeight: Math.round((typography.displayLg.lineHeight ?? typography.displayLg.fontSize) * scale),
               },
             ]}
             adjustsFontSizeToFit
@@ -37,13 +37,13 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
           >
             {data?.temperatureC === null ? "--" : data?.temperatureC}
           </Text>
-          <Text style={[styles.temperatureUnit, { fontSize: Math.round(24 * scale) }]}>C</Text>
+          <Text style={[styles.temperatureUnit, { fontSize: Math.round(typography.titleMd.fontSize * scale) }]}>C</Text>
         </View>
       </View>
-      <Text style={[styles.location, { fontSize: Math.round(24 * scale), lineHeight: Math.round(32 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+      <Text style={[styles.location, { fontSize: Math.round(typography.titleMd.fontSize * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
         {data?.location ?? "Unknown location"}
       </Text>
-      <Text style={[styles.condition, { fontSize: Math.round(26 * scale), lineHeight: Math.round(34 * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
+      <Text style={[styles.condition, { fontSize: Math.round(typography.titleLg.fontSize * scale) }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.65}>
         {data?.conditionLabel ?? "No condition available"}
       </Text>
     </BaseWidgetFrame>
@@ -73,30 +73,25 @@ const styles = StyleSheet.create({
   },
   location: {
     marginTop: spacing.md,
-    fontSize: 24,
-    lineHeight: 32,
+    ...typography.titleMd,
     color: colors.textSecondary,
     textAlign: "center",
   },
   temperature: {
-    fontSize: 96,
-    lineHeight: 102,
-    fontWeight: "700",
+    ...typography.displayLg,
     color: colors.textPrimary,
     letterSpacing: 0.8,
     textAlign: "center",
   },
   temperatureUnit: {
     marginTop: spacing.md,
-    fontSize: 24,
+    ...typography.titleMd,
     color: colors.textSecondary,
   },
   condition: {
     marginTop: spacing.xs,
-    fontSize: 26,
-    lineHeight: 34,
+    ...typography.titleLg,
     color: colors.textPrimary,
-    fontWeight: "600",
     textAlign: "center",
   },
 });

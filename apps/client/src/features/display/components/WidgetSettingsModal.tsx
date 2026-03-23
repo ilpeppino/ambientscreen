@@ -252,8 +252,7 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     color: colors.textPrimary,
-    fontSize: typography.small.fontSize,
-    fontWeight: "600",
+    ...typography.titleSm,
   },
   textInput: {
     borderWidth: 1,
@@ -263,7 +262,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    fontSize: typography.label.fontSize,
+    fontSize: typography.body.fontSize,
   },
   booleanRow: {
     flexDirection: "row",
@@ -288,8 +287,7 @@ const styles = StyleSheet.create({
   },
   enumOptionLabel: {
     color: colors.textSecondary,
-    fontSize: typography.small.fontSize,
-    fontWeight: "600",
+    ...typography.titleSm,
   },
   enumOptionLabelSelected: {
     color: colors.textPrimary,
@@ -302,7 +300,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.error,
-    fontSize: typography.small.fontSize,
+    ...typography.caption,
   },
   actionsRow: {
     flexDirection: "row",

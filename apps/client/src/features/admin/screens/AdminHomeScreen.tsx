@@ -714,14 +714,13 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
-    fontSize: typography.label.fontSize,
+    fontSize: typography.body.fontSize,
   },
   stack: {
     gap: 10,
   },
   fieldLabel: {
     color: colors.textPrimary,
-    fontSize: typography.small.fontSize,
-    fontWeight: "600",
+    ...typography.titleSm,
   },
 });
