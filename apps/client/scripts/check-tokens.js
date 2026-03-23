@@ -16,6 +16,7 @@ const THEME_DIR = path.join(SRC_DIR, "shared", "ui", "theme");
 const ALLOWED_FILES = [
   path.join(THEME_DIR, "colors.ts"),
   path.join(THEME_DIR, "shadows.ts"),
+  path.join(THEME_DIR, "spacing.ts"),
 ];
 
 // Patterns that are allowed exceptions:
@@ -36,6 +37,14 @@ const ACCEPTED_FONT_SIZE_EXCEPTIONS = new Set([11, 15, 22, 24, 25, 26, 28]);
 
 // borderRadius values that have no exact token and are accepted exceptions
 const ACCEPTED_RADIUS_EXCEPTIONS = new Set([999, 9999]);
+
+// Spacing token values - raw numbers matching these must use spacing tokens instead
+// Values: xs=4, sm=8, md=12, lg=16, screenPadding=20, xl=24, xxl=32
+const SPACING_TOKEN_VALUES = new Set([4, 8, 12, 16, 20, 24, 32]);
+
+// Spacing property pattern: padding*, margin*, gap, rowGap, columnGap with a raw integer
+// Captures: full property name and the numeric value
+const SPACING_PROPERTY_PATTERN = /\b(padding(?:Top|Bottom|Left|Right|Horizontal|Vertical)?|margin(?:Top|Bottom|Left|Right|Horizontal|Vertical)?|gap|rowGap|columnGap)\s*:\s*(\d+)/g;
 
 function getAllTsxFiles(dir) {
   const results = [];
@@ -91,6 +100,21 @@ function checkFile(filePath) {
           line: lineNum,
           type: "named-color",
           value: match[0],
+          text: line.trim(),
+        });
+      }
+    }
+
+    // Check for raw spacing values that have token equivalents
+    const spacingMatches = [...line.matchAll(SPACING_PROPERTY_PATTERN)];
+    for (const match of spacingMatches) {
+      const numericValue = parseInt(match[2], 10);
+      if (SPACING_TOKEN_VALUES.has(numericValue)) {
+        violations.push({
+          file: filePath,
+          line: lineNum,
+          type: "raw-spacing",
+          value: `${match[1]}: ${numericValue}`,
           text: line.trim(),
         });
       }

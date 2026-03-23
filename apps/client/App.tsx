@@ -24,6 +24,8 @@ import {
   getInitialAppMode,
   type AppMode,
 } from "./src/features/navigation/appMode.logic";
+import { useDeepLinks } from "./src/features/navigation/useDeepLinks";
+import { useWebHistory } from "./src/features/navigation/useWebHistory";
 import { MarketplaceScreen } from "./src/features/marketplace/screens/MarketplaceScreen";
 import { API_BASE_URL } from "./src/core/config/api";
 import { EntitlementsProvider } from "./src/features/entitlements/entitlements.context";
@@ -40,6 +42,17 @@ function AuthenticatedApp() {
       return nextMode;
     });
   }, []);
+
+  useDeepLinks({
+    onNavigate: applyModeChange,
+    isAuthenticated: Boolean(token),
+  });
+
+  useWebHistory({
+    mode,
+    onNavigate: applyModeChange,
+  });
+
   const [deviceId, setDeviceId] = useState<string | null>(null);
 
   React.useEffect(() => {
