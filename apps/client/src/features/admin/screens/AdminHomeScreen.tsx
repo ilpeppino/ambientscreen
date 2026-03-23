@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
+import { ErrorState } from "../../../shared/ui/ErrorState";
 import {
   ActionRow,
   EmptyPanel,
@@ -362,15 +363,7 @@ export function AdminHomeScreen({
   if (error) {
     return (
       <View style={styles.screen}>
-        <EmptyPanel
-          variant="error"
-          title="Unable to load widgets"
-          message={error}
-          actionLabel="Retry"
-          onAction={() => {
-            void loadWidgets();
-          }}
-        />
+        <ErrorState message={error} onRetry={() => void loadWidgets()} />
       </View>
     );
   }
@@ -448,7 +441,7 @@ export function AdminHomeScreen({
             />
           </View>
 
-          {profileError ? <EmptyPanel variant="error" title="Profile error" message={profileError} /> : null}
+          {profileError ? <ErrorState compact message={profileError} /> : null}
         </ManagementCard>
 
         <ManagementCard title="Device Management" subtitle="Rename devices and remove old registrations." icon="grid">
@@ -504,7 +497,7 @@ export function AdminHomeScreen({
               })}
             </View>
           )}
-          {devicesError ? <EmptyPanel variant="error" title="Device error" message={devicesError} /> : null}
+          {devicesError ? <ErrorState compact message={devicesError} onRetry={() => void loadDevices()} /> : null}
         </ManagementCard>
 
         <ManagementCard
@@ -596,7 +589,7 @@ export function AdminHomeScreen({
               onPress={handleCreateWidget}
             />
           </ActionRow>
-          {createError ? <EmptyPanel variant="error" title="Create widget failed" message={createError} /> : null}
+          {createError ? <ErrorState compact message={createError} /> : null}
         </ManagementCard>
 
         <ManagementCard title="Configured Widgets" subtitle="Set which widget is active in the display." icon="clock">
@@ -634,7 +627,7 @@ export function AdminHomeScreen({
               ))}
             </View>
           )}
-          {activeError ? <EmptyPanel variant="error" title="Widget activation failed" message={activeError} /> : null}
+          {activeError ? <ErrorState compact message={activeError} onRetry={() => void loadWidgets()} /> : null}
         </ManagementCard>
 
         <ManagementCard title="Navigation" subtitle="Switch product modes." icon="chevronRight">

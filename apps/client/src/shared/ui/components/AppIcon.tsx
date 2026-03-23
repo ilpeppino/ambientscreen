@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  AlertTriangle,
   Calendar,
   Check,
   ChevronLeft,
@@ -24,6 +25,7 @@ import {
 } from "./appIconTokens";
 
 const ICON_MAP = {
+  alert: AlertTriangle,
   lock: Lock,
   star: Star,
   settings: Settings,

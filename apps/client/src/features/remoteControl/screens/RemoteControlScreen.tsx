@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, spacing, typography } from "../../../shared/ui/theme";
 import type { Device } from "@ambient/shared-contracts";
 import { Text } from "../../../shared/ui/components";
+import { ErrorState } from "../../../shared/ui/ErrorState";
 import {
   ActionRow,
   EmptyPanel,
@@ -214,7 +215,7 @@ export function RemoteControlScreen({ currentDeviceId, onBack }: RemoteControlSc
           </>
         )}
 
-        {error ? <EmptyPanel variant="error" title="Remote control error" message={error} /> : null}
+        {error ? <ErrorState compact message={error} onRetry={() => void loadDevices()} /> : null}
       </View>
     </SafeAreaView>
   );
