@@ -4,12 +4,12 @@ import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
 import { ConfirmDialog } from "../../../shared/ui/overlays";
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import {
   ActionRow,

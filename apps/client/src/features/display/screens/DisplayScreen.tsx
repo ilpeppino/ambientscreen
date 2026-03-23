@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import Animated, { useAnimatedStyle } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ConfirmDialog } from "../../../shared/ui/overlays";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { DisplayFrame } from "../../../shared/ui/layout/DisplayFrame";
@@ -59,6 +60,7 @@ const WIDGET_TRANSITION_LIBRARY = "react-native-reanimated";
 
 export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProps) {
   registerBuiltinWidgetPlugins();
+  const insets = useSafeAreaInsets();
 
   const {
     profiles,
@@ -472,7 +474,15 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   return (
     <View style={styles.screen}>
       {onExitDisplayMode ? (
-        <View style={styles.exitButtonContainer}>
+        <View
+          style={[
+            styles.exitButtonContainer,
+            {
+              top: insets.top + 12,
+              right: Math.max(insets.right, 12),
+            },
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             style={styles.exitButton}
@@ -486,7 +496,13 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Enter edit mode"
-          style={styles.hiddenEditTrigger}
+          style={[
+            styles.hiddenEditTrigger,
+            {
+              top: insets.top + spacing.md,
+              left: Math.max(insets.left, spacing.md),
+            },
+          ]}
           delayLongPress={450}
           onLongPress={handleToggleEditMode}
         />
@@ -523,7 +539,15 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         />
       ) : null}
       {showEditControls ? (
-        <View style={styles.layoutActionsContainer}>
+        <View
+          style={[
+            styles.layoutActionsContainer,
+            {
+              top: insets.top + 12,
+              left: Math.max(insets.left + spacing.screenPadding, spacing.screenPadding),
+            },
+          ]}
+        >
           <Pressable
             accessibilityRole="button"
             style={[styles.layoutActionButton, styles.layoutCancelButton]}
@@ -562,7 +586,18 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
         {content}
       </DisplayFrame>
       {profilesError || sharedSessionError ? (
-        <Text style={styles.profileError}>{profilesError ?? sharedSessionError}</Text>
+        <Text
+          style={[
+            styles.profileError,
+            {
+              bottom: insets.bottom + 10,
+              left: Math.max(insets.left, 0) + 18,
+              right: Math.max(insets.right, 0) + 18,
+            },
+          ]}
+        >
+          {profilesError ?? sharedSessionError}
+        </Text>
       ) : null}
       {settingsWidget ? (
         <WidgetSettingsModal
@@ -627,8 +662,6 @@ const styles = StyleSheet.create({
   },
   exitButtonContainer: {
     position: "absolute",
-    top: 18,
-    right: 18,
     zIndex: 20,
   },
   exitButton: {
@@ -653,8 +686,6 @@ const styles = StyleSheet.create({
   },
   hiddenEditTrigger: {
     position: "absolute",
-    left: spacing.md,
-    top: spacing.md,
     width: 60,
     height: 60,
     zIndex: 12,
@@ -681,17 +712,12 @@ const styles = StyleSheet.create({
   },
   profileError: {
     position: "absolute",
-    bottom: 10,
-    left: 18,
-    right: 18,
     color: colors.error,
     fontSize: typography.caption.fontSize,
     textAlign: "center",
   },
   layoutActionsContainer: {
     position: "absolute",
-    top: 18,
-    left: spacing.screenPadding,
     zIndex: 20,
     flexDirection: "row",
     gap: 10,

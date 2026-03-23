@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { SafeAreaView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { FlashList } from "@shopify/flash-list";
 import { Text } from "../../../shared/ui/components";
