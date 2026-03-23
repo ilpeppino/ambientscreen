@@ -4,6 +4,7 @@ import { profilesService } from "./profiles.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
 import { getRequestUserId } from "../auth/auth.middleware";
+import { widgetsService } from "../widgets/widgets.service";
 
 export const profilesRouter = Router();
 
@@ -83,6 +84,23 @@ profilesRouter.patch(
     }
 
     res.json(profile);
+  }),
+);
+
+profilesRouter.delete(
+  "/:id/widgets",
+  asyncHandler(async (req, res) => {
+    const idParam = req.params.id;
+    const profileId = Array.isArray(idParam) ? idParam[0] : idParam;
+    const userId = getRequestUserId(req);
+
+    const profile = await profilesService.getProfileByIdForUser({ userId, profileId });
+    if (!profile) {
+      throw apiErrors.notFound("Profile not found");
+    }
+
+    const result = await widgetsService.clearWidgetsForProfile({ profileId: profile.id });
+    res.json(result);
   }),
 );
 

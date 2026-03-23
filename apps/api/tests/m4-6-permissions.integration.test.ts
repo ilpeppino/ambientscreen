@@ -157,6 +157,11 @@ describe("/profiles cross-user isolation", () => {
         return null as never;
       },
     );
+    vi.spyOn(widgetsService, "clearWidgetsForProfile").mockImplementation(
+      async ({ profileId }: { profileId: string }) => ({
+        deletedCount: profileId === "profile-of-user-1" ? 3 : 0,
+      }) as never,
+    );
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -178,6 +183,30 @@ describe("/profiles cross-user isolation", () => {
     });
 
     expect(response.statusCode).toBe(200);
+  });
+
+  test("DELETE /profiles/:id/widgets returns 404 for another user's profile", async () => {
+    const response = await invokeRoute(profilesRouter, "delete", "/:id/widgets", {
+      params: { id: "profile-of-user-2" },
+      authUser: { id: "user-1", email: "owner@ambient.dev" },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect((response.body as { error: { code: string } }).error.code).toBe("NOT_FOUND");
+    expect(widgetsService.clearWidgetsForProfile).not.toHaveBeenCalled();
+  });
+
+  test("DELETE /profiles/:id/widgets returns 200 for own profile", async () => {
+    const response = await invokeRoute(profilesRouter, "delete", "/:id/widgets", {
+      params: { id: "profile-of-user-1" },
+      authUser: { id: "user-1", email: "owner@ambient.dev" },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body).toEqual({ deletedCount: 3 });
+    expect(widgetsService.clearWidgetsForProfile).toHaveBeenCalledWith({
+      profileId: "profile-of-user-1",
+    });
   });
 });
 

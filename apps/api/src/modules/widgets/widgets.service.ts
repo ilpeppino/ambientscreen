@@ -261,6 +261,25 @@ export const widgetsService = {
 
     return deletedWidget;
   },
+
+  async clearWidgetsForProfile(data: { profileId: string }) {
+    const deletedCount = await widgetsRepository.deleteAllByProfileId(data.profileId);
+
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "layout.updated",
+        profileId: data.profileId,
+      }),
+    );
+    publishRealtimeEvent(
+      createRealtimeEvent({
+        type: "display.refreshRequested",
+        profileId: data.profileId,
+      }),
+    );
+
+    return { deletedCount };
+  },
 };
 
 function layoutsOverlap(
