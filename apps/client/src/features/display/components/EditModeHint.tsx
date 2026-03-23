@@ -23,6 +23,9 @@ export function EditModeHint({ visible }: EditModeHintProps) {
         <Text variant="caption" color="textSecondary">
           Drag to move, corner handle to resize
         </Text>
+        <Text variant="caption" color="textSecondary">
+          Tap the gear icon for widget settings
+        </Text>
       </View>
     </View>
   );
