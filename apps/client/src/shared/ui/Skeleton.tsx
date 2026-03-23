@@ -6,7 +6,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { colors, radius, spacing } from "./theme";
+import { colors, motion, radius, spacing } from "./theme";
 
 // ---------------------------------------------------------------------------
 // Base Skeleton block — a pulsing rectangle that communicates loading shape
@@ -24,7 +24,7 @@ export function Skeleton({ width = "100%", height = 16, borderRadius = radius.sm
 
   useEffect(() => {
     opacity.value = withRepeat(
-      withTiming(0.75, { duration: 900 }),
+      withTiming(0.75, { duration: motion.slow + motion.normal }),
       -1,
       true,
     );

@@ -11,7 +11,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import { AppIcon } from "../../../shared/ui/components";
 import { Text } from "../../../shared/ui/components/Text";
-import { colors, radius, shadows, spacing } from "../../../shared/ui/theme";
+import { colors, motion, radius, shadows, spacing } from "../../../shared/ui/theme";
 import { WidgetState } from "../../../shared/ui/widgets";
 import { WidgetSkeleton } from "../../../shared/ui/Skeleton";
 import type { AnimatedItemPhase } from "../animations/transitionManager";
@@ -81,8 +81,8 @@ function WidgetContainerBase({
 
   useEffect(() => {
     if (animationPhase === "exit") {
-      mountOpacity.value = withTiming(0, { duration: 220 });
-      mountScale.value = withTiming(0.98, { duration: 220 });
+      mountOpacity.value = withTiming(0, { duration: motion.normal });
+      mountScale.value = withTiming(0.98, { duration: motion.normal });
       return;
     }
 
@@ -91,8 +91,8 @@ function WidgetContainerBase({
       mountScale.value = 0.98;
     }
 
-    mountOpacity.value = withTiming(1, { duration: 240 });
-    mountScale.value = withTiming(1, { duration: 240 });
+    mountOpacity.value = withTiming(1, { duration: motion.normal });
+    mountScale.value = withTiming(1, { duration: motion.normal });
   }, [animationPhase, mountOpacity, mountScale]);
 
   useEffect(() => {
@@ -100,10 +100,10 @@ function WidgetContainerBase({
       return;
     }
 
-    dragTranslateX.value = withTiming(0, { duration: 120 });
-    dragTranslateY.value = withTiming(0, { duration: 120 });
-    resizePreviewX.value = withTiming(0, { duration: 120 });
-    resizePreviewY.value = withTiming(0, { duration: 120 });
+    dragTranslateX.value = withTiming(0, { duration: motion.fast });
+    dragTranslateY.value = withTiming(0, { duration: motion.fast });
+    resizePreviewX.value = withTiming(0, { duration: motion.fast });
+    resizePreviewY.value = withTiming(0, { duration: motion.fast });
     setSnapLabel(null);
   }, [dragTranslateX, dragTranslateY, editMode, resizePreviewX, resizePreviewY]);
 
@@ -114,7 +114,7 @@ function WidgetContainerBase({
     }
 
     contentOpacity.value = 0.82;
-    contentOpacity.value = withTiming(1, { duration: 220 });
+    contentOpacity.value = withTiming(1, { duration: motion.normal });
   }, [contentOpacity, editMode, widget.data, widget.meta.fetchedAt, widget.meta.staleAt, widget.state]);
 
   const columnWidth = containerSize.width > 0 ? containerSize.width / DISPLAY_GRID_COLUMNS : 0;
@@ -216,13 +216,13 @@ function WidgetContainerBase({
     })
     .onEnd((event) => {
       runOnJS(commitDragLayout)(event.translationX, event.translationY);
-      dragTranslateX.value = withTiming(0, { duration: 150 });
-      dragTranslateY.value = withTiming(0, { duration: 150 });
+      dragTranslateX.value = withTiming(0, { duration: motion.fast });
+      dragTranslateY.value = withTiming(0, { duration: motion.fast });
       runOnJS(clearPreview)();
     })
     .onFinalize(() => {
-      dragTranslateX.value = withTiming(0, { duration: 100 });
-      dragTranslateY.value = withTiming(0, { duration: 100 });
+      dragTranslateX.value = withTiming(0, { duration: motion.fast });
+      dragTranslateY.value = withTiming(0, { duration: motion.fast });
       runOnJS(clearPreview)();
     }),
   [canEditSelectedWidget, onSelectWidget, widget.widgetInstanceId, dragTranslateX, dragTranslateY, updateDragSnap, commitDragLayout, clearPreview]);
@@ -241,13 +241,13 @@ function WidgetContainerBase({
     })
     .onEnd((event) => {
       runOnJS(commitResizeLayout)(event.translationX, event.translationY);
-      resizePreviewX.value = withTiming(0, { duration: 150 });
-      resizePreviewY.value = withTiming(0, { duration: 150 });
+      resizePreviewX.value = withTiming(0, { duration: motion.fast });
+      resizePreviewY.value = withTiming(0, { duration: motion.fast });
       runOnJS(clearPreview)();
     })
     .onFinalize(() => {
-      resizePreviewX.value = withTiming(0, { duration: 100 });
-      resizePreviewY.value = withTiming(0, { duration: 100 });
+      resizePreviewX.value = withTiming(0, { duration: motion.fast });
+      resizePreviewY.value = withTiming(0, { duration: motion.fast });
       runOnJS(clearPreview)();
     }),
   [canEditSelectedWidget, onSelectWidget, widget.widgetInstanceId, resizePreviewX, resizePreviewY, updateResizeSnap, commitResizeLayout, clearPreview]);

@@ -1,3 +1,5 @@
+import { motion } from "../../../shared/ui/theme";
+
 export type TransitionType = "fade" | "slide" | "none";
 
 export interface TransitionPreset {
@@ -5,8 +7,8 @@ export interface TransitionPreset {
 }
 
 export const transitionPresets: Record<TransitionType, TransitionPreset> = {
-  fade: { durationMs: 220 },
-  slide: { durationMs: 280 },
+  fade: { durationMs: motion.normal },
+  slide: { durationMs: motion.normal },
   none: { durationMs: 0 },
 };
 
