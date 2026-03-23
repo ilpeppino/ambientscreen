@@ -23,6 +23,7 @@ interface DashboardCanvasProps {
   onSelectWidget: (widgetId: string) => void;
   onClearSelection: () => void;
   onWidgetLayoutChange: (widgetId: string, layout: WidgetLayout) => void;
+  onRemoveWidget?: (widgetId: string) => void;
   loadingLayout: boolean;
   error: string | null;
   onRetry: () => void;
@@ -42,6 +43,7 @@ export function DashboardCanvas({
   onSelectWidget,
   onClearSelection,
   onWidgetLayoutChange,
+  onRemoveWidget,
   loadingLayout,
   error,
   onRetry,
@@ -187,6 +189,7 @@ export function DashboardCanvas({
             onSelectWidget={onSelectWidget}
             onClearWidgetSelection={onClearSelection}
             onWidgetLayoutChange={onWidgetLayoutChange}
+            onRemoveWidget={onRemoveWidget}
           />
         )}
 

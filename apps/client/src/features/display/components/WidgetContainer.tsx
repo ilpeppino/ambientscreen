@@ -40,6 +40,7 @@ interface WidgetContainerProps {
   onSelectWidget?: (widgetId: string) => void;
   onWidgetLayoutChange?: (widgetId: string, layout: WidgetLayout) => void;
   onOpenWidgetSettings?: (widgetId: string) => void;
+  onRemoveWidget?: (widgetId: string) => void;
 }
 
 const DEBUG_WIDGET_BOUNDS = process.env.EXPO_PUBLIC_DEBUG_WIDGET_BOUNDS === "1";
@@ -59,6 +60,7 @@ function WidgetContainerBase({
   onSelectWidget,
   onWidgetLayoutChange,
   onOpenWidgetSettings,
+  onRemoveWidget,
 }: WidgetContainerProps) {
   const frame = frameStyle as ViewStyle;
   const width = typeof frame.width === "number" ? frame.width : 0;
@@ -331,6 +333,11 @@ function WidgetContainerBase({
           onSettings={
             onOpenWidgetSettings
               ? () => onOpenWidgetSettings(widget.widgetInstanceId)
+              : undefined
+          }
+          onRemove={
+            onRemoveWidget
+              ? () => onRemoveWidget(widget.widgetInstanceId)
               : undefined
           }
         />

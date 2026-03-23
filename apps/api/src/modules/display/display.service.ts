@@ -53,8 +53,6 @@ export const displayService = {
       const resolvedAt = new Date().toISOString();
       const widgetType = widget.type as SupportedWidgetType;
       const plugin = getWidgetPlugin(widgetType);
-      const normalizedConfig = normalizeWidgetConfig(widgetType, widget.config) as Record<string, unknown>;
-      const configSchema = (plugin?.configSchema ?? {}) as WidgetConfigSchema;
 
       if (!plugin?.api?.resolveData) {
         return {
@@ -62,8 +60,8 @@ export const displayService = {
           widgetKey: widgetType,
           layout: widget.layout,
           state: "error" as const,
-          config: normalizedConfig,
-          configSchema,
+          config: {},
+          configSchema: {} as WidgetConfigSchema,
           data: null,
           meta: {
             resolvedAt,
@@ -73,6 +71,8 @@ export const displayService = {
         };
       }
 
+      const normalizedConfig = normalizeWidgetConfig(widgetType, widget.config) as Record<string, unknown>;
+      const configSchema = (plugin.configSchema ?? {}) as WidgetConfigSchema;
       const validationResult = validateWidgetConfig(widgetType, widget.config);
       if (!validationResult.success) {
         return {
