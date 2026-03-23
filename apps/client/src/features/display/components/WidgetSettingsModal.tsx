@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,6 +10,8 @@ import {
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { WidgetConfigSchema } from "@ambient/shared-contracts";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
+import { DialogModal } from "../../../shared/ui/overlays";
+import { ManagementActionButton } from "../../../shared/ui/management";
 import {
   buildConfigDraft,
   buildFieldDescriptors,
@@ -93,33 +94,16 @@ export function WidgetSettingsModal({
   }
 
   return (
-    <Modal
-      animationType="fade"
-      transparent
+    <DialogModal
       visible={visible}
+      title={`${widgetName} Settings`}
       onRequestClose={onClose}
-    >
-      <View style={styles.backdrop}>
-        <View style={styles.modalCard}>
-          <Text style={styles.title}>{widgetName} Settings</Text>
-
-          <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContent}>
-            {fieldDescriptors.map((descriptor) => (
-              <View key={descriptor.key} style={styles.fieldBlock}>
-                <Text style={styles.fieldLabel}>{descriptor.label}</Text>
-                <FieldEditor
-                  descriptor={descriptor}
-                  value={draft[descriptor.key]}
-                  onStringChange={(value) => handleStringChange(descriptor.key, value)}
-                  onNumberChange={(value) => handleNumberChange(descriptor.key, value)}
-                  onBooleanChange={(value) => handleBooleanChange(descriptor.key, value)}
-                  onEnumChange={(value) => handleEnumChange(descriptor.key, value)}
-                />
-              </View>
-            ))}
-          </ScrollView>
-
-          {validationError ? <Text style={styles.errorText}>{validationError}</Text> : null}
+      dismissible={!saving}
+      footer={
+        <View style={styles.footer}>
+          {validationError ? (
+            <Text style={styles.errorText}>{validationError}</Text>
+          ) : null}
           {saveError ? (
             <View style={styles.errorRow}>
               <Text style={styles.errorText}>{saveError}</Text>
@@ -134,30 +118,41 @@ export function WidgetSettingsModal({
               </Pressable>
             </View>
           ) : null}
-
           <View style={styles.actionsRow}>
-            <Pressable
-              accessibilityRole="button"
-              style={[styles.actionButton, styles.cancelButton]}
+            <ManagementActionButton
+              label="Cancel"
+              tone="passive"
               onPress={onClose}
               disabled={saving}
-            >
-              <Text style={styles.actionLabel}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              style={[styles.actionButton, styles.saveButton, saving ? styles.actionButtonDisabled : null]}
+            />
+            <ManagementActionButton
+              label={saving ? "Saving..." : "Save"}
+              tone="primary"
               onPress={() => {
                 void handleSave();
               }}
               disabled={saving}
-            >
-              <Text style={styles.actionLabel}>{saving ? "Saving..." : "Save"}</Text>
-            </Pressable>
+            />
           </View>
         </View>
-      </View>
-    </Modal>
+      }
+    >
+      <ScrollView style={styles.formContainer} contentContainerStyle={styles.formContent}>
+        {fieldDescriptors.map((descriptor) => (
+          <View key={descriptor.key} style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>{descriptor.label}</Text>
+            <FieldEditor
+              descriptor={descriptor}
+              value={draft[descriptor.key]}
+              onStringChange={(value) => handleStringChange(descriptor.key, value)}
+              onNumberChange={(value) => handleNumberChange(descriptor.key, value)}
+              onBooleanChange={(value) => handleBooleanChange(descriptor.key, value)}
+              onEnumChange={(value) => handleEnumChange(descriptor.key, value)}
+            />
+          </View>
+        ))}
+      </ScrollView>
+    </DialogModal>
   );
 }
 
@@ -238,29 +233,6 @@ function FieldEditor({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.lg,
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 560,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surfaceModal,
-    borderWidth: 1,
-    borderColor: colors.borderInput,
-    padding: spacing.lg,
-    gap: 10,
-    maxHeight: "85%",
-  },
-  title: {
-    color: colors.textPrimary,
-    fontSize: typography.subtitle.fontSize,
-    fontWeight: "700",
-  },
   formContainer: {
     maxHeight: 360,
   },
@@ -315,6 +287,9 @@ const styles = StyleSheet.create({
   enumOptionLabelSelected: {
     color: colors.textPrimary,
   },
+  footer: {
+    gap: spacing.sm,
+  },
   errorRow: {
     gap: spacing.sm,
   },
@@ -338,29 +313,6 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: "row",
     justifyContent: "flex-end",
-    gap: 10,
-  },
-  actionButton: {
-    minWidth: 100,
-    borderRadius: radius.sm,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    alignItems: "center",
-  },
-  actionButtonDisabled: {
-    opacity: 0.6,
-  },
-  cancelButton: {
-    backgroundColor: colors.surfaceModal,
-    borderWidth: 1,
-    borderColor: colors.borderInput,
-  },
-  saveButton: {
-    backgroundColor: colors.accentBlue,
-  },
-  actionLabel: {
-    color: colors.textPrimary,
-    fontSize: typography.label.fontSize,
-    fontWeight: "700",
+    gap: spacing.sm,
   },
 });

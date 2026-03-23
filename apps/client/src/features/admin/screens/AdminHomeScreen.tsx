@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
+import { ConfirmDialog } from "../../../shared/ui/overlays";
 import {
   SafeAreaView,
   ScrollView,
@@ -100,6 +101,8 @@ export function AdminHomeScreen({
   const [renameDraftByDeviceId, setRenameDraftByDeviceId] = useState<Record<string, string>>({});
   const [renamingDeviceId, setRenamingDeviceId] = useState<string | null>(null);
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
+  const [confirmDeleteProfile, setConfirmDeleteProfile] = useState(false);
+  const [confirmDeleteDeviceId, setConfirmDeleteDeviceId] = useState<string | null>(null);
 
   const loadWidgets = useCallback(async (signal?: { cancelled: boolean }) => {
     if (!activeProfileId) {
@@ -441,7 +444,7 @@ export function AdminHomeScreen({
               icon="trash"
               disabled={profiles.length <= 1}
               loading={deletingProfile}
-              onPress={handleDeleteActiveProfile}
+              onPress={() => setConfirmDeleteProfile(true)}
             />
           </View>
 
@@ -493,9 +496,7 @@ export function AdminHomeScreen({
                         icon="trash"
                         disabled={isCurrentDevice}
                         loading={isDeleting}
-                        onPress={() => {
-                          void handleDeleteDevice(device.id);
-                        }}
+                        onPress={() => setConfirmDeleteDeviceId(device.id)}
                       />
                     </View>
                   </DeviceCard>
@@ -647,6 +648,37 @@ export function AdminHomeScreen({
       </ScrollView>
 
       <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
+
+      <ConfirmDialog
+        visible={confirmDeleteProfile}
+        title="Delete Profile"
+        message="Are you sure you want to delete the active profile?"
+        warningText="This cannot be undone. All widgets in this profile will be permanently removed."
+        confirmLabel="Delete"
+        loading={deletingProfile}
+        onConfirm={() => {
+          setConfirmDeleteProfile(false);
+          void handleDeleteActiveProfile();
+        }}
+        onCancel={() => setConfirmDeleteProfile(false)}
+      />
+
+      <ConfirmDialog
+        visible={confirmDeleteDeviceId !== null}
+        title="Delete Device"
+        message="Are you sure you want to remove this device registration?"
+        warningText="This cannot be undone."
+        confirmLabel="Delete"
+        loading={confirmDeleteDeviceId !== null && deletingDeviceId === confirmDeleteDeviceId}
+        onConfirm={() => {
+          const id = confirmDeleteDeviceId;
+          setConfirmDeleteDeviceId(null);
+          if (id) {
+            void handleDeleteDevice(id);
+          }
+        }}
+        onCancel={() => setConfirmDeleteDeviceId(null)}
+      />
     </SafeAreaView>
   );
 }
