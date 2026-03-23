@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   SafeAreaView,
   StyleSheet,
@@ -9,6 +8,7 @@ import {
 } from "react-native";
 import { useAuth } from "../auth.context";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
+import { Button } from "../../../shared/ui/Button";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 
 type AuthMode = "login" | "register";
@@ -63,19 +63,14 @@ export function LoginScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Pressable
-          style={[styles.button, isSubmitting ? styles.buttonDisabled : null]}
-          onPress={() => {
-            void handleSubmit();
-          }}
-          disabled={isSubmitting}
-        >
-          {isSubmitting ? (
-            <ActivityIndicator color={colors.textPrimary} />
-          ) : (
-            <Text style={styles.buttonLabel}>{mode === "login" ? "Login" : "Register"}</Text>
-          )}
-        </Pressable>
+        <Button
+          label={mode === "login" ? "Login" : "Register"}
+          onPress={() => { void handleSubmit(); }}
+          variant="primary"
+          size="lg"
+          loading={isSubmitting}
+          fullWidth
+        />
 
         <Pressable
           onPress={() => {
@@ -123,21 +118,6 @@ const styles = StyleSheet.create({
     fontSize: typography.body.fontSize,
     color: colors.textOnLight,
     backgroundColor: colors.surfaceAuth,
-  },
-  button: {
-    marginTop: spacing.xs,
-    borderRadius: radius.sm,
-    backgroundColor: colors.accentTeal,
-    paddingVertical: spacing.md,
-    alignItems: "center",
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonLabel: {
-    color: colors.textPrimary,
-    fontSize: typography.body.fontSize,
-    fontWeight: "700",
   },
   switchText: {
     marginTop: 6,
