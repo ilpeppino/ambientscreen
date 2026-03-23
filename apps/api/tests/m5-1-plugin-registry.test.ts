@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { Router } from "express";
 import { pluginRegistryRouter } from "../src/modules/plugin-registry/pluginRegistry.routes";
 import { pluginRegistryRepository } from "../src/modules/plugin-registry/pluginRegistry.repository";
+import { adminPluginsRepository } from "../src/modules/admin-plugins/adminPlugins.repository";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 
 // ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ interface InvokeOptions {
   params?: Record<string, string>;
 }
 
-function getRouteHandler(router: Router, method: RouteMethod, path: string) {
+function getRouteLayer(router: Router, method: RouteMethod, path: string) {
   const routeLayer = (router as unknown as { stack?: Array<unknown> }).stack?.find((layer) => {
     const route = (layer as { route?: { path?: string; methods?: Record<string, boolean> } }).route;
     return route?.path === path && route.methods?.[method];
@@ -43,7 +44,61 @@ function getRouteHandler(router: Router, method: RouteMethod, path: string) {
     throw new Error(`Route ${method.toUpperCase()} ${path} not found`);
   }
 
-  return routeLayer.route.stack[0].handle;
+  return routeLayer;
+}
+
+// Returns only the final business-logic handler, skipping middleware (e.g. requireAdmin).
+function getRouteHandler(router: Router, method: RouteMethod, path: string) {
+  const layer = getRouteLayer(router, method, path);
+  return layer.route.stack[layer.route.stack.length - 1].handle;
+}
+
+// Returns all handlers in the route stack (middleware + final handler).
+function getAllRouteHandlers(router: Router, method: RouteMethod, path: string) {
+  const layer = getRouteLayer(router, method, path);
+  return layer.route.stack.map((l) => l.handle);
+}
+
+async function invokeRouteWithMiddleware(
+  router: Router,
+  method: RouteMethod,
+  path: string,
+  options: InvokeOptions & { userId?: string } = {},
+) {
+  const handlers = getAllRouteHandlers(router, method, path);
+
+  const req: Record<string, unknown> = {
+    method: method.toUpperCase(),
+    path,
+    body: options.body ?? {},
+    params: options.params ?? {},
+    query: {},
+    headers: {},
+    authUser: { id: options.userId ?? "user-1", email: "user@ambient.dev" },
+  };
+
+  const response = { statusCode: 200, body: null as unknown };
+
+  const res = {
+    status(code: number) { response.statusCode = code; return res; },
+    json(body: unknown) { response.body = body; return res; },
+    send() { return res; },
+  };
+
+  let idx = 0;
+  async function callNext(error?: unknown): Promise<void> {
+    if (error) {
+      globalErrorMiddleware(error, req as never, res as never, (() => undefined) as never);
+      return;
+    }
+    if (idx < handlers.length) {
+      const h = handlers[idx++];
+      await h(req, res, callNext);
+    }
+  }
+
+  await callNext();
+  return response;
 }
 
 async function invokeRoute(
@@ -580,5 +635,55 @@ describe("Integration: plugin lifecycle", () => {
       params: { key: "clock-date" },
     });
     expect(detail.statusCode).toBe(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Admin guard — write endpoints require admin (#74)
+// ---------------------------------------------------------------------------
+
+describe("Admin guard — write endpoints require admin role", () => {
+  beforeEach(() => {
+    vi.spyOn(adminPluginsRepository, "findUserById").mockImplementation(async (userId) => {
+      if (userId === "admin-1") return { isAdmin: true };
+      return { isAdmin: false };
+    });
+  });
+
+  afterEach(() => vi.restoreAllMocks());
+
+  test("POST / — non-admin user → 403", async () => {
+    const res = await invokeRouteWithMiddleware(pluginRegistryRouter, "post", "/", {
+      body: pluginBody,
+      userId: "user-1",
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("POST /:id/versions — non-admin user → 403", async () => {
+    const res = await invokeRouteWithMiddleware(pluginRegistryRouter, "post", "/:id/versions", {
+      body: versionBody,
+      params: { id: "some-id" },
+      userId: "user-1",
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("PATCH /:id/approve — non-admin user → 403", async () => {
+    const res = await invokeRouteWithMiddleware(pluginRegistryRouter, "patch", "/:id/approve", {
+      body: { isApproved: true },
+      params: { id: "some-id" },
+      userId: "user-1",
+    });
+    expect(res.statusCode).toBe(403);
+  });
+
+  test("POST / — admin user → guard passes (not rejected)", async () => {
+    const res = await invokeRouteWithMiddleware(pluginRegistryRouter, "post", "/", {
+      body: pluginBody,
+      userId: "admin-1",
+    });
+    // Guard passes for admin — request is not rejected with 403
+    expect(res.statusCode).not.toBe(403);
   });
 });

@@ -30,7 +30,11 @@ export function createApp() {
 
   const app = express();
 
-  app.use(cors());
+  const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+    ?.split(",")
+    .map((s) => s.trim())
+    .filter(Boolean) ?? [];
+  app.use(cors({ origin: allowedOrigins.length > 0 ? allowedOrigins : false }));
   app.use(requestIdMiddleware);
   app.use(requestLoggingMiddleware);
   app.use(express.json());
