@@ -3,6 +3,35 @@
 All notable changes are documented here, newest first.
 
 ---
+## [v0.4.0] — 2026-03-24
+
+### Features
+
+- feat(display): add global slide duration
+- feat(slides): multi-slide management and timed display rotation
+- feat(slides): add phase 4 multi-slide hooks and slide-aware display composition (#170)
+- feat(slides): introduce Slide and SlideItem as the canvas composition foundation
+
+### Bug Fixes
+
+- fix(infra): removed double import
+- fix(infra): fixed tsconfig
+- fix: unblock CI quality by resolving API/client typecheck regressions
+- fix: resolve ci 201 failures
+- fix: keep test renderer mounted
+- fix(remote): fixed mobile expo connection
+- fix(display): make countdown arc responsive to screen width
+- fix(display): flip arc horizontally
+- fix(display): flip and resize progress arc to frame title
+
+### Other
+
+- refactor: simplify client test setup typings
+- test(api): expand edge-case coverage for entitlement normalization and install payload validation
+- test(api): add unit coverage for users, entitlements, and plugin installation services
+- test: plan targeted API service coverage improvements
+- chore(release): update CHANGELOG for v0.3.0 [skip ci]
+
 ## [v0.3.0] — 2026-03-24
 
 ### Features
@@ -135,4 +164,3 @@ All notable changes are documented here, newest first.
 - chore(test): migrate workspace tests to vitest
 - chore: migrate test runner from node:test to vitest
 - docs(prd): add v2 product requirements document
-
