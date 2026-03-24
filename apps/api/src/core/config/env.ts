@@ -16,3 +16,13 @@ function parsePort(rawPort: string | undefined): number | null {
 export function getApiPort(env: NodeJS.ProcessEnv = process.env): number {
   return parsePort(env.PORT) ?? DEFAULT_API_PORT;
 }
+
+export function getAuthJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const secret = env.AUTH_JWT_SECRET?.trim();
+
+  if (!secret) {
+    throw new Error("Missing required env var AUTH_JWT_SECRET");
+  }
+
+  return secret;
+}

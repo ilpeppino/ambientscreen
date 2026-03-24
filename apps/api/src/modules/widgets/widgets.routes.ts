@@ -1,31 +1,54 @@
 import { Router } from "express";
 import {
   createWidgetSchema,
-  defaultWidgetLayout,
   normalizeWidgetConfig,
+  type SupportedWidgetType,
+  updateWidgetConfigPayloadSchema,
+  updateWidgetsLayoutSchema,
 } from "./widget-contracts";
+import { getWidgetPlugin } from "./widgetPluginRegistry";
 import { widgetsService } from "./widgets.service";
-import { usersService } from "../users/users.service";
+import { profilesService } from "../profiles/profiles.service";
 import { apiErrors } from "../../core/http/api-error";
 import { asyncHandler } from "../../core/http/async-handler";
+import { getRequestUserId } from "../auth/auth.middleware";
+import { assertFeatureAccess } from "../entitlements/entitlements.service";
+import { usersService } from "../users/users.service";
+import { pluginInstallationService } from "../plugin-installation/pluginInstallation.service";
 
 export const widgetsRouter = Router();
 
-async function getPrimaryUserId(): Promise<string> {
-  const users = await usersService.getAllUsers();
-
-  if (users.length === 0) {
-    throw apiErrors.badRequest("No users exist yet. Create a user first.");
+function getQueryProfileId(queryValue: unknown): string | undefined {
+  if (typeof queryValue === "string" && queryValue.trim().length > 0) {
+    return queryValue;
   }
 
-  return users[0].id;
+  if (Array.isArray(queryValue) && typeof queryValue[0] === "string" && queryValue[0].trim().length > 0) {
+    return queryValue[0];
+  }
+
+  return undefined;
+}
+
+async function resolveRequestProfileId(userId: string, explicitProfileId?: string | null): Promise<string> {
+  const profile = await profilesService.resolveProfileForUser({
+    userId,
+    profileId: explicitProfileId,
+  });
+
+  if (!profile) {
+    throw apiErrors.notFound("Profile not found");
+  }
+
+  return profile.id;
 }
 
 widgetsRouter.get(
   "/",
-  asyncHandler(async (_req, res) => {
-    const userId = await getPrimaryUserId();
-    const widgets = await widgetsService.getUserWidgets(userId);
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
+    const widgets = await widgetsService.getProfileWidgets(profileId);
     res.json(widgets);
   })
 );
@@ -33,19 +56,46 @@ widgetsRouter.get(
 widgetsRouter.post(
   "/",
   asyncHandler(async (req, res) => {
-    const userId = await getPrimaryUserId();
+    const userId = getRequestUserId(req);
     const result = createWidgetSchema.safeParse(req.body);
 
     if (!result.success) {
       throw apiErrors.validation("Invalid widget payload", result.error.format());
     }
 
-    const { type, config, layout } = result.data;
-    const widget = await widgetsService.createWidgetAtNextPosition({
+    const bodyProfileId = result.data.profileId;
+    const profileId = await resolveRequestProfileId(
       userId,
+      bodyProfileId ?? getQueryProfileId(req.query?.profileId),
+    );
+
+    const { type, config, layout } = result.data as {
+      type: SupportedWidgetType;
+      config?: unknown;
+      layout?: {
+        x: number;
+        y: number;
+        w: number;
+        h: number;
+      };
+    };
+
+    await pluginInstallationService.assertPluginInstalledAndEnabled(userId, type);
+
+    const plugin = getWidgetPlugin(type);
+    if (plugin?.manifest.premium) {
+      const user = await usersService.findUserById(userId);
+      if (!user) {
+        throw apiErrors.notFound("User not found");
+      }
+      assertFeatureAccess(user, "premium_widgets");
+    }
+
+    const widget = await widgetsService.createWidgetAtNextPosition({
+      profileId,
       type,
       config: normalizeWidgetConfig(type, config),
-      layout: layout ?? defaultWidgetLayout,
+      layout,
     });
 
     res.status(201).json(widget);
@@ -53,20 +103,71 @@ widgetsRouter.post(
 );
 
 widgetsRouter.patch(
-  "/:id/active",
+  "/layout",
   asyncHandler(async (req, res) => {
-    const userId = await getPrimaryUserId();
-    const idParam = req.params.id;
-    const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
-    const activatedWidget = await widgetsService.activateWidgetForUser({
-      userId,
-      widgetId
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
+    const parseResult = updateWidgetsLayoutSchema.safeParse(req.body);
+
+    if (!parseResult.success) {
+      throw apiErrors.validation("Invalid widgets layout payload", parseResult.error.format());
+    }
+
+    const updatedWidgets = await widgetsService.updateWidgetsLayoutForProfile({
+      profileId,
+      widgets: parseResult.data.widgets,
     });
 
-    if (!activatedWidget) {
+    res.json({
+      widgets: updatedWidgets,
+    });
+  }),
+);
+
+widgetsRouter.patch(
+  "/:id/config",
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
+    const idParam = req.params.id;
+    const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
+    const parseResult = updateWidgetConfigPayloadSchema.safeParse(req.body);
+
+    if (!parseResult.success) {
+      throw apiErrors.validation("Invalid widget config payload", parseResult.error.format());
+    }
+
+    const updatedWidget = await widgetsService.updateWidgetConfigForProfile({
+      profileId,
+      widgetId,
+      configPatch: parseResult.data.config,
+    });
+
+    if (!updatedWidget) {
       throw apiErrors.notFound("Widget not found");
     }
 
-    res.json(activatedWidget);
-  })
+    res.json(updatedWidget);
+  }),
+);
+
+widgetsRouter.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const userId = getRequestUserId(req);
+    const profileId = await resolveRequestProfileId(userId, getQueryProfileId(req.query?.profileId));
+    const idParam = req.params.id;
+    const widgetId = Array.isArray(idParam) ? idParam[0] : idParam;
+
+    const deletedWidget = await widgetsService.deleteWidgetForProfile({
+      profileId,
+      widgetId,
+    });
+
+    if (!deletedWidget) {
+      throw apiErrors.notFound("Widget not found");
+    }
+
+    res.status(204).send();
+  }),
 );

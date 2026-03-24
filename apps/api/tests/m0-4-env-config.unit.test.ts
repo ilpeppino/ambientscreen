@@ -1,23 +1,22 @@
-import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { getApiPort } from "../src/core/config/env";
 import { loadEnvFromFile } from "../src/core/config/load-env";
 
 test("M0-4: getApiPort defaults to 3000 when PORT is missing", () => {
-  assert.equal(getApiPort({}), 3000);
+  expect(getApiPort({})).toBe(3000);
 });
 
 test("M0-4: getApiPort uses valid numeric PORT from env", () => {
-  assert.equal(getApiPort({ PORT: "4100" }), 4100);
+  expect(getApiPort({ PORT: "4100" })).toBe(4100);
 });
 
 test("M0-4: getApiPort ignores invalid PORT values", () => {
-  assert.equal(getApiPort({ PORT: "abc" }), 3000);
-  assert.equal(getApiPort({ PORT: "-1" }), 3000);
-  assert.equal(getApiPort({ PORT: "70000" }), 3000);
+  expect(getApiPort({ PORT: "abc" })).toBe(3000);
+  expect(getApiPort({ PORT: "-1" })).toBe(3000);
+  expect(getApiPort({ PORT: "70000" })).toBe(3000);
 });
 
 test("M0-4: loadEnvFromFile loads missing values and keeps pre-existing env", () => {
@@ -42,8 +41,8 @@ test("M0-4: loadEnvFromFile loads missing values and keeps pre-existing env", ()
 
     loadEnvFromFile(envPath);
 
-    assert.equal(process.env.PORT, "4123");
-    assert.equal(process.env.DATABASE_URL, "postgresql://keep-existing");
+    expect(process.env.PORT).toBe("4123");
+    expect(process.env.DATABASE_URL).toBe("postgresql://keep-existing");
   } finally {
     if (originalPort === undefined) {
       delete process.env.PORT;

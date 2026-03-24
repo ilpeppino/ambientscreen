@@ -2,24 +2,43 @@ import React from "react";
 import type {
   WidgetDataByKey,
   WidgetDataEnvelope,
+  WidgetKey,
 } from "@ambient/shared-contracts";
-import { CalendarRenderer } from "./calendar/renderer";
-import { ClockDateRenderer } from "./clockDate/renderer";
-import { WeatherRenderer } from "./weather/renderer";
+import {
+  getWidgetPlugin,
+  renderWidgetFromKey as renderWidgetFromPlugin,
+} from "./pluginRegistry";
+import { registerBuiltinWidgetPlugins } from "./registerBuiltinPlugins";
 
-type WidgetEnvelope =
+registerBuiltinWidgetPlugins();
+
+export type WidgetEnvelope =
   | WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate">
   | WidgetDataEnvelope<WidgetDataByKey["weather"], "weather">
   | WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
 
-export function renderWidgetFromEnvelope(envelope: WidgetEnvelope) {
-  if (envelope.widgetKey === "clockDate") {
-    return <ClockDateRenderer data={envelope.data} />;
-  }
+export const widgetRegistry = {
+  clockDate: getWidgetPlugin("clockDate"),
+  weather: getWidgetPlugin("weather"),
+  calendar: getWidgetPlugin("calendar"),
+};
 
-  if (envelope.widgetKey === "weather") {
-    return <WeatherRenderer data={envelope.data} />;
-  }
+export function renderWidgetFromKey(
+  widgetKey: WidgetKey,
+  data: WidgetDataByKey[WidgetKey] | null,
+) {
+  return renderWidgetFromPlugin(widgetKey, {
+    widgetInstanceId: `display-${widgetKey}`,
+    state: "ready",
+    data,
+  });
+}
 
-  return <CalendarRenderer data={envelope.data} />;
+export function renderWidgetFromEnvelope(envelope: WidgetEnvelope): React.ReactNode {
+  return renderWidgetFromPlugin(envelope.widgetKey, {
+    widgetInstanceId: envelope.widgetInstanceId,
+    state: envelope.state,
+    data: envelope.data,
+    meta: envelope.meta,
+  });
 }

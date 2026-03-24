@@ -3,11 +3,32 @@ import type {
   WidgetConfigByKey,
   WidgetDataEnvelope,
 } from "@ambient/shared-contracts";
-import { normalizeWidgetConfig } from "../../widgets/widget-contracts";
 import {
   fetchIcsCalendarEvents,
   type IcsCalendarResult,
 } from "../providers/ical.provider";
+
+function toCalendarConfig(config: unknown): WidgetConfigByKey["calendar"] {
+  const raw = config && typeof config === "object" && !Array.isArray(config)
+    ? config as Record<string, unknown>
+    : {};
+
+  const timeWindow = raw.timeWindow === "today" || raw.timeWindow === "next24h" || raw.timeWindow === "next7d"
+    ? raw.timeWindow
+    : "next7d";
+
+  const maxEvents = typeof raw.maxEvents === "number" && Number.isInteger(raw.maxEvents)
+    ? Math.min(20, Math.max(1, raw.maxEvents))
+    : 10;
+
+  return {
+    provider: raw.provider === "ical" ? "ical" : "ical",
+    account: typeof raw.account === "string" ? raw.account : "",
+    timeWindow,
+    includeAllDay: typeof raw.includeAllDay === "boolean" ? raw.includeAllDay : true,
+    maxEvents,
+  };
+}
 
 function buildEmptyCalendarData(): CalendarWidgetData {
   return {
@@ -21,7 +42,6 @@ function buildWindowBounds(timeWindow: "today" | "next24h" | "next7d"): {
   windowEndIso: string;
 } {
   const now = new Date();
-  // Anchor to start of current UTC day so all-day events for today are included
   const windowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   const windowEnd = new Date(windowStart);
 
@@ -50,10 +70,7 @@ export async function resolveCalendarWidgetData(input: {
     maxEvents: number;
   }) => Promise<IcsCalendarResult>;
 }): Promise<WidgetDataEnvelope<CalendarWidgetData, "calendar">> {
-  const normalizedConfig = normalizeWidgetConfig(
-    "calendar",
-    input.widgetConfig,
-  ) as WidgetConfigByKey["calendar"];
+  const normalizedConfig = toCalendarConfig(input.widgetConfig);
 
   const provider = normalizedConfig.provider ?? "ical";
   const account = normalizedConfig.account;

@@ -103,6 +103,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Token enforcement
+        run: npm run check-tokens
+
       - name: Test
         run: npm test
 

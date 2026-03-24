@@ -107,10 +107,13 @@ export function globalErrorMiddleware(
     response.error.details = apiError.details;
   }
 
-  const logContext = `[API] ${req.method} ${req.originalUrl} -> ${apiError.status} ${apiError.code}`;
+  const reqId = req.requestId ? ` [${req.requestId}]` : "";
+  const logContext = `[API]${reqId} ${req.method} ${req.originalUrl} -> ${apiError.status} ${apiError.code}`;
 
   if (apiError.status >= 500) {
     console.error(logContext, error);
+  } else if (apiError.status === 401 || apiError.status === 403) {
+    console.warn(`[SECURITY] ${logContext}`);
   } else {
     console.warn(logContext);
   }

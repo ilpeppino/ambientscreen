@@ -4,53 +4,70 @@ import type {
   WidgetDataEnvelope,
   WidgetKey,
 } from "@ambient/shared-contracts";
-import { resolveClockDateWidgetData } from "./resolvers/clockDate.resolver";
-import { resolveWeatherWidgetData } from "./resolvers/weather.resolver";
-import { resolveCalendarWidgetData } from "./resolvers/calendar.resolver";
+import {
+  normalizeWidgetConfig,
+  validateWidgetConfig,
+  type SupportedWidgetType,
+} from "../widgets/widget-contracts";
+import { getWidgetPlugin } from "../widgets/widgetPluginRegistry";
 
 type WidgetDataResult =
-  WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate"> |
-  WidgetDataEnvelope<WidgetDataByKey["weather"], "weather"> |
-  WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">;
-
-const widgetResolvers: {
-  [TKey in WidgetKey]: (input: {
-    widgetInstanceId: string;
-    widgetConfig: unknown;
-  }) => Promise<
-    WidgetDataEnvelope<WidgetDataByKey[TKey], TKey>
-  >;
-} = {
-  clockDate: resolveClockDateWidgetData,
-  weather: resolveWeatherWidgetData,
-  calendar: resolveCalendarWidgetData,
-};
+  WidgetDataEnvelope<WidgetDataByKey[WidgetKey], WidgetKey>;
 
 export const widgetDataService = {
-  async getWidgetData(widgetId: string): Promise<WidgetDataResult | null> {
-    const widget = await widgetsService.getWidgetById(widgetId);
+  async getWidgetDataForUser(widgetId: string, userId: string): Promise<WidgetDataResult | null> {
+    const widget = await widgetsService.getWidgetByIdForUser(widgetId, userId);
 
     if (!widget) {
       return null;
     }
 
-    const resolver = widgetResolvers[widget.type as WidgetKey];
-    if (!resolver) {
+    const widgetType = widget.type as SupportedWidgetType;
+    const plugin = getWidgetPlugin(widgetType);
+    if (!plugin?.api?.resolveData) {
       return {
         widgetInstanceId: widget.id,
-        widgetKey: widget.type as WidgetKey,
+        widgetKey: widgetType,
         state: "error",
         data: null,
         meta: {
           errorCode: "UNSUPPORTED_WIDGET_TYPE",
           message: `Unsupported widget type: ${widget.type}`,
         },
-      } as WidgetDataResult;
+      };
     }
 
-    return resolver({
-      widgetInstanceId: widget.id,
-      widgetConfig: widget.config,
-    });
+    const validationResult = validateWidgetConfig(widgetType, widget.config);
+    if (!validationResult.success) {
+      return {
+        widgetInstanceId: widget.id,
+        widgetKey: widgetType,
+        state: "error",
+        data: null,
+        meta: {
+          errorCode: "INVALID_WIDGET_CONFIG",
+          message: `Invalid config for widget type: ${widget.type}`,
+        },
+      };
+    }
+
+    try {
+      return await plugin.api.resolveData({
+        widgetInstanceId: widget.id,
+        widgetKey: widgetType,
+        widgetConfig: normalizeWidgetConfig(widgetType, widget.config),
+      });
+    } catch {
+      return {
+        widgetInstanceId: widget.id,
+        widgetKey: widgetType,
+        state: "error",
+        data: null,
+        meta: {
+          errorCode: "RESOLVER_FAILURE",
+          message: "Widget data resolver encountered an unexpected error",
+        },
+      };
+    }
   },
 };

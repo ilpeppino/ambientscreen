@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import {
   createDisplayOrientationLifecycle,
   type OrientationApi,
@@ -86,9 +85,9 @@ test("enable/disable locks landscape then restores orientation", async () => {
   fixture.pendingUnlocks[0].resolve();
   await flushMicrotaskQueue();
 
-  assert.equal(fixture.lockCalls.length, 1);
-  assert.equal(fixture.unlockCalls.length, 1);
-  assert.deepEqual(fixture.warnings, []);
+  expect(fixture.lockCalls.length).toBe(1);
+  expect(fixture.unlockCalls.length).toBe(1);
+  expect(fixture.warnings).toEqual([]);
 });
 
 test("extra disable is idempotent and does not over-unlock", async () => {
@@ -102,8 +101,8 @@ test("extra disable is idempotent and does not over-unlock", async () => {
   fixture.pendingUnlocks[0].resolve();
   await flushMicrotaskQueue();
 
-  assert.equal(fixture.lockCalls.length, 1);
-  assert.equal(fixture.unlockCalls.length, 1);
+  expect(fixture.lockCalls.length).toBe(1);
+  expect(fixture.unlockCalls.length).toBe(1);
 });
 
 test("late lock completion after exit is compensated with unlock", async () => {
@@ -117,8 +116,8 @@ test("late lock completion after exit is compensated with unlock", async () => {
   fixture.pendingUnlocks[0].resolve();
   await flushMicrotaskQueue();
 
-  assert.equal(fixture.lockCalls.length, 1);
-  assert.equal(fixture.unlockCalls.length, 1);
+  expect(fixture.lockCalls.length).toBe(1);
+  expect(fixture.unlockCalls.length).toBe(1);
 });
 
 test("stale unlock completion after re-enter triggers relock", async () => {
@@ -136,8 +135,8 @@ test("stale unlock completion after re-enter triggers relock", async () => {
   fixture.pendingLocks[1].resolve();
   await flushMicrotaskQueue();
 
-  assert.equal(fixture.lockCalls.length, 2);
-  assert.equal(fixture.unlockCalls.length, 1);
+  expect(fixture.lockCalls.length).toBe(2);
+  expect(fixture.unlockCalls.length).toBe(1);
 });
 
 test("lock failure is logged", async () => {
@@ -147,7 +146,7 @@ test("lock failure is logged", async () => {
   fixture.pendingLocks[0].reject(new Error("lock failed"));
   await flushMicrotaskQueue();
 
-  assert.deepEqual(fixture.warnings, ["Failed to lock landscape orientation"]);
+  expect(fixture.warnings).toEqual(["Failed to lock landscape orientation"]);
 });
 
 test("unlock failure is logged", async () => {
@@ -161,5 +160,5 @@ test("unlock failure is logged", async () => {
   fixture.pendingUnlocks[0].reject(new Error("unlock failed"));
   await flushMicrotaskQueue();
 
-  assert.deepEqual(fixture.warnings, ["Failed to restore orientation"]);
+  expect(fixture.warnings).toEqual(["Failed to restore orientation"]);
 });

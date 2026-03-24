@@ -1,95 +1,131 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import type {
-  WeatherWidgetData,
-  WidgetRendererProps,
-} from "@ambient/shared-contracts";
+import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import type { WidgetRendererProps } from "@ambient/shared-contracts";
+import { AppIcon, Text } from "../../shared/ui/components";
+import { colors, spacing, typography } from "../../shared/ui/theme";
+import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
-export function WeatherRenderer({ data }: WidgetRendererProps<WeatherWidgetData>) {
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.statusTitle}>Weather unavailable</Text>
-          <Text style={styles.statusMessage}>No weather data was returned.</Text>
-        </View>
-      </View>
-    );
+export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">) {
+  const [contentSize, setContentSize] = React.useState({ width: 260, height: 160 });
+  const scale = clamp(
+    Math.min(contentSize.width / 300, contentSize.height / 190),
+    0.5,
+    1,
+  );
+  const compact = contentSize.height < 145;
+
+  const hasData = data !== null
+    && (data.temperatureC !== null || Boolean(data.conditionLabel) || Boolean(data.location));
+
+  function handleContentLayout(event: LayoutChangeEvent) {
+    const { width, height } = event.nativeEvent.layout;
+    if (width > 0 && height > 0) {
+      setContentSize({ width, height });
+    }
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.location}>{data.location ?? "Unknown location"}</Text>
-        <Text style={styles.temperature}>
-          {data.temperatureC === null ? "--" : data.temperatureC}
-          <Text style={styles.temperatureUnit}> C</Text>
-        </Text>
-        <Text style={styles.condition}>{data.conditionLabel ?? "No condition available"}</Text>
+    <BaseWidgetFrame
+      title="Weather"
+      icon="weather"
+      state={state}
+      hasData={hasData}
+      emptyMessage="No weather data was returned."
+      surfaceStyle={styles.surfaceFrame}
+      contentStyle={styles.contentFrame}
+      onContentLayout={handleContentLayout}
+    >
+      <View style={styles.heroRow}>
+        <AppIcon name="weather" size="lg" color="textSecondary" />
+        <View style={styles.temperatureGroup}>
+          <Text
+            style={[styles.temperature, { fontSize: Math.round(50 * scale), lineHeight: Math.round(52 * scale) }]}
+            adjustsFontSizeToFit
+            numberOfLines={1}
+            minimumFontScale={0.45}
+          >
+            {data?.temperatureC === null ? "--" : data?.temperatureC}
+          </Text>
+          <Text style={[styles.temperatureUnit, { fontSize: Math.round(16 * scale) }]}>C</Text>
+        </View>
       </View>
-    </View>
+      <Text
+        style={[styles.location, { fontSize: Math.round(14 * scale) }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+      >
+        {data?.location ?? "Unknown location"}
+      </Text>
+      {!compact ? (
+        <Text
+          style={[styles.condition, { fontSize: Math.round(16 * scale) }]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.65}
+        >
+          {data?.conditionLabel ?? "No condition available"}
+        </Text>
+      ) : null}
+    </BaseWidgetFrame>
   );
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(value, max));
+}
+
 const styles = StyleSheet.create({
-  container: {
+  surfaceFrame: {
+    flex: 1,
+    width: "100%",
+    alignSelf: "stretch",
+  },
+  contentFrame: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    backgroundColor: "transparent",
+    overflow: "hidden",
   },
-  card: {
-    width: "100%",
-    maxWidth: 720,
-    borderWidth: 1,
-    borderColor: "#1c1c1c",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    borderRadius: 24,
+  heroRow: {
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 36,
+    gap: spacing.sm,
+    maxWidth: "100%",
   },
-  statusTitle: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-  },
-  statusMessage: {
-    marginTop: 10,
-    fontSize: 18,
-    lineHeight: 24,
-    color: "#bdbdbd",
-    textAlign: "center",
+  temperatureGroup: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.xs,
+    maxWidth: "100%",
   },
   location: {
-    fontSize: 30,
-    lineHeight: 36,
-    color: "#e8e8e8",
+    marginTop: spacing.sm,
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: "center",
+    maxWidth: "100%",
   },
   temperature: {
-    marginTop: 12,
-    fontSize: 86,
-    lineHeight: 94,
+    fontSize: 42,
+    lineHeight: 44,
     fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 1.2,
+    color: colors.textPrimary,
+    letterSpacing: 0.4,
     textAlign: "center",
   },
   temperatureUnit: {
-    fontSize: 30,
-    color: "#d0d0d0",
+    marginTop: spacing.sm,
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.textSecondary,
   },
   condition: {
-    marginTop: 8,
-    fontSize: 24,
-    lineHeight: 32,
-    color: "#bebebe",
+    marginTop: spacing.xs,
+    ...typography.titleSm,
+    color: colors.textPrimary,
     textAlign: "center",
+    maxWidth: "100%",
   },
 });

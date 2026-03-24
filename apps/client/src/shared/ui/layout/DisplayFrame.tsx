@@ -1,5 +1,7 @@
 import React from "react";
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { colors, radius, spacing, typography } from "../theme";
 
 interface DisplayFrameProps {
   title?: string;
@@ -37,18 +39,18 @@ export function DisplayFrame({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#000",
+    backgroundColor: colors.backgroundPrimary,
   },
   container: {
     flex: 1,
-    backgroundColor: "#000",
-    paddingHorizontal: 20,
+    backgroundColor: colors.backgroundPrimary,
+    paddingHorizontal: spacing.xl,
   },
   backgroundGlowTop: {
     position: "absolute",
     width: 420,
     height: 420,
-    borderRadius: 420,
+    borderRadius: radius.pill,
     top: -260,
     alignSelf: "center",
     backgroundColor: "rgba(255, 255, 255, 0.05)",
@@ -57,27 +59,27 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: 320,
     height: 320,
-    borderRadius: 320,
+    borderRadius: radius.pill,
     bottom: -220,
     right: -80,
     backgroundColor: "rgba(255, 255, 255, 0.03)",
   },
   header: {
     alignItems: "center",
-    paddingTop: 24,
+    paddingTop: spacing.xl,
     paddingBottom: 14,
   },
   title: {
-    color: "#fff",
-    fontSize: 30,
+    color: colors.textPrimary,
+    fontSize: typography.title.fontSize,
     fontWeight: "700",
     letterSpacing: 0.8,
     textAlign: "center",
   },
   subtitle: {
     marginTop: 6,
-    color: "#9a9a9a",
-    fontSize: 16,
+    color: colors.textSecondary,
+    fontSize: typography.body.fontSize,
     textAlign: "center",
   },
   content: {
@@ -86,6 +88,6 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "center",
     paddingBottom: 18,
-    paddingTop: 10,
+    paddingTop: spacing.sm,
   },
 });

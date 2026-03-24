@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -7,6 +6,7 @@ import { usersRouter } from "../src/modules/users/users.routes";
 import { widgetDataRouter } from "../src/modules/widgetData/widget-data.routes";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
+import { profilesService } from "../src/modules/profiles/profiles.service";
 
 interface TestUser {
   id: string;
@@ -16,7 +16,7 @@ interface TestUser {
 
 interface TestWidget {
   id: string;
-  userId: string;
+  profileId: string;
   type: string;
   config: Record<string, unknown>;
   layout: {
@@ -25,7 +25,6 @@ interface TestWidget {
     w: number;
     h: number;
   };
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -37,49 +36,67 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-const originalUsersRepository = {
-  findAll: usersRepository.findAll,
-  findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create,
-};
-
-const originalWidgetsRepository = {
-  findAll: widgetsRepository.findAll,
-  findById: widgetsRepository.findById,
-  create: widgetsRepository.create,
-  activateWidget: widgetsRepository.activateWidget,
-};
-
-const originalFetch = globalThis.fetch;
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-  findByEmail: (email: string) => Promise<TestUser | null>;
-  create: (email: string) => Promise<TestUser>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (userId: string) => Promise<TestWidget[]>;
-  findById: (id: string) => Promise<TestWidget | null>;
-  create: (input: {
-    userId: string;
-    type: string;
-    config: unknown;
-    layout: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-    };
-    isActive: boolean;
-  }) => Promise<TestWidget>;
-  activateWidget: (userId: string, widgetId: string) => Promise<TestWidget>;
-};
-
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
 let userCounter = 0;
 let widgetCounter = 0;
+
+const originalFetch = globalThis.fetch;
+
+function formatDateAsIcsUtcDay(value: Date): string {
+  const year = value.getUTCFullYear();
+  const month = String(value.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(value.getUTCDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+function buildCalendarIcsFixture(): {
+  ics: string;
+  expectedAllDayStartIso: string;
+  expectedTimedStartIso: string;
+  expectedTimedEndIso: string;
+} {
+  const todayUtc = new Date();
+  const dayString = formatDateAsIcsUtcDay(todayUtc);
+
+  const timedStart = new Date(Date.UTC(
+    todayUtc.getUTCFullYear(),
+    todayUtc.getUTCMonth(),
+    todayUtc.getUTCDate(),
+    14,
+    0,
+    0,
+    0,
+  ));
+  const timedEnd = new Date(timedStart);
+  timedEnd.setUTCMinutes(30);
+
+  const ics = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "BEGIN:VEVENT",
+    "UID:event-1",
+    `DTSTART;VALUE=DATE:${dayString}`,
+    "SUMMARY:All Day Planning",
+    "LOCATION:HQ",
+    "END:VEVENT",
+    "BEGIN:VEVENT",
+    "UID:event-2",
+    `DTSTART:${dayString}T140000Z`,
+    `DTEND:${dayString}T143000Z`,
+    "SUMMARY:Client Sync",
+    "LOCATION:Room 4A",
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ].join("\r\n");
+
+  return {
+    ics,
+    expectedAllDayStartIso: `${timedStart.toISOString().slice(0, 10)}T00:00:00.000Z`,
+    expectedTimedStartIso: timedStart.toISOString(),
+    expectedTimedEndIso: timedEnd.toISOString(),
+  };
+}
 
 beforeEach(() => {
   usersStore = [];
@@ -87,11 +104,19 @@ beforeEach(() => {
   userCounter = 0;
   widgetCounter = 0;
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableUsersRepository.findByEmail = async (email: string) => {
-    return usersStore.find((user) => user.email === email) ?? null;
-  };
-  mutableUsersRepository.create = async (email: string) => {
+  vi.spyOn(profilesService, "resolveProfileForUser").mockImplementation(async ({ userId }) => ({
+    id: userId,
+    userId,
+    name: "Default",
+    isDefault: true,
+    createdAt: new Date(),
+  }) as never);
+
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
+    return (usersStore.find((user) => user.email === email) ?? null) as never;
+  });
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     userCounter += 1;
     const newUser: TestUser = {
       id: `user-${userCounter}`,
@@ -99,76 +124,41 @@ beforeEach(() => {
       createdAt: new Date(),
     };
     usersStore.push(newUser);
-    return newUser;
-  };
+    return newUser as never;
+  });
 
-  mutableWidgetsRepository.findAll = async (userId: string) => {
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore
-      .filter((widget) => widget.userId === userId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  };
-  mutableWidgetsRepository.findById = async (id: string) => {
-    return widgetsStore.find((widget) => widget.id === id) ?? null;
-  };
-  mutableWidgetsRepository.create = async (input) => {
+      .filter((widget) => widget.profileId === profileId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) as never;
+  });
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) => {
+    return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
+  });
+  vi.spyOn(widgetsRepository, "findByIdForUser").mockImplementation(async (id: string) => {
+    return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
+  });
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => {
     widgetCounter += 1;
     const now = new Date();
     const newWidget: TestWidget = {
       id: `widget-${widgetCounter}`,
-      userId: input.userId,
+      profileId: input.profileId,
       type: input.type,
       config: input.config as Record<string, unknown>,
       layout: input.layout,
-      isActive: input.isActive,
       createdAt: now,
       updatedAt: now,
     };
     widgetsStore.push(newWidget);
-    return newWidget;
-  };
-  mutableWidgetsRepository.activateWidget = async (userId: string, widgetId: string) => {
-    const widget = widgetsStore.find((item) => item.id === widgetId && item.userId === userId);
-    if (!widget) {
-      throw new Error("Widget not found");
-    }
-
-    widgetsStore = widgetsStore.map((item) => {
-      if (item.userId !== userId) {
-        return item;
-      }
-
-      return {
-        ...item,
-        isActive: item.id === widgetId,
-        updatedAt: new Date(),
-      };
-    });
-
-    return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
-  };
+    return newWidget as never;
+  });
 
   globalThis.fetch = async (input) => {
     const requestUrl = String(input);
 
     if (requestUrl === "https://calendar.example.com/demo.ics") {
-      const ics = [
-        "BEGIN:VCALENDAR",
-        "VERSION:2.0",
-        "BEGIN:VEVENT",
-        "UID:event-1",
-        "DTSTART;VALUE=DATE:20260321",
-        "SUMMARY:All Day Planning",
-        "LOCATION:HQ",
-        "END:VEVENT",
-        "BEGIN:VEVENT",
-        "UID:event-2",
-        "DTSTART:20260321T140000Z",
-        "DTEND:20260321T143000Z",
-        "SUMMARY:Client Sync",
-        "LOCATION:Room 4A",
-        "END:VEVENT",
-        "END:VCALENDAR",
-      ].join("\r\n");
+      const { ics } = buildCalendarIcsFixture();
 
       return new Response(ics, { status: 200 });
     }
@@ -179,23 +169,8 @@ beforeEach(() => {
   };
 });
 
-after(() => {
-  mutableUsersRepository.findAll =
-    originalUsersRepository.findAll as typeof mutableUsersRepository.findAll;
-  mutableUsersRepository.findByEmail =
-    originalUsersRepository.findByEmail as typeof mutableUsersRepository.findByEmail;
-  mutableUsersRepository.create =
-    originalUsersRepository.create as typeof mutableUsersRepository.create;
-
-  mutableWidgetsRepository.findAll =
-    originalWidgetsRepository.findAll as typeof mutableWidgetsRepository.findAll;
-  mutableWidgetsRepository.findById =
-    originalWidgetsRepository.findById as typeof mutableWidgetsRepository.findById;
-  mutableWidgetsRepository.create =
-    originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
-  mutableWidgetsRepository.activateWidget =
-    originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
-
+afterEach(() => {
+  vi.restoreAllMocks();
   globalThis.fetch = originalFetch;
 });
 
@@ -235,6 +210,10 @@ async function invokeRoute(
     originalUrl: path,
     body: options.body ?? {},
     params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -264,7 +243,7 @@ async function invokeRoute(
 
 test("M4-1: calendar widget data endpoint returns normalized event list", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" },
+    body: { email: "owner@ambient.dev", password: "password123" },
   });
 
   const createCalendarWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -279,14 +258,19 @@ test("M4-1: calendar widget data endpoint returns normalized event list", async 
       },
     },
   });
-  assert.equal(createCalendarWidgetResponse.statusCode, 201);
+  expect(createCalendarWidgetResponse.statusCode).toBe(201);
 
   const calendarWidgetId = (createCalendarWidgetResponse.body as { id: string }).id;
   const calendarDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: calendarWidgetId },
   });
 
-  assert.equal(calendarDataResponse.statusCode, 200);
+  expect(calendarDataResponse.statusCode).toBe(200);
+  const {
+    expectedAllDayStartIso,
+    expectedTimedStartIso,
+    expectedTimedEndIso,
+  } = buildCalendarIcsFixture();
   const calendarEnvelope = calendarDataResponse.body as {
     state: string;
     data: {
@@ -306,31 +290,31 @@ test("M4-1: calendar widget data endpoint returns normalized event list", async 
     };
   };
 
-  assert.equal(calendarEnvelope.state, "ready");
-  assert.equal(calendarEnvelope.data.upcomingCount, 2);
-  assert.deepEqual(calendarEnvelope.data.events[0], {
+  expect(calendarEnvelope.state).toBe("ready");
+  expect(calendarEnvelope.data.upcomingCount).toBe(2);
+  expect(calendarEnvelope.data.events[0]).toEqual({
     id: "event-1",
     title: "All Day Planning",
-    startIso: "2026-03-21T00:00:00.000Z",
+    startIso: expectedAllDayStartIso,
     endIso: null,
     allDay: true,
     location: "HQ",
   });
-  assert.deepEqual(calendarEnvelope.data.events[1], {
+  expect(calendarEnvelope.data.events[1]).toEqual({
     id: "event-2",
     title: "Client Sync",
-    startIso: "2026-03-21T14:00:00.000Z",
-    endIso: "2026-03-21T14:30:00.000Z",
+    startIso: expectedTimedStartIso,
+    endIso: expectedTimedEndIso,
     allDay: false,
     location: "Room 4A",
   });
-  assert.equal(calendarEnvelope.meta.source, "ical");
-  assert.equal(typeof calendarEnvelope.meta.fetchedAt, "string");
+  expect(calendarEnvelope.meta.source).toBe("ical");
+  expect(typeof calendarEnvelope.meta.fetchedAt).toBe("string");
 });
 
 test("M4-1: calendar widget data endpoint returns empty when feed is not configured", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" },
+    body: { email: "owner@ambient.dev", password: "password123" },
   });
 
   const createCalendarWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -342,14 +326,14 @@ test("M4-1: calendar widget data endpoint returns empty when feed is not configu
       },
     },
   });
-  assert.equal(createCalendarWidgetResponse.statusCode, 201);
+  expect(createCalendarWidgetResponse.statusCode).toBe(201);
 
   const calendarWidgetId = (createCalendarWidgetResponse.body as { id: string }).id;
   const calendarDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: calendarWidgetId },
   });
 
-  assert.equal(calendarDataResponse.statusCode, 200);
+  expect(calendarDataResponse.statusCode).toBe(200);
   const calendarEnvelope = calendarDataResponse.body as {
     state: string;
     data: {
@@ -361,8 +345,8 @@ test("M4-1: calendar widget data endpoint returns empty when feed is not configu
     };
   };
 
-  assert.equal(calendarEnvelope.state, "empty");
-  assert.equal(calendarEnvelope.data.upcomingCount, 0);
-  assert.equal(calendarEnvelope.data.events.length, 0);
-  assert.equal(calendarEnvelope.meta.errorCode, "CALENDAR_FEED_NOT_CONFIGURED");
+  expect(calendarEnvelope.state).toBe("empty");
+  expect(calendarEnvelope.data.upcomingCount).toBe(0);
+  expect(calendarEnvelope.data.events.length).toBe(0);
+  expect(calendarEnvelope.meta.errorCode).toBe("CALENDAR_FEED_NOT_CONFIGURED");
 });

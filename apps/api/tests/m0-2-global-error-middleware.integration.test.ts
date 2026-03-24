@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import {
   globalErrorMiddleware,
@@ -21,18 +20,6 @@ interface InvokeRouteOptions {
   params?: Record<string, string>;
 }
 
-const originalUsersRepository = {
-  findAll: usersRepository.findAll,
-  findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create
-};
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-  findByEmail: (email: string) => Promise<TestUser | null>;
-  create: (email: string) => Promise<TestUser>;
-};
-
 let usersStore: TestUser[] = [];
 let userCounter = 0;
 
@@ -40,11 +27,14 @@ beforeEach(() => {
   usersStore = [];
   userCounter = 0;
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableUsersRepository.findByEmail = async (email: string) => {
-    return usersStore.find((user) => user.email === email) ?? null;
-  };
-  mutableUsersRepository.create = async (email: string) => {
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(usersRepository, "findById").mockImplementation(async (id: string) => {
+    return (usersStore.find((user) => user.id === id) ?? null) as never;
+  });
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
+    return (usersStore.find((user) => user.email === email) ?? null) as never;
+  });
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
     if (duplicateUser) {
       throw { code: "P2002" };
@@ -57,17 +47,12 @@ beforeEach(() => {
       createdAt: new Date()
     };
     usersStore.push(newUser);
-    return newUser;
-  };
+    return newUser as never;
+  });
 });
 
-after(() => {
-  mutableUsersRepository.findAll =
-    originalUsersRepository.findAll as typeof mutableUsersRepository.findAll;
-  mutableUsersRepository.findByEmail =
-    originalUsersRepository.findByEmail as typeof mutableUsersRepository.findByEmail;
-  mutableUsersRepository.create =
-    originalUsersRepository.create as typeof mutableUsersRepository.create;
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -105,7 +90,11 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -135,14 +124,14 @@ async function invokeRoute(
 
 test("M0-2: duplicate, validation, and internal errors are distinguishable with normalized JSON", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const duplicateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
-  assert.equal(duplicateResponse.statusCode, 409);
-  assert.deepEqual(duplicateResponse.body, {
+  expect(duplicateResponse.statusCode).toBe(409);
+  expect(duplicateResponse.body).toEqual({
     error: {
       code: "DUPLICATE_RESOURCE",
       message: "A user with this email already exists"
@@ -150,31 +139,33 @@ test("M0-2: duplicate, validation, and internal errors are distinguishable with 
   });
 
   const validationResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "not-an-email" }
+    body: { email: "not-an-email", password: "password123" }
   });
-  assert.equal(validationResponse.statusCode, 400);
+  expect(validationResponse.statusCode).toBe(400);
   const validationBody = validationResponse.body as {
     error: { code: string; details: unknown };
   };
-  assert.equal(validationBody.error.code, "VALIDATION_ERROR");
-  assert.ok(validationBody.error.details);
+  expect(validationBody.error.code).toBe("VALIDATION_ERROR");
+  expect(validationBody.error.details).toBeTruthy();
 
-  mutableUsersRepository.findAll = async () => {
+  vi.spyOn(usersRepository, "findById").mockImplementation(async () => {
     throw new Error("simulated db failure");
-  };
+  });
 
   const internalResponse = await invokeRoute(usersRouter, "get", "/");
-  assert.equal(internalResponse.statusCode, 500);
-  assert.deepEqual(internalResponse.body, {
+  expect(internalResponse.statusCode).toBe(500);
+  expect(internalResponse.body).toEqual({
     error: {
       code: "INTERNAL_ERROR",
       message: "Internal server error"
     }
   });
 
-  mutableUsersRepository.findAll = async () => usersStore;
+  vi.spyOn(usersRepository, "findById").mockImplementation(async (id: string) => {
+    return (usersStore.find((user) => user.id === id) ?? null) as never;
+  });
   const aliveResponse = await invokeRoute(usersRouter, "get", "/");
-  assert.equal(aliveResponse.statusCode, 200);
+  expect(aliveResponse.statusCode).toBe(200);
 });
 
 test("M0-2: unknown route errors are normalized as JSON", () => {
@@ -201,8 +192,8 @@ test("M0-2: unknown route errors are normalized as JSON", () => {
 
   notFoundMiddleware(req as never, res as never);
 
-  assert.equal(response.statusCode, 404);
-  assert.deepEqual(response.body, {
+  expect(response.statusCode).toBe(404);
+  expect(response.body).toEqual({
     error: {
       code: "NOT_FOUND",
       message: "Route not found: GET /missing"

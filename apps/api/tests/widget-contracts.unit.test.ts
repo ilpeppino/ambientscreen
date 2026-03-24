@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import {
   createWidgetSchema,
   normalizeWidgetConfig,
@@ -9,22 +8,22 @@ import {
 test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
   const clock = createWidgetSchema.safeParse({
     type: "clockDate",
-    config: { timezone: "UTC", hour12: false },
+    config: { timezone: "UTC", format: "12h", showSeconds: true },
     layout: { x: 0, y: 0, w: 1, h: 1 },
   });
-  assert.equal(clock.success, true);
+  expect(clock.success).toBe(true);
 
   const weather = createWidgetSchema.safeParse({
     type: "weather",
     config: { location: "Amsterdam", units: "metric" },
   });
-  assert.equal(weather.success, true);
+  expect(weather.success).toBe(true);
 
   const calendar = createWidgetSchema.safeParse({
     type: "calendar",
     config: { provider: "ical", timeWindow: "next7d" },
   });
-  assert.equal(calendar.success, true);
+  expect(calendar.success).toBe(true);
 });
 
 test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
@@ -32,25 +31,25 @@ test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
     type: "clockDate",
     config: { hour12: "false" },
   });
-  assert.equal(invalidClock.success, false);
+  expect(invalidClock.success).toBe(false);
 
   const invalidWeather = createWidgetSchema.safeParse({
     type: "weather",
     config: { units: "kelvin" },
   });
-  assert.equal(invalidWeather.success, false);
+  expect(invalidWeather.success).toBe(false);
 
   const invalidCalendar = createWidgetSchema.safeParse({
     type: "calendar",
     config: { provider: "googleCalendar" },
   });
-  assert.equal(invalidCalendar.success, false);
+  expect(invalidCalendar.success).toBe(false);
 
   const invalidLayout = createWidgetSchema.safeParse({
     type: "clockDate",
     layout: { x: -1, y: 0, w: 1, h: 1 },
   });
-  assert.equal(invalidLayout.success, false);
+  expect(invalidLayout.success).toBe(false);
 });
 
 test("M2-1: createWidgetSchema allows missing layout for backward compatibility", () => {
@@ -58,22 +57,27 @@ test("M2-1: createWidgetSchema allows missing layout for backward compatibility"
     type: "clockDate",
     config: { timezone: "UTC" },
   });
-  assert.equal(clock.success, true);
+  expect(clock.success).toBe(true);
 });
 
 test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () => {
   const normalizedClock = normalizeWidgetConfig("clockDate", { hour12: "nope" });
-  assert.deepEqual(normalizedClock, {});
+  expect(normalizedClock).toEqual({
+    format: "24h",
+    showSeconds: false,
+    timezone: "local",
+  });
 
   const normalizedWeather = normalizeWidgetConfig("weather", null);
-  assert.deepEqual(normalizedWeather, {
+  expect(normalizedWeather).toEqual({
     location: "Amsterdam",
     units: "metric",
   });
 
   const normalizedCalendar = normalizeWidgetConfig("calendar", {});
-  assert.deepEqual(normalizedCalendar, {
+  expect(normalizedCalendar).toEqual({
     provider: "ical",
+    account: "",
     timeWindow: "next7d",
     maxEvents: 10,
     includeAllDay: true,
@@ -88,7 +92,7 @@ test("M4-3: normalizeWidgetConfig maps legacy calendar config to V1 admin shape"
     maxEvents: 5,
   });
 
-  assert.deepEqual(normalizedCalendar, {
+  expect(normalizedCalendar).toEqual({
     provider: "ical",
     account: "https://calendar.example.com/feed.ics",
     timeWindow: "next7d",
@@ -98,7 +102,7 @@ test("M4-3: normalizeWidgetConfig maps legacy calendar config to V1 admin shape"
 });
 
 test("M2-1: widget manifests expose refresh policy rules", () => {
-  assert.equal(widgetManifests.clockDate.refreshPolicy.intervalMs, 1000);
-  assert.equal(widgetManifests.weather.refreshPolicy.intervalMs, 300000);
-  assert.equal(widgetManifests.calendar.refreshPolicy.intervalMs, 60000);
+  expect(widgetManifests.clockDate.refreshPolicy.intervalMs).toBe(1000);
+  expect(widgetManifests.weather.refreshPolicy.intervalMs).toBe(300000);
+  expect(widgetManifests.calendar.refreshPolicy.intervalMs).toBe(60000);
 });

@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test, { after, beforeEach } from "node:test";
+import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import type { Router } from "express";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { usersRepository } from "../src/modules/users/users.repository";
@@ -7,6 +6,7 @@ import { usersRouter } from "../src/modules/users/users.routes";
 import { widgetDataRouter } from "../src/modules/widgetData/widget-data.routes";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetsRouter } from "../src/modules/widgets/widgets.routes";
+import { profilesService } from "../src/modules/profiles/profiles.service";
 
 interface TestUser {
   id: string;
@@ -16,7 +16,7 @@ interface TestUser {
 
 interface TestWidget {
   id: string;
-  userId: string;
+  profileId: string;
   type: string;
   config: Record<string, unknown>;
   layout: {
@@ -25,7 +25,6 @@ interface TestWidget {
     w: number;
     h: number;
   };
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -36,43 +35,6 @@ interface InvokeRouteOptions {
   body?: unknown;
   params?: Record<string, string>;
 }
-
-const originalUsersRepository = {
-  findAll: usersRepository.findAll,
-  findByEmail: usersRepository.findByEmail,
-  create: usersRepository.create
-};
-
-const originalWidgetsRepository = {
-  findAll: widgetsRepository.findAll,
-  findById: widgetsRepository.findById,
-  create: widgetsRepository.create,
-  activateWidget: widgetsRepository.activateWidget
-};
-
-const mutableUsersRepository = usersRepository as unknown as {
-  findAll: () => Promise<TestUser[]>;
-  findByEmail: (email: string) => Promise<TestUser | null>;
-  create: (email: string) => Promise<TestUser>;
-};
-
-const mutableWidgetsRepository = widgetsRepository as unknown as {
-  findAll: (userId: string) => Promise<TestWidget[]>;
-  findById: (id: string) => Promise<TestWidget | null>;
-  create: (input: {
-    userId: string;
-    type: string;
-    config: unknown;
-    layout: {
-      x: number;
-      y: number;
-      w: number;
-      h: number;
-    };
-    isActive: boolean;
-  }) => Promise<TestWidget>;
-  activateWidget: (userId: string, widgetId: string) => Promise<TestWidget>;
-};
 
 let usersStore: TestUser[] = [];
 let widgetsStore: TestWidget[] = [];
@@ -85,11 +47,22 @@ beforeEach(() => {
   userCounter = 0;
   widgetCounter = 0;
 
-  mutableUsersRepository.findAll = async () => usersStore;
-  mutableUsersRepository.findByEmail = async (email: string) => {
-    return usersStore.find((user) => user.email === email) ?? null;
-  };
-  mutableUsersRepository.create = async (email: string) => {
+  vi.spyOn(profilesService, "resolveProfileForUser").mockImplementation(async ({ userId }) => ({
+    id: userId,
+    userId,
+    name: "Default",
+    isDefault: true,
+    createdAt: new Date(),
+  }) as never);
+
+  vi.spyOn(usersRepository, "findAll").mockImplementation(async () => usersStore as never);
+  vi.spyOn(usersRepository, "findById").mockImplementation(async (id: string) => {
+    return (usersStore.find((user) => user.id === id) ?? null) as never;
+  });
+  vi.spyOn(usersRepository, "findByEmail").mockImplementation(async (email: string, _passwordHash: string) => {
+    return (usersStore.find((user) => user.email === email) ?? null) as never;
+  });
+  vi.spyOn(usersRepository, "create").mockImplementation(async (email: string, _passwordHash: string) => {
     const duplicateUser = usersStore.find((user) => user.email === email);
     if (duplicateUser) {
       throw { code: "P2002" };
@@ -102,71 +75,39 @@ beforeEach(() => {
       createdAt: new Date()
     };
     usersStore.push(newUser);
-    return newUser;
-  };
+    return newUser as never;
+  });
 
-  mutableWidgetsRepository.findAll = async (userId: string) => {
+  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
     return widgetsStore
-      .filter((widget) => widget.userId === userId)
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-  };
-  mutableWidgetsRepository.findById = async (id: string) => {
-    return widgetsStore.find((widget) => widget.id === id) ?? null;
-  };
-  mutableWidgetsRepository.create = async (input) => {
+      .filter((widget) => widget.profileId === profileId)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()) as never;
+  });
+  vi.spyOn(widgetsRepository, "findById").mockImplementation(async (id: string) => {
+    return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
+  });
+  vi.spyOn(widgetsRepository, "findByIdForUser").mockImplementation(async (id: string) => {
+    return (widgetsStore.find((widget) => widget.id === id) ?? null) as never;
+  });
+  vi.spyOn(widgetsRepository, "create").mockImplementation(async (input) => {
     widgetCounter += 1;
     const now = new Date();
     const newWidget: TestWidget = {
       id: `widget-${widgetCounter}`,
-      userId: input.userId,
+      profileId: input.profileId,
       type: input.type,
       config: input.config as Record<string, unknown>,
       layout: input.layout,
-      isActive: input.isActive,
       createdAt: now,
       updatedAt: now
     };
     widgetsStore.push(newWidget);
-    return newWidget;
-  };
-  mutableWidgetsRepository.activateWidget = async (userId: string, widgetId: string) => {
-    const widget = widgetsStore.find((item) => item.id === widgetId && item.userId === userId);
-    if (!widget) {
-      throw new Error("Widget not found");
-    }
-
-    widgetsStore = widgetsStore.map((item) => {
-      if (item.userId !== userId) {
-        return item;
-      }
-
-      return {
-        ...item,
-        isActive: item.id === widgetId,
-        updatedAt: new Date()
-      };
-    });
-
-    return widgetsStore.find((item) => item.id === widgetId) as TestWidget;
-  };
+    return newWidget as never;
+  });
 });
 
-after(() => {
-  mutableUsersRepository.findAll =
-    originalUsersRepository.findAll as typeof mutableUsersRepository.findAll;
-  mutableUsersRepository.findByEmail =
-    originalUsersRepository.findByEmail as typeof mutableUsersRepository.findByEmail;
-  mutableUsersRepository.create =
-    originalUsersRepository.create as typeof mutableUsersRepository.create;
-
-  mutableWidgetsRepository.findAll =
-    originalWidgetsRepository.findAll as typeof mutableWidgetsRepository.findAll;
-  mutableWidgetsRepository.findById =
-    originalWidgetsRepository.findById as typeof mutableWidgetsRepository.findById;
-  mutableWidgetsRepository.create =
-    originalWidgetsRepository.create as typeof mutableWidgetsRepository.create;
-  mutableWidgetsRepository.activateWidget =
-    originalWidgetsRepository.activateWidget as typeof mutableWidgetsRepository.activateWidget;
+afterEach(() => {
+  vi.restoreAllMocks();
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -204,7 +145,11 @@ async function invokeRoute(
     path,
     originalUrl: path,
     body: options.body ?? {},
-    params: options.params ?? {}
+    params: options.params ?? {},
+    authUser: {
+      id: "user-1",
+      email: "owner@ambient.dev",
+    },
   };
 
   const response = {
@@ -234,35 +179,26 @@ async function invokeRoute(
 
 test("M0-1: users endpoints handle create/list and duplicate safely", async () => {
   const createResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
-  assert.equal(createResponse.statusCode, 201);
-  assert.equal((createResponse.body as { email: string }).email, "owner@ambient.dev");
+  expect(createResponse.statusCode).toBe(201);
+  expect((createResponse.body as { email: string }).email).toBe("owner@ambient.dev");
 
   const duplicateResponse = await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
-  assert.equal(duplicateResponse.statusCode, 409);
+  expect(duplicateResponse.statusCode).toBe(409);
 
   const listResponse = await invokeRoute(usersRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
+  expect(listResponse.statusCode).toBe(200);
   const users = listResponse.body as Array<{ id: string }>;
-  assert.equal(users.length, 1);
-  assert.equal(users[0].id, "user-1");
+  expect(users.length).toBe(1);
+  expect(users[0].id).toBe("user-1");
 });
 
 test("M0-1: widgets endpoints create/list and validate input payload", async () => {
-  const noUserWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
-    body: {
-      type: "clockDate",
-      config: {},
-      position: 0
-    }
-  });
-  assert.equal(noUserWidgetResponse.statusCode, 400);
-
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const invalidWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -270,7 +206,7 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
       type: "unsupported-widget"
     }
   });
-  assert.equal(invalidWidgetResponse.statusCode, 400);
+  expect(invalidWidgetResponse.statusCode).toBe(400);
 
   const createFirstWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
@@ -279,7 +215,7 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
       position: 1
     }
   });
-  assert.equal(createFirstWidgetResponse.statusCode, 201);
+  expect(createFirstWidgetResponse.statusCode).toBe(201);
 
   const createSecondWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
     body: {
@@ -288,21 +224,21 @@ test("M0-1: widgets endpoints create/list and validate input payload", async () 
       position: 0
     }
   });
-  assert.equal(createSecondWidgetResponse.statusCode, 201);
+  expect(createSecondWidgetResponse.statusCode).toBe(201);
 
   const listResponse = await invokeRoute(widgetsRouter, "get", "/");
-  assert.equal(listResponse.statusCode, 200);
+  expect(listResponse.statusCode).toBe(200);
   const widgets = listResponse.body as Array<{
     layout: { x: number; y: number; w: number; h: number };
   }>;
-  assert.equal(widgets.length, 2);
-  assert.deepEqual(widgets[0].layout, { x: 0, y: 0, w: 1, h: 1 });
-  assert.deepEqual(widgets[1].layout, { x: 0, y: 0, w: 1, h: 1 });
+  expect(widgets.length).toBe(2);
+  expect(widgets[0].layout).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+  expect(widgets[1].layout).toEqual({ x: 1, y: 0, w: 1, h: 1 });
 });
 
 test("M0-1: widget-data endpoint returns clock data and handles missing widgets", async () => {
   await invokeRoute(usersRouter, "post", "/", {
-    body: { email: "owner@ambient.dev" }
+    body: { email: "owner@ambient.dev", password: "password123" }
   });
 
   const clockWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
@@ -317,16 +253,16 @@ test("M0-1: widget-data endpoint returns clock data and handles missing widgets"
   const clockDataResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: clockWidgetId }
   });
-  assert.equal(clockDataResponse.statusCode, 200);
+  expect(clockDataResponse.statusCode).toBe(200);
   const clockData = clockDataResponse.body as {
     state: string;
     data: { formattedTime: string };
   };
-  assert.equal(clockData.state, "ready");
-  assert.equal(typeof clockData.data.formattedTime, "string");
+  expect(clockData.state).toBe("ready");
+  expect(typeof clockData.data.formattedTime).toBe("string");
 
   const missingWidgetResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: "does-not-exist" }
   });
-  assert.equal(missingWidgetResponse.statusCode, 404);
+  expect(missingWidgetResponse.statusCode).toBe(404);
 });

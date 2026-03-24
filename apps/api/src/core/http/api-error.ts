@@ -2,7 +2,10 @@ export type ApiErrorCode =
   | "BAD_REQUEST"
   | "VALIDATION_ERROR"
   | "NOT_FOUND"
+  | "UNAUTHORIZED"
+  | "FORBIDDEN"
   | "DUPLICATE_RESOURCE"
+  | "RATE_LIMIT_EXCEEDED"
   | "INTERNAL_ERROR";
 
 interface ApiErrorOptions {
@@ -58,6 +61,24 @@ export const apiErrors = {
     return new ApiError({
       code: "DUPLICATE_RESOURCE",
       status: 409,
+      message,
+      details
+    });
+  },
+
+  unauthorized(message: string, details?: unknown) {
+    return new ApiError({
+      code: "UNAUTHORIZED",
+      status: 401,
+      message,
+      details
+    });
+  },
+
+  forbidden(message: string, details?: unknown) {
+    return new ApiError({
+      code: "FORBIDDEN",
+      status: 403,
       message,
       details
     });

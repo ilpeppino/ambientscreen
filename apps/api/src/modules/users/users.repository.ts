@@ -1,4 +1,5 @@
 import { prisma } from "../../core/db/prisma";
+import { randomUUID } from "node:crypto";
 
 export const usersRepository = {
   findAll() {
@@ -13,9 +14,49 @@ export const usersRepository = {
     });
   },
 
-  create(email: string) {
-    return prisma.user.create({
-      data: { email }
+  findById(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
     });
-  }
+  },
+
+  updatePlan(id: string, plan: "free" | "pro") {
+    return prisma.user.update({
+      where: { id },
+      data: { plan },
+    });
+  },
+
+  create(email: string, passwordHash: string) {
+    const userId = randomUUID();
+    const profileId = randomUUID();
+
+    return prisma.$transaction(async (transaction) => {
+      const user = await transaction.user.create({
+        data: {
+          id: userId,
+          email,
+          passwordHash,
+        },
+      });
+
+      await transaction.profile.create({
+        data: {
+          id: profileId,
+          userId,
+          name: "Default",
+          isDefault: true,
+        },
+      });
+
+      await transaction.user.update({
+        where: { id: user.id },
+        data: {
+          activeProfileId: profileId,
+        },
+      });
+
+      return user;
+    });
+  },
 };

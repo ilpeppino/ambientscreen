@@ -1,81 +1,91 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type {
-  ClockDateWidgetData,
   WidgetRendererProps,
 } from "@ambient/shared-contracts";
+import { Text } from "../../shared/ui/components";
+import { colors, spacing } from "../../shared/ui/theme";
+import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
-export function ClockDateRenderer({ data }: WidgetRendererProps<ClockDateWidgetData>) {
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.loadingText}>No clock data available.</Text>
-        </View>
-      </View>
-    );
-  }
+export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDate">) {
+  const hasData = Boolean(data?.formattedTime);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.time}>{data.formattedTime}</Text>
-        {data.weekdayLabel ? (
-          <Text style={styles.weekday}>{data.weekdayLabel}</Text>
+    <BaseWidgetFrame
+      title="Clock"
+      icon="clock"
+      state={state}
+      hasData={hasData}
+      emptyMessage="No clock data available."
+      contentStyle={styles.content}
+    >
+      <Text
+        style={styles.time}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        minimumFontScale={0.45}
+      >
+        {data?.formattedTime}
+      </Text>
+      <View style={styles.metaGroup}>
+        {data?.weekdayLabel ? (
+          <Text
+            style={styles.weekday}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
+            {data.weekdayLabel}
+          </Text>
         ) : null}
-        {data.formattedDate ? (
-          <Text style={styles.date}>{data.formattedDate}</Text>
+        {data?.formattedDate ? (
+          <Text
+            style={styles.date}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.6}
+          >
+            {data.formattedDate}
+          </Text>
         ) : null}
       </View>
-    </View>
+    </BaseWidgetFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  content: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    backgroundColor: "transparent",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 720,
-    borderWidth: 1,
-    borderColor: "#1c1c1c",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 28,
-    paddingVertical: 36,
   },
   time: {
-    fontSize: 108,
+    fontSize: 36,
+    lineHeight: 38,
     fontWeight: "700",
-    color: "#fff",
-    letterSpacing: 1.2,
+    color: colors.textPrimary,
+    letterSpacing: 0.2,
     textAlign: "center",
   },
+  metaGroup: {
+    marginTop: spacing.xs,
+    alignItems: "center",
+    gap: 1,
+  },
   weekday: {
-    marginTop: 14,
-    fontSize: 30,
-    color: "#efefef",
-    letterSpacing: 2,
+    fontSize: 14,
+    lineHeight: 16,
+    fontWeight: "700",
+    color: colors.textPrimary,
+    letterSpacing: 0.8,
     textTransform: "uppercase",
     textAlign: "center",
   },
   date: {
-    marginTop: 10,
-    fontSize: 28,
-    color: "#bfbfbf",
-    textAlign: "center",
-  },
-  loadingText: {
-    fontSize: 22,
-    color: "#d5d5d5",
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "500",
+    color: colors.textSecondary,
     textAlign: "center",
   },
 });

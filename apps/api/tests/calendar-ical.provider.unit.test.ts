@@ -1,5 +1,4 @@
-import assert from "node:assert/strict";
-import test from "node:test";
+import { test, expect } from "vitest";
 import { fetchIcsCalendarEvents } from "../src/modules/widgetData/providers/ical.provider";
 
 const sampleIcs = [
@@ -40,8 +39,8 @@ test("M4-1: ICS provider normalizes and filters all-day + timed events", async (
     },
   });
 
-  assert.equal(result.events.length, 2);
-  assert.deepEqual(result.events[0], {
+  expect(result.events.length).toBe(2);
+  expect(result.events[0]).toEqual({
     id: "all-day-1",
     title: "All Day Event",
     startIso: "2026-03-21T00:00:00.000Z",
@@ -49,7 +48,7 @@ test("M4-1: ICS provider normalizes and filters all-day + timed events", async (
     allDay: true,
     location: "HQ",
   });
-  assert.deepEqual(result.events[1], {
+  expect(result.events[1]).toEqual({
     id: "timed-1",
     title: "Timed Event",
     startIso: "2026-03-21T14:00:00.000Z",
@@ -57,7 +56,7 @@ test("M4-1: ICS provider normalizes and filters all-day + timed events", async (
     allDay: false,
     location: "Room 4A",
   });
-  assert.equal(typeof result.fetchedAtIso, "string");
+  expect(typeof result.fetchedAtIso).toBe("string");
 });
 
 test("M4-1: ICS provider can exclude all-day events and honor maxEvents", async () => {
@@ -74,13 +73,13 @@ test("M4-1: ICS provider can exclude all-day events and honor maxEvents", async 
     },
   });
 
-  assert.equal(result.events.length, 1);
-  assert.equal(result.events[0].id, "timed-1");
-  assert.equal(result.events[0].allDay, false);
+  expect(result.events.length).toBe(1);
+  expect(result.events[0].id).toBe("timed-1");
+  expect(result.events[0].allDay).toBe(false);
 });
 
 test("M4-1: ICS provider throws on non-200 response", async () => {
-  await assert.rejects(async () => {
+  await expect(async () => {
     await fetchIcsCalendarEvents({
       feedUrl: "https://calendar.example.com/feed.ics",
       windowStartIso: "2026-03-20T00:00:00.000Z",
@@ -91,5 +90,5 @@ test("M4-1: ICS provider throws on non-200 response", async () => {
         return new Response("bad", { status: 503 });
       },
     });
-  });
+  }).rejects.toThrow();
 });

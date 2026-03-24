@@ -1,111 +1,133 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-import type {
-  CalendarWidgetData,
-  WidgetRendererProps,
-} from "@ambient/shared-contracts";
+import { StyleSheet, View } from "react-native";
+import type { WidgetRendererProps } from "@ambient/shared-contracts";
+import { AppIcon, Text } from "../../shared/ui/components";
+import { colors, radius, spacing, typography } from "../../shared/ui/theme";
+import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 
-export function CalendarRenderer({ data }: WidgetRendererProps<CalendarWidgetData>) {
-  if (!data) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.card}>
-          <Text style={styles.statusTitle}>Calendar unavailable</Text>
-          <Text style={styles.statusMessage}>No calendar data was returned.</Text>
-        </View>
-      </View>
-    );
-  }
+const MAX_VISIBLE_EVENTS = 3;
+
+export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar">) {
+  const compact = (data?.events.length ?? 0) <= 1;
+
+  const hasData = Boolean(data && data.events.length > 0);
+
+  const visibleEvents = data?.events.slice(0, compact ? 1 : MAX_VISIBLE_EVENTS) ?? [];
+  const remainingEvents = Math.max((data?.events.length ?? 0) - visibleEvents.length, 0);
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.count}>{data.upcomingCount} upcoming</Text>
-        {data.events.length > 0 ? (
-          <View style={styles.eventsList}>
-            {data.events.map((event) => (
-              <View key={event.id} style={styles.eventRow}>
-                <Text style={styles.eventTitle}>{event.title}</Text>
-                <Text style={styles.eventMeta}>{event.startIso}</Text>
-                {event.location ? (
-                  <Text style={styles.eventMeta}>{event.location}</Text>
-                ) : null}
-              </View>
-            ))}
+    <BaseWidgetFrame
+      title="Calendar"
+      icon="calendar"
+      state={state}
+      hasData={hasData}
+      emptyMessage="No upcoming events."
+      contentStyle={styles.content}
+    >
+      <Text
+        style={styles.count}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        minimumFontScale={0.65}
+      >
+        {data?.upcomingCount ?? 0} upcoming
+      </Text>
+      <View style={styles.eventsList}>
+        {visibleEvents.map((event) => (
+          <View key={event.id} style={styles.eventRow}>
+            <Text
+              style={styles.eventTitle}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              {event.title}
+            </Text>
+            <View style={styles.metaRow}>
+              <AppIcon name="clock" size="sm" color="textSecondary" />
+              <Text style={styles.eventMeta} numberOfLines={1}>
+                {formatEventTime(event.startIso, event.allDay)}
+              </Text>
+            </View>
+            {event.location && !compact ? (
+              <Text style={styles.eventMeta} numberOfLines={1}>
+                {event.location}
+              </Text>
+            ) : null}
           </View>
-        ) : (
-          <Text style={styles.statusMessage}>No upcoming events.</Text>
-        )}
+        ))}
+        {remainingEvents > 0 ? (
+          <Text style={styles.moreLabel}>+{remainingEvents} more events</Text>
+        ) : null}
       </View>
-    </View>
+    </BaseWidgetFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  content: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 24,
-    backgroundColor: "transparent",
-  },
-  card: {
-    width: "100%",
-    maxWidth: 900,
-    borderWidth: 1,
-    borderColor: "#1c1c1c",
-    backgroundColor: "rgba(255, 255, 255, 0.04)",
-    borderRadius: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 24,
-  },
-  statusTitle: {
-    fontSize: 30,
-    lineHeight: 36,
-    fontWeight: "700",
-    color: "#fff",
-    textAlign: "center",
-  },
-  statusMessage: {
-    marginTop: 10,
-    fontSize: 18,
-    lineHeight: 24,
-    color: "#bdbdbd",
-    textAlign: "center",
   },
   count: {
-    fontSize: 36,
-    lineHeight: 42,
+    fontSize: 30,
+    lineHeight: 32,
     fontWeight: "700",
-    color: "#fff",
+    color: colors.textPrimary,
     textAlign: "center",
   },
   eventsList: {
-    marginTop: 16,
+    marginTop: spacing.md,
+    gap: spacing.sm,
   },
   eventRow: {
-    borderRadius: 14,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: "#242424",
-    backgroundColor: "rgba(0, 0, 0, 0.28)",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.03)",
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
     alignItems: "center",
-    marginBottom: 10,
+  },
+  metaRow: {
+    marginTop: spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
   },
   eventTitle: {
-    fontSize: 24,
-    lineHeight: 30,
-    color: "#f3f3f3",
-    fontWeight: "600",
+    ...typography.titleMd,
+    color: colors.textPrimary,
     textAlign: "center",
+    maxWidth: "100%",
   },
   eventMeta: {
-    marginTop: 4,
-    fontSize: 16,
-    lineHeight: 22,
-    color: "#bdbdbd",
+    ...typography.titleSm,
+    color: colors.textSecondary,
+    textAlign: "center",
+    maxWidth: "100%",
+  },
+  moreLabel: {
+    marginTop: spacing.xs,
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: "center",
   },
 });
+
+function formatEventTime(iso: string, allDay: boolean): string {
+  if (allDay) {
+    return "All day";
+  }
+
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return iso;
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}

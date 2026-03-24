@@ -1,57 +1,29 @@
 import { API_BASE_URL } from "../../core/config/api";
+import { apiFetchWithTimeout, toApiErrorMessage } from "./apiClient";
 import type {
   CreateWidgetInput,
   WidgetInstance,
   WidgetKey,
 } from "@ambient/shared-contracts";
+import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 
 export type { CreateWidgetInput, WidgetInstance, WidgetKey };
-export const WIDGET_TYPES: WidgetKey[] = ["clockDate", "weather", "calendar"];
+export const WIDGET_TYPES: WidgetKey[] = Object.keys(widgetBuiltinDefinitions) as WidgetKey[];
 const WIDGETS_TIMEOUT_MS = 8000;
 
-interface ApiErrorResponse {
-  error?: {
-    message?: string;
-  };
-}
-
-async function toApiErrorMessage(response: Response): Promise<string> {
-  try {
-    const body = (await response.json()) as ApiErrorResponse;
-    if (body.error?.message) {
-      return body.error.message;
-    }
-  } catch {
-    // Fallback to status-based message when response is not JSON.
+function withProfileQuery(path: string, profileId?: string) {
+  if (!profileId) {
+    return path;
   }
 
-  return `Request failed with status ${response.status}`;
+  const searchParams = new URLSearchParams();
+  searchParams.set("profileId", profileId);
+  return `${path}?${searchParams.toString()}`;
 }
 
-async function fetchWithTimeout(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const abortController = new AbortController();
-  const timeoutHandle = setTimeout(() => {
-    abortController.abort();
-  }, WIDGETS_TIMEOUT_MS);
-
-  try {
-    return await fetch(input, {
-      ...init,
-      signal: abortController.signal,
-    });
-  } catch (error) {
-    if ((error as { name?: string }).name === "AbortError") {
-      throw new Error(`Request timed out after ${WIDGETS_TIMEOUT_MS}ms`);
-    }
-
-    throw error;
-  } finally {
-    clearTimeout(timeoutHandle);
-  }
-}
-
-export async function getWidgets(): Promise<WidgetInstance[]> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets`);
+export async function getWidgets(profileId?: string): Promise<WidgetInstance[]> {
+  const url = withProfileQuery(`${API_BASE_URL}/widgets`, profileId);
+  const response = await apiFetchWithTimeout(url, undefined, WIDGETS_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -61,14 +33,22 @@ export async function getWidgets(): Promise<WidgetInstance[]> {
   return response.json();
 }
 
-export async function createWidget(input: CreateWidgetInput): Promise<WidgetInstance> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
+export async function createWidget(input: CreateWidgetInput, profileId?: string): Promise<WidgetInstance> {
+  const payload: CreateWidgetInput = profileId
+    ? { ...input, profileId }
+    : input;
+
+  const response = await apiFetchWithTimeout(
+    withProfileQuery(`${API_BASE_URL}/widgets`, profileId),
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
     },
-    body: JSON.stringify(input)
-  });
+    WIDGETS_TIMEOUT_MS,
+  );
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
@@ -78,15 +58,17 @@ export async function createWidget(input: CreateWidgetInput): Promise<WidgetInst
   return response.json();
 }
 
-export async function setActiveWidget(widgetId: string): Promise<WidgetInstance> {
-  const response = await fetchWithTimeout(`${API_BASE_URL}/widgets/${widgetId}/active`, {
-    method: "PATCH"
-  });
+export async function deleteWidget(widgetId: string, profileId?: string): Promise<void> {
+  const response = await apiFetchWithTimeout(
+    withProfileQuery(`${API_BASE_URL}/widgets/${widgetId}`, profileId),
+    {
+      method: "DELETE",
+    },
+    WIDGETS_TIMEOUT_MS,
+  );
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
-    throw new Error(`Failed to set active widget: ${message}`);
+    throw new Error(`Failed to delete widget: ${message}`);
   }
-
-  return response.json();
 }
