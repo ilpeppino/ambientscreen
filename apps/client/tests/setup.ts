@@ -1,10 +1,43 @@
 import React from "react";
 import { vi } from "vitest";
 
+// React 19 requires test renders to run under act() for tree access.
+// Centralize that behavior here so existing tests keep working.
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+
 function host(name: string) {
   return (props: Record<string, unknown>) =>
     React.createElement(name, props, props.children as React.ReactNode);
 }
+
+vi.mock("react-test-renderer", async () => {
+  const actual = await vi.importActual<typeof import("react-test-renderer")>("react-test-renderer");
+
+  const create = (
+    element: React.ReactElement,
+    options?: Parameters<typeof actual.default.create>[1],
+  ) => {
+    let renderer: ReturnType<typeof actual.default.create> | undefined;
+
+    actual.act(() => {
+      renderer = actual.default.create(element, options);
+    });
+
+    if (!renderer) {
+      throw new Error("react-test-renderer create() did not return a renderer");
+    }
+
+    return renderer;
+  };
+
+  return {
+    ...actual,
+    default: {
+      ...actual.default,
+      create,
+    },
+  };
+});
 
 vi.mock("react-native", () => ({
   View: host("view"),
