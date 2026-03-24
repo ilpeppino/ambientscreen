@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { apiErrors } from "../../core/http/api-error";
 import { createRealtimeEvent } from "../realtime/realtime.events";
 import { publishRealtimeEvent } from "../realtime/realtime.runtime";
+import { slidesRepository } from "../slides/slides.repository";
 import { widgetsRepository } from "./widgets.repository";
 import {
   defaultWidgetLayout,
@@ -30,6 +31,7 @@ export const widgetsService = {
 
   async createWidget(data: {
     profileId: string;
+    slideId?: string;
     type: SupportedWidgetType;
     config?: Prisma.InputJsonValue;
     layout?: {
@@ -47,6 +49,7 @@ export const widgetsService = {
 
     const createdWidget = await widgetsRepository.create({
       profileId: data.profileId,
+      slideId: data.slideId,
       type: data.type,
       config:
         data.config === undefined
@@ -75,6 +78,7 @@ export const widgetsService = {
 
   async createWidgetAtNextPosition(data: {
     profileId: string;
+    slideId?: string;
     type: SupportedWidgetType;
     config?: Prisma.InputJsonValue;
     layout?: {
@@ -84,14 +88,38 @@ export const widgetsService = {
       h: number;
     };
   }) {
-    const widgets = await widgetsRepository.findAll(data.profileId);
     const parsedLayout = widgetLayoutSchema.safeParse(data.layout ?? defaultWidgetLayout);
 
     if (!parsedLayout.success) {
       throw apiErrors.validation("Invalid widget layout", parsedLayout.error.format());
     }
 
-    const existingLayouts = widgets.map((widget) => widget.layout);
+    // When a specific slide is targeted we scope the conflict check to that
+    // slide only — widgets on other slides occupy the same grid independently.
+    // When no slideId is provided we fall back to profile-level conflict
+    // checking (original behavior) so that existing call sites are unaffected.
+    let existingLayouts: Array<{ x: number; y: number; w: number; h: number }>;
+    let resolvedSlideId: string | undefined = data.slideId;
+
+    if (data.slideId) {
+      const targetSlide = await slidesRepository.findByIdForProfile({
+        profileId: data.profileId,
+        slideId: data.slideId,
+      });
+      const slideWidgets = targetSlide
+        ? await widgetsRepository.findAllBySlide({
+            profileId: data.profileId,
+            slideId: targetSlide.id,
+          })
+        : [];
+      existingLayouts = slideWidgets.map((widget) => widget.layout);
+    } else {
+      // Legacy path — queries all profile widgets; repository will attach to the
+      // lowest-order slide automatically.
+      const profileWidgets = await widgetsRepository.findAll(data.profileId);
+      existingLayouts = profileWidgets.map((widget) => widget.layout);
+    }
+
     let nextLayout = parsedLayout.data;
 
     const hasLayoutConflict = existingLayouts.some((layout) => layoutsOverlap(layout, nextLayout));
@@ -109,6 +137,7 @@ export const widgetsService = {
 
     return this.createWidget({
       profileId: data.profileId,
+      slideId: resolvedSlideId,
       type: data.type,
       config: data.config,
       layout: nextLayout,

@@ -76,9 +76,27 @@ Active route groups:
 ## Data Architecture (Prisma)
 Primary models in `apps/api/prisma/schema.prisma`:
 - Identity and account: `User`, `TokenBlocklist`
-- Display domain: `Profile`, `WidgetInstance`, `OrchestrationRule`
+- Display domain: `Profile`, `WidgetInstance`, `Slide`, `SlideItem`, `OrchestrationRule`
 - Devices and sessions: `Device`, `SharedScreenSession`, `SharedScreenParticipant`
 - Plugin ecosystem: `Plugin`, `PluginVersion`, `InstalledPlugin`, `ModerationEvent`
+
+### Display Domain Hierarchy
+
+```
+Profile  (acts as Presentation — groups slides for a user)
+  └─ Slide (1:N — one composition; default Slide created with each Profile)
+       └─ SlideItem (1:N — placement of a widget on a slide)
+            └─ WidgetInstance (1:1 — widget config: type, config JSON)
+```
+
+- `Profile` extends to carry `defaultSlideDurationSeconds` for future per-slide playback.
+- `Slide` owns: id, profileId, name, order, durationSeconds (nullable), isEnabled.
+- `SlideItem` owns all placement data: layoutX, layoutY, layoutW, layoutH, zIndex. This is the authoritative layout source; `WidgetInstance.layoutX/Y/W/H` are kept in sync during the current transition period.
+- `WidgetInstance` owns widget identity and configuration only (type, config JSON). Layout fields on WidgetInstance are deprecated and will be removed in Phase 3.
+- Widget instances are not reusable across profiles; each is bound 1:1 to a Profile.
+
+### Multi-widget Canvas
+Multiple `WidgetInstance` records can exist for a single Profile/Slide. There is no active/inactive state on widgets — lifecycle is purely CRUD. Render order is derived from SlideItem layout fields: layoutY ASC → layoutX ASC → WidgetInstance.createdAt ASC.
 
 ## Client Architecture
 

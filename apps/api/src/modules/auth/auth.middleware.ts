@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { apiErrors } from "../../core/http/api-error";
 import { authService } from "./auth.service";
 import { tokenBlocklistRepository } from "./tokenBlocklist.repository";
+import { usersService } from "../users/users.service";
 
 function getBearerToken(authorizationHeader: string | undefined): string | null {
   if (!authorizationHeader) {
@@ -30,6 +31,13 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       next(apiErrors.unauthorized("Token has been revoked"));
       return;
     }
+
+    const existingUser = await usersService.findUserById(user.id);
+    if (!existingUser) {
+      next(apiErrors.unauthorized("User account no longer exists"));
+      return;
+    }
+
     req.authUser = user;
     next();
   } catch {

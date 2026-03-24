@@ -6,6 +6,7 @@ export interface ProfileRecord {
   name: string;
   isDefault: boolean;
   createdAt: Date;
+  defaultSlideDurationSeconds: number;
 }
 
 export const profilesRepository = {
@@ -40,7 +41,15 @@ export const profilesRepository = {
 
   create(input: { userId: string; name: string; isDefault: boolean }) {
     return prisma.profile.create({
-      data: input,
+      data: {
+        ...input,
+        slides: {
+          create: {
+            name: "Default",
+            order: 0,
+          },
+        },
+      },
     });
   },
 
@@ -48,6 +57,19 @@ export const profilesRepository = {
     return prisma.profile.update({
       where: { id },
       data: { name },
+    });
+  },
+
+  update(
+    id: string,
+    input: {
+      name?: string;
+      defaultSlideDurationSeconds?: number;
+    },
+  ) {
+    return prisma.profile.update({
+      where: { id },
+      data: input,
     });
   },
 

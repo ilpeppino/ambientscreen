@@ -41,8 +41,8 @@ function flattenStyle(style: unknown): Record<string, unknown> {
 }
 
 const sampleProfiles = [
-  { id: "p-1", userId: "u-1", name: "Home", isDefault: true, createdAt: "" },
-  { id: "p-2", userId: "u-1", name: "Office", isDefault: false, createdAt: "" },
+  { id: "p-1", userId: "u-1", name: "Home", isDefault: true, createdAt: "", defaultSlideDurationSeconds: 30 },
+  { id: "p-2", userId: "u-1", name: "Office", isDefault: false, createdAt: "", defaultSlideDurationSeconds: 30 },
 ];
 
 const baseProps = {

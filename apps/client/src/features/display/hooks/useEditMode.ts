@@ -56,6 +56,10 @@ export function useEditModeOps({
         synced[widget.widgetInstanceId] = current[widget.widgetInstanceId] ?? widget.layout;
       });
 
+      if (areLayoutMapsEqual(current, synced)) {
+        return current;
+      }
+
       return synced;
     });
   }, [widgets]);
@@ -199,4 +203,34 @@ function toErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function areLayoutMapsEqual(
+  current: Record<string, WidgetLayout>,
+  next: Record<string, WidgetLayout>,
+): boolean {
+  const currentKeys = Object.keys(current);
+  const nextKeys = Object.keys(next);
+  if (currentKeys.length !== nextKeys.length) {
+    return false;
+  }
+
+  for (const key of currentKeys) {
+    const currentLayout = current[key];
+    const nextLayout = next[key];
+    if (!nextLayout) {
+      return false;
+    }
+
+    if (
+      currentLayout.x !== nextLayout.x
+      || currentLayout.y !== nextLayout.y
+      || currentLayout.w !== nextLayout.w
+      || currentLayout.h !== nextLayout.h
+    ) {
+      return false;
+    }
+  }
+
+  return true;
 }

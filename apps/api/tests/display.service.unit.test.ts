@@ -1,10 +1,23 @@
 import { test, expect, afterEach, beforeEach, vi } from "vitest";
 import { displayService } from "../src/modules/display/display.service";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
+import { slidesService } from "../src/modules/slides/slides.service";
 import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
 beforeEach(() => {
-  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => {
+  vi.spyOn(slidesService, "getSlideForDisplay").mockResolvedValue({
+    id: "slide-1",
+    profileId: "user-1",
+    name: "Default",
+    order: 0,
+    durationSeconds: null,
+    isEnabled: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    itemCount: 2,
+  } as never);
+
+  vi.spyOn(widgetsRepository, "findAllBySlide").mockImplementation(async () => {
     return [
       {
         id: "widget-1",
@@ -12,7 +25,6 @@ beforeEach(() => {
         type: "clockDate",
         config: {},
         layout: { x: 0, y: 0, w: 2, h: 1 },
-        isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -22,7 +34,6 @@ beforeEach(() => {
         type: "weather",
         config: { location: "Amsterdam" },
         layout: { x: 2, y: 0, w: 2, h: 1 },
-        isActive: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -111,6 +122,7 @@ afterEach(() => {
 test("displayService resolves all widgets and attaches layout", async () => {
   const result = await displayService.getDisplayLayout("user-1");
 
+  expect(result.slide?.id).toBe("slide-1");
   expect(result.widgets.length).toBe(2);
   expect(result.widgets[0].widgetInstanceId).toBe("widget-1");
   expect(result.widgets[0].widgetKey).toBe("clockDate");
@@ -197,7 +209,7 @@ test("displayService continues when one resolver throws", async () => {
 });
 
 test("displayService returns unsupported envelope for unknown widget type", async () => {
-  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async () => {
+  vi.spyOn(widgetsRepository, "findAllBySlide").mockImplementation(async () => {
     return [
       {
         id: "widget-unknown",
@@ -205,7 +217,6 @@ test("displayService returns unsupported envelope for unknown widget type", asyn
         type: "legacyWidget",
         config: { any: "value" },
         layout: { x: 0, y: 0, w: 2, h: 1 },
-        isActive: true,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -253,7 +264,7 @@ test("displayService keeps persisted widget identity when resolver returns misma
     return null;
   });
 
-  vi.spyOn(widgetsRepository, "findAll").mockResolvedValueOnce([
+  vi.spyOn(widgetsRepository, "findAllBySlide").mockResolvedValueOnce([
     {
       id: "widget-1",
       profileId: "user-1",
@@ -269,4 +280,12 @@ test("displayService keeps persisted widget identity when resolver returns misma
   expect(result.widgets).toHaveLength(1);
   expect(result.widgets[0].widgetInstanceId).toBe("widget-1");
   expect(result.widgets[0].widgetKey).toBe("clockDate");
+});
+
+test("displayService returns empty payload when no slide exists", async () => {
+  vi.spyOn(slidesService, "getSlideForDisplay").mockResolvedValueOnce(null as never);
+
+  const result = await displayService.getDisplayLayout("user-1");
+  expect(result.slide).toBeNull();
+  expect(result.widgets).toEqual([]);
 });

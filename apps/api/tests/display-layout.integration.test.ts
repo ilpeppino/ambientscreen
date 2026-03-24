@@ -4,6 +4,7 @@ import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { displayRouter } from "../src/modules/display/display.routes";
 import { profilesService } from "../src/modules/profiles/profiles.service";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
+import { slidesService } from "../src/modules/slides/slides.service";
 import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
 interface TestWidget {
@@ -17,7 +18,6 @@ interface TestWidget {
     w: number;
     h: number;
   };
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +32,6 @@ beforeEach(() => {
       type: "clockDate",
       config: {},
       layout: { x: 0, y: 0, w: 2, h: 1 },
-      isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -42,7 +41,6 @@ beforeEach(() => {
       type: "weather",
       config: { location: "Amsterdam" },
       layout: { x: 2, y: 0, w: 2, h: 1 },
-      isActive: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -55,7 +53,19 @@ beforeEach(() => {
     isDefault: true,
     createdAt: new Date(),
   }) as never);
-  vi.spyOn(widgetsRepository, "findAll").mockImplementation(async (profileId: string) => {
+  vi.spyOn(slidesService, "getSlideForDisplay").mockResolvedValue({
+    id: "slide-1",
+    profileId: "profile-1",
+    name: "Default",
+    order: 0,
+    durationSeconds: null,
+    isEnabled: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    itemCount: 2,
+  } as never);
+
+  vi.spyOn(widgetsRepository, "findAllBySlide").mockImplementation(async ({ profileId }: { profileId: string }) => {
     return widgetsStore.filter((widget) => widget.profileId === profileId) as never;
   });
 
@@ -201,6 +211,13 @@ test("GET /display-layout returns multiple layout-aware widget envelopes", async
   expect(response.statusCode).toBe(200);
 
   const body = response.body as {
+    slide: {
+      id: string;
+      name: string;
+      order: number;
+      durationSeconds: number | null;
+      isEnabled: boolean;
+    } | null;
     widgets: Array<{
       widgetInstanceId: string;
       widgetKey: string;
@@ -211,6 +228,13 @@ test("GET /display-layout returns multiple layout-aware widget envelopes", async
     }>;
   };
 
+  expect(body.slide).toEqual({
+    id: "slide-1",
+    name: "Default",
+    order: 0,
+    durationSeconds: null,
+    isEnabled: true,
+  });
   expect(body.widgets.length).toBe(2);
   expect(body.widgets[0].widgetInstanceId).toBe("widget-1");
   expect(body.widgets[0].layout).toEqual({ x: 0, y: 0, w: 2, h: 1 });
@@ -302,6 +326,19 @@ test("GET /display-layout continues when one resolver fails", async () => {
   expect(weatherWidget).toBeTruthy();
   expect(weatherWidget!.state).toBe("error");
   expect(weatherWidget!.meta.errorCode).toBe("WIDGET_RESOLUTION_FAILED");
+});
+
+test("GET /display-layout forwards explicit slideId selection", async () => {
+  const response = await invokeGetRoute(displayRouter, "/display-layout", {
+    profileId: "profile-1",
+    slideId: "slide-2",
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(slidesService.getSlideForDisplay).toHaveBeenCalledWith({
+    profileId: "profile-1",
+    slideId: "slide-2",
+  });
 });
 
 test("GET /display-layout rejects unknown profile ownership context", async () => {

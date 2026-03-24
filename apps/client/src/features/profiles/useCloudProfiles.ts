@@ -6,6 +6,7 @@ import {
   deleteProfile as deleteProfileApi,
   getProfiles as getProfilesApi,
   renameProfile as renameProfileApi,
+  updateProfile as updateProfileApi,
 } from "../../services/api/profilesApi";
 import type { Profile } from "@ambient/shared-contracts";
 
@@ -59,6 +60,17 @@ export function useCloudProfiles() {
     await refreshProfiles();
   }, [refreshProfiles]);
 
+  const updateProfile = useCallback(
+    async (
+      profileId: string,
+      patch: { name?: string; defaultSlideDurationSeconds?: number },
+    ) => {
+      await updateProfileApi(profileId, patch);
+      await refreshProfiles();
+    },
+    [refreshProfiles],
+  );
+
   const deleteProfile = useCallback(async (profileId: string) => {
     await deleteProfileApi(profileId);
     await refreshProfiles();
@@ -73,6 +85,7 @@ export function useCloudProfiles() {
     activateProfile,
     createProfile,
     renameProfile,
+    updateProfile,
     deleteProfile,
   };
 }

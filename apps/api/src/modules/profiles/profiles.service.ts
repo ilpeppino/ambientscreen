@@ -9,6 +9,7 @@ export interface ProfileRecord {
   name: string;
   isDefault: boolean;
   createdAt: Date;
+  defaultSlideDurationSeconds: number;
 }
 
 export interface ProfilesListResult {
@@ -170,6 +171,19 @@ export const profilesService = {
   },
 
   async renameProfileForUser(data: { userId: string; profileId: string; name: string }) {
+    return this.updateProfileForUser({
+      userId: data.userId,
+      profileId: data.profileId,
+      name: data.name,
+    });
+  },
+
+  async updateProfileForUser(data: {
+    userId: string;
+    profileId: string;
+    name?: string;
+    defaultSlideDurationSeconds?: number;
+  }) {
     const profile = await profilesRepository.findByIdForUser({
       id: data.profileId,
       userId: data.userId,
@@ -178,7 +192,10 @@ export const profilesService = {
       return null;
     }
 
-    const updatedProfile = await profilesRepository.updateName(profile.id, data.name);
+    const updatedProfile = await profilesRepository.update(profile.id, {
+      name: data.name,
+      defaultSlideDurationSeconds: data.defaultSlideDurationSeconds,
+    });
 
     publishRealtimeEvent(
       createRealtimeEvent({

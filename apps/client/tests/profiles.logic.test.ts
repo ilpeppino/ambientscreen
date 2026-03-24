@@ -10,6 +10,7 @@ test("resolveActiveProfileId uses persisted id when it still exists", () => {
         name: "Home",
         isDefault: true,
         createdAt: "2026-03-21T10:00:00.000Z",
+        defaultSlideDurationSeconds: 30,
       },
       {
         id: "profile-work",
@@ -17,6 +18,7 @@ test("resolveActiveProfileId uses persisted id when it still exists", () => {
         name: "Work",
         isDefault: false,
         createdAt: "2026-03-21T10:05:00.000Z",
+        defaultSlideDurationSeconds: 30,
       },
     ],
     "profile-work",
@@ -34,6 +36,7 @@ test("resolveActiveProfileId falls back to default profile when persisted id is 
         name: "Home",
         isDefault: true,
         createdAt: "2026-03-21T10:00:00.000Z",
+        defaultSlideDurationSeconds: 30,
       },
       {
         id: "profile-work",
@@ -41,6 +44,7 @@ test("resolveActiveProfileId falls back to default profile when persisted id is 
         name: "Work",
         isDefault: false,
         createdAt: "2026-03-21T10:05:00.000Z",
+        defaultSlideDurationSeconds: 30,
       },
     ],
     "profile-unknown",

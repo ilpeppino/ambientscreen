@@ -14,7 +14,7 @@ export function GridOverlay({ visible, columns, rows }: GridOverlayProps) {
   }
 
   return (
-    <View pointerEvents="none" style={styles.overlay}>
+    <View style={styles.overlay}>
       {Array.from({ length: Math.max(0, columns - 1) }).map((_, index) => (
         <View
           key={`col-${index + 1}`}
@@ -44,6 +44,7 @@ export function GridOverlay({ visible, columns, rows }: GridOverlayProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
+    pointerEvents: "none",
     backgroundColor: "rgba(255, 255, 255, 0.01)",
   },
   verticalLine: {

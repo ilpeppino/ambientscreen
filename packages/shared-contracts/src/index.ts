@@ -133,6 +133,8 @@ export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
 
 export type CreateWidgetInput<TKey extends WidgetKey = WidgetKey> = {
   profileId?: string;
+  /** Attach the new widget to this specific slide. Falls back to the profile's lowest-order slide when omitted. */
+  slideId?: string;
   type: TKey;
   config?: WidgetConfigByKey[TKey];
   layout?: {
@@ -149,6 +151,23 @@ export interface Profile {
   name: string;
   isDefault: boolean;
   createdAt: string;
+  defaultSlideDurationSeconds: number;
+}
+
+export interface Slide {
+  id: string;
+  profileId: string;
+  name: string;
+  order: number;
+  durationSeconds: number | null;
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  itemCount: number;
+}
+
+export interface SlidesListResponse {
+  slides: Slide[];
 }
 
 export interface ProfilesListResponse {

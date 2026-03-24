@@ -36,6 +36,8 @@ import { DashboardCanvas } from "../components/DashboardCanvas";
 import { WidgetSidebar } from "../components/WidgetSidebar";
 import { WidgetDragPreviewOverlay } from "../components/WidgetDragPreviewOverlay";
 import { SettingsScreen } from "./SettingsScreen";
+import { SlideRail } from "../components/SlideRail";
+import { useSlideManager } from "../hooks/useSlideManager";
 
 // Register widget renderers once for the canvas
 registerBuiltinWidgetPlugins();
@@ -72,6 +74,7 @@ export function AdminEditorScreen({
     activateProfile,
     createProfile,
     renameProfile,
+    updateProfile,
     deleteProfile,
   } = useCloudProfiles();
 
@@ -82,6 +85,9 @@ export function AdminEditorScreen({
   const [creatingProfile, setCreatingProfile] = useState(false);
   const [renamingProfile, setRenamingProfile] = useState(false);
   const [deletingProfile, setDeletingProfile] = useState(false);
+  const [slideDurationInput, setSlideDurationInput] = useState("30");
+  const [slideDurationError, setSlideDurationError] = useState<string | null>(null);
+  const [savingSlideDuration, setSavingSlideDuration] = useState(false);
   const [confirmDeleteProfile, setConfirmDeleteProfile] = useState(false);
 
   // Device management state
@@ -100,6 +106,17 @@ export function AdminEditorScreen({
   const [clearingCanvas, setClearingCanvas] = useState(false);
   const [createProfileModalVisible, setCreateProfileModalVisible] = useState(false);
 
+  // ---- Slide management ----
+  const slideManager = useSlideManager(activeProfileId);
+  const {
+    slides,
+    activeSlideId,
+    handleCreateSlide,
+    handleRenameSlide,
+    handleDeleteSlide,
+    selectSlide,
+  } = slideManager;
+
   // ---- Canvas data ----
   // Realtime sync keeps canvas fresh without blocking edit mode
   const realtimeConnectionState = useRealtimeDisplaySync({
@@ -116,17 +133,27 @@ export function AdminEditorScreen({
 
   const displayData = useDisplayData({
     effectiveActiveProfileId: activeProfileId,
+    // Scope the canvas to the currently selected slide. When activeSlideId is
+    // null (slides still loading) the hook falls back to the first enabled slide.
+    slideId: activeSlideId,
     editMode: false, // pass false so polling continues in the editor
     isAppActive: true,
     realtimeConnectionState,
   });
 
-  const { widgets: layoutWidgetsSource, loadingLayout, error: layoutLoadError, loadDisplayLayout, saveWidgetLayouts } = displayData;
+  const {
+    activeSlide,
+    widgets: layoutWidgetsSource,
+    loadingLayout,
+    error: layoutLoadError,
+    loadDisplayLayout,
+    saveWidgetLayouts,
+  } = displayData;
 
   const editOps = useEditModeOps({
     editMode,
     setEditMode,
-    widgets: layoutWidgetsSource,
+    widgets: activeSlide?.widgets ?? layoutWidgetsSource,
     effectiveActiveProfileId: activeProfileId,
     saveWidgetLayouts,
     onAfterSave: async () => {
@@ -146,6 +173,13 @@ export function AdminEditorScreen({
     handleSaveLayout,
     handleToggleEditMode,
   } = editOps;
+
+  // Switching slides resets the inspector so stale widget state is cleared.
+  const handleSelectSlide = (slideId: string) => {
+    selectSlide(slideId);
+    setSelectedWidgetId(null);
+    setInspectorMode(selectedLibraryWidgetType ? "library" : null);
+  };
 
   // Keep canvas always in edit mode
   const handleToggleEditModeRef = useRef(handleToggleEditMode);
@@ -213,7 +247,10 @@ export function AdminEditorScreen({
         }),
         layout,
       };
-      const newWidget = await createWidget(payload, activeProfileId);
+      const newWidget = await createWidget(
+        { ...payload, slideId: activeSlideId ?? undefined },
+        activeProfileId,
+      );
       // Reload layout so the new widget appears on canvas
       await loadDisplayLayout(false);
       // Auto-select the newly created widget in the properties panel
@@ -322,6 +359,29 @@ export function AdminEditorScreen({
     }
   }
 
+  async function handleSaveSlideDuration() {
+    if (!activeProfileId) return;
+    const parsed = Number(slideDurationInput);
+    if (!Number.isInteger(parsed)) {
+      setSlideDurationError("Slide duration must be a whole number.");
+      return;
+    }
+    if (parsed < 3 || parsed > 120) {
+      setSlideDurationError("Slide duration must be between 3 and 120 seconds.");
+      return;
+    }
+
+    try {
+      setSavingSlideDuration(true);
+      setSlideDurationError(null);
+      await updateProfile(activeProfileId, { defaultSlideDurationSeconds: parsed });
+    } catch (err) {
+      setSlideDurationError(err instanceof Error ? err.message : "Failed to update slide duration");
+    } finally {
+      setSavingSlideDuration(false);
+    }
+  }
+
   // ---- Device actions ----
   async function handleRenameDevice(deviceId: string) {
     const nextName = (renameDraftByDeviceId[deviceId] ?? "").trim();
@@ -356,6 +416,17 @@ export function AdminEditorScreen({
     () => profiles.find((p) => p.id === activeProfileId) ?? null,
     [profiles, activeProfileId],
   );
+
+  useEffect(() => {
+    if (!activeProfile) {
+      setSlideDurationInput("30");
+      setSlideDurationError(null);
+      return;
+    }
+
+    setSlideDurationInput(String(activeProfile.defaultSlideDurationSeconds));
+    setSlideDurationError(null);
+  }, [activeProfile]);
 
   const selectedWidget = useMemo(
     () => layoutWidgets.find((w) => w.widgetInstanceId === selectedWidgetId) ?? null,
@@ -406,6 +477,11 @@ export function AdminEditorScreen({
           onCreateProfile={() => void handleCreateProfile()}
           onRenameProfile={() => void handleRenameActiveProfile()}
           onDeleteProfile={() => void handleDeleteActiveProfile()}
+          slideDurationInput={slideDurationInput}
+          setSlideDurationInput={setSlideDurationInput}
+          slideDurationError={slideDurationError}
+          savingSlideDuration={savingSlideDuration}
+          onSaveSlideDuration={() => void handleSaveSlideDuration()}
           devices={devices}
           loadingDevices={loadingDevices}
           devicesError={devicesError}
@@ -458,35 +534,45 @@ export function AdminEditorScreen({
           onSaveConfig={(id, config) => handleSaveWidgetConfig(id, config)}
         />
 
-        <DashboardCanvas
-          widgets={layoutWidgets}
-          selectedWidgetId={selectedWidgetId}
-          onSelectWidget={(widgetId) => {
-            setSelectedWidgetId(widgetId);
-            setInspectorMode("canvas");
-          }}
-          onClearSelection={() => {
-            setSelectedWidgetId(null);
-            setInspectorMode(selectedLibraryWidgetType ? "library" : null);
-          }}
-          onWidgetLayoutChange={handleWidgetLayoutChange}
-          onRemoveWidget={(widgetId) => void handleRemoveWidgetFromCanvas(widgetId)}
-          loadingLayout={loadingLayout}
-          error={layoutLoadError}
-          onRetry={() => void loadDisplayLayout(true)}
-          hasLayoutChanges={hasLayoutChanges}
-          savingLayout={savingLayout}
-          layoutError={layoutError}
-          onSaveLayout={() => void handleSaveLayout()}
-          onCancelLayout={() => handleCancelLayout()}
-          widgetPlacementError={widgetPlacementError}
-          onClearCanvas={() => setConfirmClearCanvas(true)}
-          clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
-          clearingCanvas={clearingCanvas}
-          onWidgetDropped={(widgetType, layout) =>
-            void handlePlaceWidgetFromLibrary(widgetType, layout)
-          }
-        />
+        <View style={styles.canvasArea}>
+          <DashboardCanvas
+            widgets={layoutWidgets}
+            selectedWidgetId={selectedWidgetId}
+            onSelectWidget={(widgetId) => {
+              setSelectedWidgetId(widgetId);
+              setInspectorMode("canvas");
+            }}
+            onClearSelection={() => {
+              setSelectedWidgetId(null);
+              setInspectorMode(selectedLibraryWidgetType ? "library" : null);
+            }}
+            onWidgetLayoutChange={handleWidgetLayoutChange}
+            onRemoveWidget={(widgetId) => void handleRemoveWidgetFromCanvas(widgetId)}
+            loadingLayout={loadingLayout}
+            error={layoutLoadError}
+            onRetry={() => void loadDisplayLayout(true)}
+            hasLayoutChanges={hasLayoutChanges}
+            savingLayout={savingLayout}
+            layoutError={layoutError}
+            onSaveLayout={() => void handleSaveLayout()}
+            onCancelLayout={() => handleCancelLayout()}
+            widgetPlacementError={widgetPlacementError}
+            onClearCanvas={() => setConfirmClearCanvas(true)}
+            clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
+            clearingCanvas={clearingCanvas}
+            onWidgetDropped={(widgetType, layout) =>
+              void handlePlaceWidgetFromLibrary(widgetType, layout)
+            }
+          />
+          <SlideRail
+            slides={slides}
+            activeSlideId={activeSlideId}
+            onSelectSlide={handleSelectSlide}
+            onCreateSlide={(name) => handleCreateSlide(name)}
+            onDeleteSlide={(slideId) => handleDeleteSlide(slideId)}
+            onRenameSlide={(slideId, name) => handleRenameSlide(slideId, name)}
+          />
+        </View>
       </View>
 
       <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
@@ -497,8 +583,8 @@ export function AdminEditorScreen({
       <ConfirmDialog
         visible={confirmClearCanvas}
         title="Clear Canvas"
-        message="Are you sure you want to remove all widgets from this profile's canvas?"
-        warningText="This cannot be undone. All widgets in this canvas will be permanently removed."
+        message="Are you sure you want to remove all widgets from all slides in this profile?"
+        warningText="This cannot be undone. All widgets across every slide will be permanently removed."
         confirmLabel="Clear Canvas"
         loading={clearingCanvas}
         onConfirm={() => {
@@ -578,6 +664,10 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     flexDirection: "row",
+  },
+  canvasArea: {
+    flex: 1,
+    flexDirection: "column",
   },
   dialogBody: {
     gap: spacing.sm,

@@ -56,13 +56,7 @@ const styles = StyleSheet.create({
   surfaceSelected: {
     borderColor: colors.accent,
     backgroundColor: "rgba(245, 166, 35, 0.08)",
-    shadowColor: colors.accent,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
+    boxShadow: `0px 0px 10px ${colors.accent}`,
     elevation: 6,
   },
   debugSurface: {

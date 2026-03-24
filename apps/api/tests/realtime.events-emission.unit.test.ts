@@ -150,14 +150,16 @@ test("profilesService emits profile.updated and display.refreshRequested on rena
     name: "Before",
     isDefault: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
+    defaultSlideDurationSeconds: 30,
   }) as never);
 
-  vi.spyOn(profilesRepository, "updateName").mockImplementation(async () => ({
+  vi.spyOn(profilesRepository, "update").mockImplementation(async () => ({
     id: "profile-1",
     userId: "user-1",
     name: "After",
     isDefault: true,
     createdAt: new Date("2026-03-21T10:00:00.000Z"),
+    defaultSlideDurationSeconds: 30,
   }) as never);
 
   await profilesService.renameProfileForUser({
