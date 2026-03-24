@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
 import { EmptyPanel } from "../../../shared/ui/management";
 import { ErrorState } from "../../../shared/ui/ErrorState";
-import { ConfirmDialog } from "../../../shared/ui/overlays";
-import { colors } from "../../../shared/ui/theme";
+import { ConfirmDialog, DialogModal } from "../../../shared/ui/overlays";
+import { colors, spacing, typography } from "../../../shared/ui/theme";
 import {
   createWidget,
   deleteWidget,
@@ -98,6 +98,7 @@ export function AdminEditorScreen({
   const [widgetPlacementError, setWidgetPlacementError] = useState<string | null>(null);
   const [confirmClearCanvas, setConfirmClearCanvas] = useState(false);
   const [clearingCanvas, setClearingCanvas] = useState(false);
+  const [createProfileModalVisible, setCreateProfileModalVisible] = useState(false);
 
   // ---- Canvas data ----
   // Realtime sync keeps canvas fresh without blocking edit mode
@@ -429,8 +430,12 @@ export function AdminEditorScreen({
   return (
     <View style={styles.screen}>
       <AdminTopBar
-        activeProfileName={activeProfile?.name ?? null}
+        profiles={profiles}
+        activeProfileId={activeProfileId}
         plan={plan}
+        onActivateProfile={(id) => void activateProfile(id)}
+        onCreateProfile={() => setCreateProfileModalVisible(true)}
+        onManageProfiles={() => setIsSettingsOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onClearCanvas={() => setConfirmClearCanvas(true)}
         clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
@@ -502,6 +507,65 @@ export function AdminEditorScreen({
         }}
         onCancel={() => setConfirmClearCanvas(false)}
       />
+
+      <DialogModal
+        visible={createProfileModalVisible}
+        title="Create Profile"
+        onRequestClose={() => {
+          setCreateProfileModalVisible(false);
+          setNewProfileName("");
+          setProfileError(null);
+        }}
+        footer={
+          <View style={styles.dialogActions}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel create profile"
+              style={styles.dialogCancelButton}
+              onPress={() => {
+                setCreateProfileModalVisible(false);
+                setNewProfileName("");
+                setProfileError(null);
+              }}
+            >
+              <Text style={styles.dialogCancelLabel}>Cancel</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Confirm create profile"
+              style={[
+                styles.dialogConfirmButton,
+                creatingProfile ? styles.dialogButtonDisabled : null,
+              ]}
+              onPress={() => {
+                void handleCreateProfile().then(() => {
+                  setCreateProfileModalVisible(false);
+                });
+              }}
+              disabled={creatingProfile}
+            >
+              <Text style={styles.dialogConfirmLabel}>
+                {creatingProfile ? "Creating…" : "Create"}
+              </Text>
+            </Pressable>
+          </View>
+        }
+      >
+        <View style={styles.dialogBody}>
+          <TextInput
+            accessibilityLabel="Profile name input"
+            style={styles.dialogInput}
+            value={newProfileName}
+            onChangeText={setNewProfileName}
+            placeholder="Profile name"
+            placeholderTextColor={colors.textSecondary}
+            autoFocus
+          />
+          {profileError ? (
+            <Text style={styles.dialogError}>{profileError}</Text>
+          ) : null}
+        </View>
+      </DialogModal>
     </View>
   );
 }
@@ -514,5 +578,50 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     flexDirection: "row",
+  },
+  dialogBody: {
+    gap: spacing.sm,
+  },
+  dialogInput: {
+    ...typography.body,
+    color: colors.textPrimary,
+    backgroundColor: colors.surfaceInput,
+    borderWidth: 1,
+    borderColor: colors.borderInput,
+    borderRadius: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  dialogError: {
+    ...typography.small,
+    color: colors.statusDangerText,
+  },
+  dialogActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: spacing.sm,
+  },
+  dialogCancelButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  dialogCancelLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  dialogConfirmButton: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.accentBlue,
+    borderRadius: 6,
+  },
+  dialogButtonDisabled: {
+    opacity: 0.55,
+  },
+  dialogConfirmLabel: {
+    ...typography.small,
+    color: colors.textPrimary,
+    fontWeight: "600",
   },
 });

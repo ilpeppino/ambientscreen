@@ -3,6 +3,7 @@ import {
   AlertTriangle,
   Calendar,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Clock3,
@@ -16,6 +17,7 @@ import {
   Settings,
   Star,
   Trash2,
+  User,
   X,
 } from "lucide-react-native";
 import type { ColorToken } from "../theme";
@@ -38,11 +40,13 @@ const ICON_MAP = {
   grid: Grid3x3,
   chevronLeft: ChevronLeft,
   chevronRight: ChevronRight,
+  chevronDown: ChevronDown,
   check: Check,
   pencil: Pencil,
   plus: Plus,
   close: X,
   trash: Trash2,
+  user: User,
 } as const;
 
 export type AppIconName = keyof typeof ICON_MAP;
