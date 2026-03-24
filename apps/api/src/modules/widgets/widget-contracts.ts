@@ -123,6 +123,11 @@ const createWidgetConfigSchemaByType: Record<SupportedWidgetType, z.ZodTypeAny> 
       locale: z.string().optional(),
     })
     .strict(),
+  weather: (configSchemasByWidget.weather as z.ZodObject<Record<string, z.ZodTypeAny>>)
+    .extend({
+      location: z.string().optional(),
+    })
+    .strict(),
   calendar: (configSchemasByWidget.calendar as z.ZodObject<Record<string, z.ZodTypeAny>>)
     .extend({
       sourceType: z.literal("ical").optional(),
@@ -178,6 +183,15 @@ function mapLegacyConfig(
     }
     delete mapped.hour12;
     delete mapped.locale;
+    return mapped;
+  }
+
+  if (widgetType === "weather") {
+    const mapped = { ...config };
+    if (typeof mapped.location === "string" && typeof mapped.city !== "string") {
+      mapped.city = mapped.location;
+    }
+    delete mapped.location;
     return mapped;
   }
 

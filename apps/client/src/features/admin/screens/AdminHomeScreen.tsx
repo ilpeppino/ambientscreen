@@ -201,7 +201,7 @@ export function AdminHomeScreen({
           profileId: activeProfileId ?? undefined,
           widgetType: selectedWidgetType,
           weatherConfig: {
-            location: weatherLocation,
+            city: weatherLocation,
             units: weatherUnits,
           },
           calendarConfig: {

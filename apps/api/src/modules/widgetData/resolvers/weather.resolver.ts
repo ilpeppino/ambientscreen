@@ -1,51 +1,48 @@
 import type {
   WidgetConfigByKey,
   WeatherWidgetData,
+  WeatherForecastSlot,
   WidgetDataEnvelope,
 } from "@ambient/shared-contracts";
 import {
-  fetchOpenMeteoWeather,
-  type OpenMeteoWeatherResult,
-} from "../providers/open-meteo.provider";
+  fetchOpenWeatherData,
+  type OpenWeatherResult,
+} from "../providers/openweather.provider";
 
 function toWeatherConfig(config: unknown): WidgetConfigByKey["weather"] {
   const raw = config && typeof config === "object" && !Array.isArray(config)
     ? config as Record<string, unknown>
     : {};
 
-  const units = raw.units === "metric" || raw.units === "imperial"
+  const units = raw.units === "metric" || raw.units === "imperial" || raw.units === "standard"
     ? raw.units
     : "metric";
 
+  const forecastSlots =
+    typeof raw.forecastSlots === "number" && Number.isFinite(raw.forecastSlots) && raw.forecastSlots >= 1
+      ? Math.min(Math.round(raw.forecastSlots), 10)
+      : 3;
+
   return {
-    location: typeof raw.location === "string" && raw.location.length > 0 ? raw.location : "Amsterdam",
+    city: typeof raw.city === "string" && raw.city.length > 0 ? raw.city : "Amsterdam",
+    countryCode: typeof raw.countryCode === "string" && raw.countryCode.length > 0 ? raw.countryCode : undefined,
     units,
+    forecastSlots,
   };
 }
 
-function roundToSingleDecimal(value: number): number {
-  return Math.round(value * 10) / 10;
-}
-
-function fahrenheitToCelsius(value: number): number {
-  return ((value - 32) * 5) / 9;
-}
-
-function toStableWeatherData(input: {
-  locationLabel: string;
-  providerResult: OpenMeteoWeatherResult;
-}): WeatherWidgetData {
-  const temperatureInCelsius =
-    input.providerResult.temperature === null
-      ? null
-      : input.providerResult.temperatureUnit === "fahrenheit"
-        ? roundToSingleDecimal(fahrenheitToCelsius(input.providerResult.temperature))
-        : roundToSingleDecimal(input.providerResult.temperature);
+function toStableWeatherData(result: OpenWeatherResult): WeatherWidgetData {
+  const forecast: WeatherForecastSlot[] = result.forecast.map((slot) => ({
+    timeIso: slot.timeIso,
+    temperatureC: slot.temperatureC,
+    conditionLabel: slot.conditionLabel,
+  }));
 
   return {
-    location: input.providerResult.locationLabel || input.locationLabel,
-    temperatureC: temperatureInCelsius,
-    conditionLabel: input.providerResult.conditionLabel,
+    location: result.locationLabel,
+    temperatureC: result.temperatureC,
+    conditionLabel: result.conditionLabel,
+    forecast,
   };
 }
 
@@ -53,35 +50,39 @@ export async function resolveWeatherWidgetData(input: {
   widgetInstanceId: string;
   widgetConfig: unknown;
   fetchWeatherData?: (input: {
-    locationQuery: string;
-    units: "metric" | "imperial";
-  }) => Promise<OpenMeteoWeatherResult | null>;
+    city: string;
+    countryCode?: string;
+    units: "metric" | "imperial" | "standard";
+    forecastSlots: number;
+  }) => Promise<OpenWeatherResult | null>;
 }): Promise<WidgetDataEnvelope<WeatherWidgetData, "weather">> {
   const normalizedConfig = toWeatherConfig(input.widgetConfig);
-  const locationQuery = normalizedConfig.location ?? "Amsterdam";
+  const city = normalizedConfig.city ?? "Amsterdam";
+  const countryCode = normalizedConfig.countryCode;
   const units = normalizedConfig.units ?? "metric";
-  const fetchWeatherData = input.fetchWeatherData ?? fetchOpenMeteoWeather;
+  const forecastSlots = normalizedConfig.forecastSlots ?? 3;
+  const fetchWeatherData = input.fetchWeatherData ?? fetchOpenWeatherData;
+
+  const emptyData: WeatherWidgetData = {
+    location: city,
+    temperatureC: null,
+    conditionLabel: null,
+    forecast: [],
+  };
 
   try {
-    const providerResult = await fetchWeatherData({
-      locationQuery,
-      units,
-    });
+    const providerResult = await fetchWeatherData({ city, countryCode, units, forecastSlots });
 
     if (!providerResult) {
       return {
         widgetInstanceId: input.widgetInstanceId,
         widgetKey: "weather",
         state: "empty",
-        data: {
-          location: locationQuery,
-          temperatureC: null,
-          conditionLabel: null,
-        },
+        data: emptyData,
         meta: {
-          source: "open-meteo",
+          source: "openweather",
           errorCode: "WEATHER_LOCATION_NOT_FOUND",
-          message: `No weather results for location '${locationQuery}'.`,
+          message: `No weather results for location '${city}'.`,
         },
       };
     }
@@ -90,13 +91,10 @@ export async function resolveWeatherWidgetData(input: {
       widgetInstanceId: input.widgetInstanceId,
       widgetKey: "weather",
       state: "ready",
-      data: toStableWeatherData({
-        locationLabel: locationQuery,
-        providerResult,
-      }),
+      data: toStableWeatherData(providerResult),
       meta: {
         fetchedAt: providerResult.fetchedAtIso,
-        source: "open-meteo",
+        source: "openweather",
       },
     };
   } catch {
@@ -104,13 +102,9 @@ export async function resolveWeatherWidgetData(input: {
       widgetInstanceId: input.widgetInstanceId,
       widgetKey: "weather",
       state: "stale",
-      data: {
-        location: locationQuery,
-        temperatureC: null,
-        conditionLabel: null,
-      },
+      data: emptyData,
       meta: {
-        source: "open-meteo",
+        source: "openweather",
         errorCode: "WEATHER_PROVIDER_UNAVAILABLE",
         message: "Weather provider request failed.",
       },

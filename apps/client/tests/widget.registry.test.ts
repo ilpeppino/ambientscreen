@@ -70,6 +70,7 @@ test("renderWidgetFromKey uses plugin renderer and returns null for missing plug
       location: "Amsterdam",
       temperatureC: 10,
       conditionLabel: "Rain",
+      forecast: [],
     },
   });
   expect(missing).toBeNull();

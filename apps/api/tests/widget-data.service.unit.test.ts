@@ -73,15 +73,17 @@ test("weather resolver returns normalized ready payload from provider data", asy
   const result = await resolveWeatherWidgetData({
     widgetInstanceId: "widget-weather",
     widgetConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
     },
     fetchWeatherData: async () => {
       return {
-        locationLabel: "Amsterdam, North Holland, Netherlands",
-        temperature: 12.24,
-        temperatureUnit: "celsius",
+        locationLabel: "Amsterdam, NL",
+        temperatureC: 12.2,
         conditionLabel: "Rain",
+        forecast: [
+          { timeIso: "2026-03-20T12:00:00.000Z", temperatureC: 11.0, conditionLabel: "Rain" },
+        ],
         fetchedAtIso: "2026-03-20T12:34:56.000Z",
       };
     },
@@ -90,11 +92,14 @@ test("weather resolver returns normalized ready payload from provider data", asy
   expect(result.widgetKey).toBe("weather");
   expect(result.state).toBe("ready");
   expect(result.data).toEqual({
-    location: "Amsterdam, North Holland, Netherlands",
+    location: "Amsterdam, NL",
     temperatureC: 12.2,
     conditionLabel: "Rain",
+    forecast: [
+      { timeIso: "2026-03-20T12:00:00.000Z", temperatureC: 11.0, conditionLabel: "Rain" },
+    ],
   });
-  expect(result.meta?.source).toBe("open-meteo");
+  expect(result.meta?.source).toBe("openweather");
   expect(result.meta?.fetchedAt).toBe("2026-03-20T12:34:56.000Z");
 });
 
@@ -102,7 +107,7 @@ test("weather resolver returns empty payload when location cannot be resolved", 
   const result = await resolveWeatherWidgetData({
     widgetInstanceId: "widget-weather",
     widgetConfig: {
-      location: "Unknown City",
+      city: "Unknown City",
       units: "metric",
     },
     fetchWeatherData: async () => null,
@@ -113,6 +118,7 @@ test("weather resolver returns empty payload when location cannot be resolved", 
     location: "Unknown City",
     temperatureC: null,
     conditionLabel: null,
+    forecast: [],
   });
   expect(result.meta?.errorCode).toBe("WEATHER_LOCATION_NOT_FOUND");
 });
@@ -121,7 +127,7 @@ test("weather resolver returns stale payload when provider call fails", async ()
   const result = await resolveWeatherWidgetData({
     widgetInstanceId: "widget-weather",
     widgetConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
     },
     fetchWeatherData: async () => {
@@ -134,6 +140,7 @@ test("weather resolver returns stale payload when provider call fails", async ()
     location: "Amsterdam",
     temperatureC: null,
     conditionLabel: null,
+    forecast: [],
   });
   expect(result.meta?.errorCode).toBe("WEATHER_PROVIDER_UNAVAILABLE");
 });

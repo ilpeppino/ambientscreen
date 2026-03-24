@@ -99,37 +99,49 @@ beforeEach(() => {
     return newWidget as never;
   });
 
+  // Set API key so provider doesn't throw
+  process.env.OPENWEATHER_API_KEY = "test-api-key";
+
   globalThis.fetch = async (input) => {
     const requestUrl = String(input);
 
-    if (requestUrl.startsWith("https://geocoding-api.open-meteo.com/v1/search")) {
+    if (requestUrl.startsWith("https://api.openweathermap.org/data/2.5/weather")) {
       return new Response(
         JSON.stringify({
-          results: [
-            {
-              name: "Amsterdam",
-              admin1: "North Holland",
-              country: "Netherlands",
-              latitude: 52.374,
-              longitude: 4.8897,
-            },
-          ],
+          name: "Amsterdam",
+          sys: { country: "NL" },
+          main: { temp: 9.2 },
+          weather: [{ id: 501 }],
+          dt: 1742464500,
         }),
         { status: 200 },
       );
     }
 
-    if (requestUrl.startsWith("https://api.open-meteo.com/v1/forecast")) {
+    if (requestUrl.startsWith("https://api.openweathermap.org/data/2.5/forecast")) {
       return new Response(
         JSON.stringify({
-          current: {
-            temperature_2m: 9.24,
-            weather_code: 61,
-            time: "2026-03-20T08:15:00.000Z",
-          },
-          current_units: {
-            temperature_2m: "°C",
-          },
+          city: { name: "Amsterdam", country: "NL" },
+          list: [
+            {
+              dt: 1742475600,
+              main: { temp: 8.5 },
+              weather: [{ id: 500 }],
+              dt_txt: "2026-03-20T12:00:00",
+            },
+            {
+              dt: 1742486400,
+              main: { temp: 7.1 },
+              weather: [{ id: 800 }],
+              dt_txt: "2026-03-20T15:00:00",
+            },
+            {
+              dt: 1742497200,
+              main: { temp: 6.3 },
+              weather: [{ id: 800 }],
+              dt_txt: "2026-03-20T18:00:00",
+            },
+          ],
         }),
         { status: 200 },
       );
@@ -144,6 +156,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   globalThis.fetch = originalFetch;
+  delete process.env.OPENWEATHER_API_KEY;
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -222,8 +235,9 @@ test("M3-1: weather widget data endpoint returns normalized provider payload", a
     body: {
       type: "weather",
       config: {
-        location: "Amsterdam",
+        city: "Amsterdam",
         units: "metric",
+        forecastSlots: 3,
       },
     },
   });
@@ -241,6 +255,11 @@ test("M3-1: weather widget data endpoint returns normalized provider payload", a
       location: string | null;
       temperatureC: number | null;
       conditionLabel: string | null;
+      forecast: Array<{
+        timeIso: string;
+        temperatureC: number | null;
+        conditionLabel: string | null;
+      }>;
     };
     meta: {
       source: string;
@@ -249,9 +268,32 @@ test("M3-1: weather widget data endpoint returns normalized provider payload", a
   };
 
   expect(weatherEnvelope.state).toBe("ready");
-  expect(weatherEnvelope.data.location).toBe("Amsterdam, North Holland, Netherlands");
+  expect(weatherEnvelope.data.location).toBe("Amsterdam, NL");
   expect(weatherEnvelope.data.temperatureC).toBe(9.2);
   expect(weatherEnvelope.data.conditionLabel).toBe("Rain");
-  expect(weatherEnvelope.meta.source).toBe("open-meteo");
-  expect(weatherEnvelope.meta.fetchedAt).toBe("2026-03-20T08:15:00.000Z");
+  expect(weatherEnvelope.meta.source).toBe("openweather");
+  expect(typeof weatherEnvelope.meta.fetchedAt).toBe("string");
+  expect(Array.isArray(weatherEnvelope.data.forecast)).toBe(true);
+  expect(weatherEnvelope.data.forecast.length).toBe(3);
+  expect(weatherEnvelope.data.forecast[0].conditionLabel).toBe("Rain");   // id 500
+  expect(weatherEnvelope.data.forecast[1].conditionLabel).toBe("Clear"); // id 800
+  expect(weatherEnvelope.data.forecast[2].conditionLabel).toBe("Clear"); // id 800
+});
+
+test("M3-1: weather widget accepts legacy location field via backward-compat mapper", async () => {
+  await invokeRoute(usersRouter, "post", "/", {
+    body: { email: "owner@ambient.dev", password: "password123" },
+  });
+
+  const createWeatherWidgetResponse = await invokeRoute(widgetsRouter, "post", "/", {
+    body: {
+      type: "weather",
+      config: {
+        location: "Amsterdam",
+        units: "metric",
+      },
+    },
+  });
+  // Legacy location field is accepted during creation via extended schema
+  expect(createWeatherWidgetResponse.statusCode).toBe(201);
 });

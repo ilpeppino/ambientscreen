@@ -242,7 +242,7 @@ export function AdminEditorScreen({
         ...buildCreateWidgetInput({
           profileId: activeProfileId,
           widgetType,
-          weatherConfig: { location: "Amsterdam", units: "metric" },
+          weatherConfig: { city: "Amsterdam", units: "metric" },
           calendarConfig: { provider: "ical", timeWindow: "next7d" },
         }),
         layout,
