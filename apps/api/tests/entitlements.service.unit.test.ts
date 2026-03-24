@@ -27,6 +27,14 @@ test("hasFeature normalizes invalid plans to free", () => {
   expect(hasFeature({ plan: "enterprise" }, "advanced_layouts")).toBe(false);
 });
 
+test("hasFeature normalizes nullish and empty-like plan values to free", () => {
+  expect(hasFeature({ plan: undefined as unknown as string }, "premium_widgets")).toBe(false);
+  expect(hasFeature({ plan: null as unknown as string }, "premium_widgets")).toBe(false);
+  expect(hasFeature({ plan: "" }, "premium_widgets")).toBe(false);
+  expect(hasFeature({ plan: 123 as unknown as string }, "premium_widgets")).toBe(false);
+  expect(hasFeature({ plan: { tier: "pro" } as unknown as string }, "premium_widgets")).toBe(false);
+});
+
 test("assertFeatureAccess does not throw when user has feature", () => {
   expect(() => assertFeatureAccess({ plan: "pro" }, "plugin_installation")).not.toThrow();
 });

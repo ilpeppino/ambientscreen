@@ -130,6 +130,33 @@ test("updateInstallation throws validation error for invalid payload", async () 
   } satisfies Partial<ApiError>);
 });
 
+test("updateInstallation throws validation error for numeric isEnabled", async () => {
+  await expect(
+    pluginInstallationService.updateInstallation("user-1", "plugin-1", { isEnabled: 1 }),
+  ).rejects.toMatchObject({
+    status: 400,
+    code: "VALIDATION_ERROR",
+  } satisfies Partial<ApiError>);
+});
+
+test("updateInstallation throws validation error when payload is missing isEnabled", async () => {
+  await expect(
+    pluginInstallationService.updateInstallation("user-1", "plugin-1", {}),
+  ).rejects.toMatchObject({
+    status: 400,
+    code: "VALIDATION_ERROR",
+  } satisfies Partial<ApiError>);
+});
+
+test("updateInstallation throws validation error when payload is null", async () => {
+  await expect(
+    pluginInstallationService.updateInstallation("user-1", "plugin-1", null),
+  ).rejects.toMatchObject({
+    status: 400,
+    code: "VALIDATION_ERROR",
+  } satisfies Partial<ApiError>);
+});
+
 test("updateInstallation throws not found when installation is missing", async () => {
   vi.mocked(pluginInstallationRepository.updateEnabled).mockResolvedValue(null as never);
 
