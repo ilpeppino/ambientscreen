@@ -85,12 +85,21 @@ export function LayoutGrid({
 
   useEffect(() => {
     const nextEntries = toRenderableWidgetEntries(widgets);
+    if (editMode) {
+      setAnimatedWidgetEntries(nextEntries.map((entry) => ({
+        key: entry.renderKey,
+        item: entry,
+        phase: "stable",
+      })));
+      return;
+    }
+
     setAnimatedWidgetEntries((previous) => reconcileAnimatedItems(
       previous,
       nextEntries,
       (entry) => entry.renderKey,
     ));
-  }, [widgets]);
+  }, [editMode, widgets]);
 
   useEffect(() => {
     const hasTransitioningWidgets = animatedWidgetEntries.some((entry) => entry.phase !== "stable");
