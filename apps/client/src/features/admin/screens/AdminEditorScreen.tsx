@@ -74,6 +74,7 @@ export function AdminEditorScreen({
     activateProfile,
     createProfile,
     renameProfile,
+    updateProfile,
     deleteProfile,
   } = useCloudProfiles();
 
@@ -84,6 +85,9 @@ export function AdminEditorScreen({
   const [creatingProfile, setCreatingProfile] = useState(false);
   const [renamingProfile, setRenamingProfile] = useState(false);
   const [deletingProfile, setDeletingProfile] = useState(false);
+  const [slideDurationInput, setSlideDurationInput] = useState("30");
+  const [slideDurationError, setSlideDurationError] = useState<string | null>(null);
+  const [savingSlideDuration, setSavingSlideDuration] = useState(false);
   const [confirmDeleteProfile, setConfirmDeleteProfile] = useState(false);
 
   // Device management state
@@ -110,7 +114,6 @@ export function AdminEditorScreen({
     handleCreateSlide,
     handleRenameSlide,
     handleDeleteSlide,
-    handleUpdateSlideDuration,
     selectSlide,
   } = slideManager;
 
@@ -356,6 +359,29 @@ export function AdminEditorScreen({
     }
   }
 
+  async function handleSaveSlideDuration() {
+    if (!activeProfileId) return;
+    const parsed = Number(slideDurationInput);
+    if (!Number.isInteger(parsed)) {
+      setSlideDurationError("Slide duration must be a whole number.");
+      return;
+    }
+    if (parsed < 3 || parsed > 120) {
+      setSlideDurationError("Slide duration must be between 3 and 120 seconds.");
+      return;
+    }
+
+    try {
+      setSavingSlideDuration(true);
+      setSlideDurationError(null);
+      await updateProfile(activeProfileId, { defaultSlideDurationSeconds: parsed });
+    } catch (err) {
+      setSlideDurationError(err instanceof Error ? err.message : "Failed to update slide duration");
+    } finally {
+      setSavingSlideDuration(false);
+    }
+  }
+
   // ---- Device actions ----
   async function handleRenameDevice(deviceId: string) {
     const nextName = (renameDraftByDeviceId[deviceId] ?? "").trim();
@@ -390,6 +416,17 @@ export function AdminEditorScreen({
     () => profiles.find((p) => p.id === activeProfileId) ?? null,
     [profiles, activeProfileId],
   );
+
+  useEffect(() => {
+    if (!activeProfile) {
+      setSlideDurationInput("30");
+      setSlideDurationError(null);
+      return;
+    }
+
+    setSlideDurationInput(String(activeProfile.defaultSlideDurationSeconds));
+    setSlideDurationError(null);
+  }, [activeProfile]);
 
   const selectedWidget = useMemo(
     () => layoutWidgets.find((w) => w.widgetInstanceId === selectedWidgetId) ?? null,
@@ -440,6 +477,11 @@ export function AdminEditorScreen({
           onCreateProfile={() => void handleCreateProfile()}
           onRenameProfile={() => void handleRenameActiveProfile()}
           onDeleteProfile={() => void handleDeleteActiveProfile()}
+          slideDurationInput={slideDurationInput}
+          setSlideDurationInput={setSlideDurationInput}
+          slideDurationError={slideDurationError}
+          savingSlideDuration={savingSlideDuration}
+          onSaveSlideDuration={() => void handleSaveSlideDuration()}
           devices={devices}
           loadingDevices={loadingDevices}
           devicesError={devicesError}
@@ -529,7 +571,6 @@ export function AdminEditorScreen({
             onCreateSlide={(name) => handleCreateSlide(name)}
             onDeleteSlide={(slideId) => handleDeleteSlide(slideId)}
             onRenameSlide={(slideId, name) => handleRenameSlide(slideId, name)}
-            onUpdateDuration={(slideId, dur) => handleUpdateSlideDuration(slideId, dur)}
           />
         </View>
       </View>

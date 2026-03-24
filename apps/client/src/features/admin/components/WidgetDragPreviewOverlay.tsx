@@ -169,10 +169,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     opacity: 0.94,
-    shadowColor: colors.accentBlue,
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
+    boxShadow: `0px 0px 10px ${colors.accentBlue}`,
   },
   name: {
     ...typography.small,

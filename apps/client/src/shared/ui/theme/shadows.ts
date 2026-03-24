@@ -4,23 +4,11 @@ import { colors } from "./colors";
 export const shadows = {
   none: {} as ViewStyle,
   subtle: {
-    shadowColor: "#000000",
-    shadowOpacity: 0.16,
-    shadowRadius: 6,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.16)",
     elevation: 2,
   } as ViewStyle,
   selected: {
-    shadowColor: colors.accentBlue,
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    shadowOffset: {
-      width: 0,
-      height: 0,
-    },
+    boxShadow: `0px 0px 10px ${colors.accentBlue}`,
     elevation: 6,
   } as ViewStyle,
 } as const;

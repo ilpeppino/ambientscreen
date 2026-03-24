@@ -104,6 +104,10 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
 
   const isSharedMode = sharedSession !== null;
   const effectiveActiveProfileId = isSharedMode ? sharedSession.activeProfileId : activeProfileId;
+  const effectiveActiveProfile = useMemo(
+    () => profiles.find((profile) => profile.id === effectiveActiveProfileId) ?? null,
+    [profiles, effectiveActiveProfileId],
+  );
 
   const setActiveProfile = useCallback(async (profileId: string) => {
     if (activeProfileId === profileId) {
@@ -131,9 +135,10 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   }, [effectiveActiveProfileId]);
 
   // Timed slide rotation — runs in display mode when the app is in the foreground.
-  const { currentSlide } = useSlidePlayback({
+  const { currentSlide, activeSlideCount, timing } = useSlidePlayback({
     slides: profileSlides,
     enabled: !editMode && isAppActive,
+    defaultSlideDurationSeconds: effectiveActiveProfile?.defaultSlideDurationSeconds,
   });
 
   const realtimeConnectionState = useRealtimeDisplaySync({
@@ -618,6 +623,12 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
       <DisplayFrame
         title={frameModel.title}
         subtitle={frameModel.subtitle}
+        countdownProgress={showEditControls ? null : timing?.progressRemaining ?? null}
+        countdownLabel={
+          showEditControls || !timing || activeSlideCount <= 0
+            ? null
+            : `Next slide in ${Math.max(0, Math.ceil(timing.remainingMs / 1000))}s`
+        }
         footer={<Text style={styles.footerText}>{hasWidgets ? `${renderedWidgets.length} widgets live` : frameModel.footerLabel}</Text>}
       >
         {content}

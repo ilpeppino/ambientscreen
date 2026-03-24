@@ -39,6 +39,11 @@ interface SettingsScreenProps {
   onCreateProfile: () => void;
   onRenameProfile: () => void;
   onDeleteProfile: () => void;
+  slideDurationInput: string;
+  setSlideDurationInput: (value: string) => void;
+  slideDurationError: string | null;
+  savingSlideDuration: boolean;
+  onSaveSlideDuration: () => void;
 
   // Device management
   devices: Device[];
@@ -90,6 +95,11 @@ export function SettingsScreen({
   onCreateProfile,
   onRenameProfile,
   onDeleteProfile,
+  slideDurationInput,
+  setSlideDurationInput,
+  slideDurationError,
+  savingSlideDuration,
+  onSaveSlideDuration,
   devices,
   loadingDevices,
   devicesError,
@@ -149,6 +159,26 @@ export function SettingsScreen({
           ) : (
             <Text style={styles.noProfileText}>No profile selected</Text>
           )}
+
+          <View style={styles.inlineRow}>
+            <Text style={styles.durationLabel}>Slide duration</Text>
+            <AppTextInput
+              accessibilityLabel="Default slide duration seconds"
+              style={styles.durationInput}
+              value={slideDurationInput}
+              onChangeText={setSlideDurationInput}
+              placeholder="30"
+              keyboardType="numeric"
+            />
+            <Text style={styles.durationUnit}>seconds</Text>
+            <ManagementActionButton
+              label="Save"
+              tone="secondary"
+              loading={savingSlideDuration}
+              onPress={onSaveSlideDuration}
+            />
+          </View>
+          {slideDurationError ? <ErrorState compact message={slideDurationError} /> : null}
 
           {/* Collapsible profile management */}
           {expandProfileActions ? (
@@ -435,6 +465,27 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   noProfileText: {
+    ...typography.small,
+    color: colors.textSecondary,
+  },
+  durationLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    minWidth: 92,
+  },
+  durationInput: {
+    borderWidth: 1,
+    borderColor: colors.borderInput,
+    backgroundColor: colors.surfaceInput,
+    borderRadius: radius.sm,
+    color: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    fontSize: typography.body.fontSize,
+    minWidth: 80,
+    maxWidth: 96,
+  },
+  durationUnit: {
     ...typography.small,
     color: colors.textSecondary,
   },

@@ -53,12 +53,20 @@ vi.mock("../src/features/entitlements/UpgradeModal", () => {
 
 vi.mock("../src/features/profiles/useCloudProfiles", () => ({
   useCloudProfiles: () => ({
-    profiles: [{ id: "profile-1", userId: "user-1", name: "Home", isDefault: true, createdAt: "" }],
+    profiles: [{
+      id: "profile-1",
+      userId: "user-1",
+      name: "Home",
+      isDefault: true,
+      createdAt: "",
+      defaultSlideDurationSeconds: 30,
+    }],
     activeProfileId: "profile-1",
     profilesError: null,
     activateProfile: vi.fn(),
     createProfile: vi.fn(),
     renameProfile: vi.fn(),
+    updateProfile: vi.fn(),
     deleteProfile: vi.fn(),
   }),
 }));

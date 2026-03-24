@@ -1,7 +1,7 @@
 > Status: Canonical
 > Purpose: Source of truth for current implementation and planned evolution
 > Audience: Humans and agentic AI
-> Last reviewed: 2026-03-23
+> Last reviewed: 2026-03-24
 
 # Product Roadmap
 
@@ -19,9 +19,11 @@
 - **Slide foundation** — multi-slide composition model:
   - `Slide` and `SlideItem` data models with per-slide ordering, duration, and enable/disable
   - Full slide CRUD API (`/slides`)
-  - `SlideRail` editor component for in-editor slide management (create, rename, delete, duration)
-  - `useSlidePlayback` display hook for timed slide rotation based on per-slide `durationSeconds`
-  - Single-slide profiles work transparently without any rotation
+  - `Profile.defaultSlideDurationSeconds` setting for global/default slide timing
+  - Duration fallback precedence: `slide.durationSeconds` -> `profile.defaultSlideDurationSeconds` -> `30s`
+  - `useSlidePlayback` display hook uses timestamp-based timing for smooth rotation and drift-safe progress
+  - Display mode countdown arc integrated into the Ambient Display semi-circle shell
+  - Single-slide profiles loop cleanly with the same timing source
 
 ## Near-Term Priorities
 1. Billing integration on top of existing hooks.

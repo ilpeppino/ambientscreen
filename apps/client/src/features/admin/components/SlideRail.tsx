@@ -18,14 +18,13 @@ interface SlideRailProps {
   onCreateSlide: (name: string) => Promise<void>;
   onDeleteSlide: (slideId: string) => Promise<void>;
   onRenameSlide: (slideId: string, name: string) => Promise<void>;
-  onUpdateDuration: (slideId: string, durationSeconds: number | null) => Promise<void>;
 }
 
 /**
  * Horizontal slide picker strip for the admin editor.
  *
  * Displays each slide as a pressable tab. Provides per-slide controls for
- * rename, duration, and delete. An "Add Slide" button creates a new slide.
+ * rename and delete. An "Add Slide" button creates a new slide.
  */
 export function SlideRail({
   slides,
@@ -34,7 +33,6 @@ export function SlideRail({
   onCreateSlide,
   onDeleteSlide,
   onRenameSlide,
-  onUpdateDuration,
 }: SlideRailProps) {
   // Create slide dialog
   const [createVisible, setCreateVisible] = useState(false);
@@ -48,13 +46,6 @@ export function SlideRail({
   const [renameDraft, setRenameDraft] = useState("");
   const [renameError, setRenameError] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
-
-  // Duration dialog
-  const [durationVisible, setDurationVisible] = useState(false);
-  const [durationTargetId, setDurationTargetId] = useState<string | null>(null);
-  const [durationDraft, setDurationDraft] = useState("");
-  const [durationError, setDurationError] = useState<string | null>(null);
-  const [savingDuration, setSavingDuration] = useState(false);
 
   // Delete confirm
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
@@ -105,29 +96,6 @@ export function SlideRail({
     }
   }
 
-  async function handleSaveDuration() {
-    if (!durationTargetId) return;
-    try {
-      setSavingDuration(true);
-      setDurationError(null);
-      const raw = durationDraft.trim();
-      const parsed = raw === "" ? null : parseInt(raw, 10);
-      if (parsed !== null && (Number.isNaN(parsed) || parsed < 1 || parsed > 3600)) {
-        setDurationError("Duration must be 1–3600 seconds, or leave empty for the profile default.");
-        return;
-      }
-      await onUpdateDuration(durationTargetId, parsed);
-      setDurationVisible(false);
-      setDurationTargetId(null);
-    } catch (err) {
-      setDurationError(
-        err instanceof Error ? err.message : "Failed to save duration",
-      );
-    } finally {
-      setSavingDuration(false);
-    }
-  }
-
   async function handleDelete() {
     if (!deleteTargetId) return;
     try {
@@ -168,9 +136,6 @@ export function SlideRail({
                 >
                   {slide.name}
                 </Text>
-                {slide.durationSeconds !== null ? (
-                  <Text style={styles.tabDuration}>{slide.durationSeconds}s</Text>
-                ) : null}
               </Pressable>
 
               {/* Tab controls */}
@@ -187,24 +152,6 @@ export function SlideRail({
                   }}
                 >
                   <Text style={styles.tabControlLabel}>Edit</Text>
-                </Pressable>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Set duration for slide ${slide.name}`}
-                  style={styles.tabControl}
-                  onPress={() => {
-                    setDurationTargetId(slide.id);
-                    setDurationDraft(
-                      slide.durationSeconds !== null
-                        ? String(slide.durationSeconds)
-                        : "",
-                    );
-                    setDurationError(null);
-                    setDurationVisible(true);
-                  }}
-                >
-                  <Text style={styles.tabControlLabel}>⏱</Text>
                 </Pressable>
 
                 {canDelete ? (
@@ -339,61 +286,6 @@ export function SlideRail({
         </View>
       </DialogModal>
 
-      {/* Duration dialog */}
-      <DialogModal
-        visible={durationVisible}
-        title="Slide Duration"
-        onRequestClose={() => {
-          setDurationVisible(false);
-          setDurationTargetId(null);
-          setDurationError(null);
-        }}
-        footer={
-          <View style={styles.dialogActions}>
-            <Pressable
-              accessibilityRole="button"
-              style={styles.dialogCancel}
-              onPress={() => {
-                setDurationVisible(false);
-                setDurationTargetId(null);
-                setDurationError(null);
-              }}
-            >
-              <Text style={styles.dialogCancelLabel}>Cancel</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              style={[
-                styles.dialogConfirm,
-                savingDuration && styles.dialogDisabled,
-              ]}
-              onPress={() => void handleSaveDuration()}
-              disabled={savingDuration}
-            >
-              <Text style={styles.dialogConfirmLabel}>
-                {savingDuration ? "Saving…" : "Save"}
-              </Text>
-            </Pressable>
-          </View>
-        }
-      >
-        <View style={styles.dialogBody}>
-          <TextInput
-            accessibilityLabel="Slide duration in seconds"
-            style={styles.dialogInput}
-            value={durationDraft}
-            onChangeText={setDurationDraft}
-            placeholder="Seconds (empty = profile default, 30s)"
-            placeholderTextColor={colors.textSecondary}
-            keyboardType="number-pad"
-            autoFocus
-          />
-          {durationError ? (
-            <Text style={styles.dialogError}>{durationError}</Text>
-          ) : null}
-        </View>
-      </DialogModal>
-
       {/* Delete confirm */}
       <ConfirmDialog
         visible={Boolean(deleteTargetId)}
@@ -456,11 +348,6 @@ const styles = StyleSheet.create({
   },
   tabNameActive: {
     color: colors.statusInfoText,
-  },
-  tabDuration: {
-    ...typography.small,
-    color: colors.textSecondary,
-    fontSize: 10,
   },
   tabControls: {
     flexDirection: "row",

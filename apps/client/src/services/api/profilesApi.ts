@@ -42,17 +42,24 @@ export async function createProfile(name: string): Promise<Profile> {
 }
 
 export async function renameProfile(profileId: string, name: string): Promise<Profile> {
+  return updateProfile(profileId, { name });
+}
+
+export async function updateProfile(
+  profileId: string,
+  payload: { name?: string; defaultSlideDurationSeconds?: number },
+): Promise<Profile> {
   const response = await apiFetchWithTimeout(`${API_BASE_URL}/profiles/${profileId}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(payload),
   }, PROFILES_TIMEOUT_MS);
 
   if (!response.ok) {
     const message = await toApiErrorMessage(response);
-    throw new Error(`Failed to rename profile: ${message}`);
+    throw new Error(`Failed to update profile: ${message}`);
   }
 
   return response.json();

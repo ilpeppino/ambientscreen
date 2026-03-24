@@ -5,6 +5,17 @@
 
 # Multi-Slide Management & Timed Slide Rotation
 
+## 0. 2026-03-24 Increment: Global Duration + Countdown Arc
+
+- Added profile-level timing control in settings via `Profile.defaultSlideDurationSeconds` update flow.
+- Playback duration resolution is now:
+  1. `Slide.durationSeconds` when present
+  2. else `Profile.defaultSlideDurationSeconds`
+  3. else hard fallback `30s`
+- `useSlidePlayback` now uses timestamp-derived cycle state (`startTime`, `duration`, `elapsed`, `remaining`) as the single timing source.
+- Display shell now renders a gradient semi-circle countdown arc driven from the same playback timing source.
+- One-slide playback loops using the same cycle model and keeps countdown sync without a separate UI timer.
+
 ## 1. Current Implementation Audit (2026-03-24)
 
 ### A. Backend Status

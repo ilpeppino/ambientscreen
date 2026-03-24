@@ -13,8 +13,12 @@ const createProfileSchema = z.object({
 });
 
 const updateProfileSchema = z.object({
-  name: z.string().trim().min(1).max(80),
-});
+  name: z.string().trim().min(1).max(80).optional(),
+  defaultSlideDurationSeconds: z.number().int().min(3).max(120).optional(),
+}).refine(
+  (value) => value.name !== undefined || value.defaultSlideDurationSeconds !== undefined,
+  { message: "Provide at least one field to update" },
+);
 
 profilesRouter.get(
   "/",
@@ -73,10 +77,11 @@ profilesRouter.patch(
 
     const userId = getRequestUserId(req);
 
-    const profile = await profilesService.renameProfileForUser({
+    const profile = await profilesService.updateProfileForUser({
       userId,
       profileId,
       name: parseResult.data.name,
+      defaultSlideDurationSeconds: parseResult.data.defaultSlideDurationSeconds,
     });
 
     if (!profile) {

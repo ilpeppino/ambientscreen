@@ -56,6 +56,11 @@ test("getEffectiveDurationMs falls back to DEFAULT when durationSeconds is null"
   expect(getEffectiveDurationMs(slide)).toBe(DEFAULT_SLIDE_DURATION_SECONDS * 1000);
 });
 
+test("getEffectiveDurationMs falls back to profile default when provided", () => {
+  const slide = makeSlide("s1", null);
+  expect(getEffectiveDurationMs(slide, 12)).toBe(12000);
+});
+
 test("getEffectiveDurationMs falls back to DEFAULT when slide is null", () => {
   expect(getEffectiveDurationMs(null)).toBe(DEFAULT_SLIDE_DURATION_SECONDS * 1000);
 });

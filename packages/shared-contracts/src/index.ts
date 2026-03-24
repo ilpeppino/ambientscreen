@@ -151,6 +151,7 @@ export interface Profile {
   name: string;
   isDefault: boolean;
   createdAt: string;
+  defaultSlideDurationSeconds: number;
 }
 
 export interface Slide {

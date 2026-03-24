@@ -17,6 +17,7 @@ import {
 import type { RealtimeConnectionState } from "../services/realtimeClient";
 
 const FALLBACK_REFRESH_INTERVAL_MS = 30000;
+const EMPTY_WIDGETS: DisplayLayoutWidgetEnvelope[] = [];
 
 interface UseDisplayDataOptions {
   effectiveActiveProfileId: string | null | undefined;
@@ -53,7 +54,7 @@ export function useDisplayData({
   const [activeSlide, setActiveSlide] = useState<DisplaySlideEnvelope | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const widgets = activeSlide?.widgets ?? [];
+  const widgets = activeSlide?.widgets ?? EMPTY_WIDGETS;
 
   const setWidgets = useCallback<React.Dispatch<React.SetStateAction<DisplayLayoutWidgetEnvelope[]>>>((value) => {
     setActiveSlide((current) => {
@@ -186,15 +187,20 @@ export function buildLayoutsByWidgetId(
 }
 
 export function withNormalizedLayouts(
-  widgets: DisplayLayoutWidgetEnvelope[],
+  widgets: DisplayLayoutWidgetEnvelope[] | null | undefined,
 ): DisplayLayoutWidgetEnvelope[] {
-  const orderedWidgetIds = widgets.map((widget) => widget.widgetInstanceId);
+  const safeWidgets = widgets ?? EMPTY_WIDGETS;
+  if (safeWidgets.length === 0) {
+    return EMPTY_WIDGETS;
+  }
+
+  const orderedWidgetIds = safeWidgets.map((widget) => widget.widgetInstanceId);
   const normalizedLayoutsByWidgetId = normalizeWidgetLayouts({
-    layoutsById: buildLayoutsByWidgetId(widgets),
+    layoutsById: buildLayoutsByWidgetId(safeWidgets),
     orderedWidgetIds,
   });
 
-  return widgets.map((widget) => ({
+  return safeWidgets.map((widget) => ({
     ...widget,
     layout: normalizedLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
   }));
@@ -202,9 +208,10 @@ export function withNormalizedLayouts(
 
 export function resolveSlideComposition(response: DisplayLayoutResponse): DisplaySlideEnvelope {
   if (response.slide) {
+    const widgetsSource = response.slide.widgets?.length ? response.slide.widgets : response.widgets;
     return {
       ...response.slide,
-      widgets: withNormalizedLayouts(response.slide.widgets),
+      widgets: withNormalizedLayouts(widgetsSource),
     };
   }
 

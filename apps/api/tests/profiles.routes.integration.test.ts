@@ -11,6 +11,7 @@ interface TestProfile {
   name: string;
   isDefault: boolean;
   createdAt: Date;
+  defaultSlideDurationSeconds: number;
 }
 
 type RouteMethod = "get" | "post" | "patch" | "delete";
@@ -34,6 +35,7 @@ beforeEach(() => {
       name: "Default",
       isDefault: true,
       createdAt: new Date(),
+      defaultSlideDurationSeconds: 30,
     },
   ];
   activeProfileId = "profile-default";
@@ -55,6 +57,7 @@ beforeEach(() => {
       name,
       isDefault: false,
       createdAt: new Date(),
+      defaultSlideDurationSeconds: 30,
     };
     profileStore.push(profile);
     return profile as never;
@@ -70,13 +73,23 @@ beforeEach(() => {
     return profile as never;
   });
 
-  vi.spyOn(profilesService, "renameProfileForUser").mockImplementation(async ({ userId, profileId, name }) => {
+  vi.spyOn(profilesService, "updateProfileForUser").mockImplementation(async ({
+    userId,
+    profileId,
+    name,
+    defaultSlideDurationSeconds,
+  }) => {
     const profile = profileStore.find((item) => item.id === profileId && item.userId === userId);
     if (!profile) {
       return null as never;
     }
 
-    profile.name = name;
+    if (name !== undefined) {
+      profile.name = name;
+    }
+    if (defaultSlideDurationSeconds !== undefined) {
+      profile.defaultSlideDurationSeconds = defaultSlideDurationSeconds;
+    }
     return profile as never;
   });
 
@@ -237,6 +250,23 @@ test("profile CRUD and activation are user-scoped", async () => {
     params: { id: createdProfile.id },
   });
   expect(deleteResponse.statusCode).toBe(204);
+});
+
+test("PATCH /profiles/:id updates default slide duration with validation bounds", async () => {
+  const updateResponse = await invokeRoute(profilesRouter, "patch", "/:id", {
+    params: { id: "profile-default" },
+    body: { defaultSlideDurationSeconds: 12 },
+  });
+
+  expect(updateResponse.statusCode).toBe(200);
+  expect((updateResponse.body as TestProfile).defaultSlideDurationSeconds).toBe(12);
+
+  const invalidResponse = await invokeRoute(profilesRouter, "patch", "/:id", {
+    params: { id: "profile-default" },
+    body: { defaultSlideDurationSeconds: 2 },
+  });
+
+  expect(invalidResponse.statusCode).toBe(400);
 });
 
 test("GET /profiles/:id rejects another user's profile", async () => {
