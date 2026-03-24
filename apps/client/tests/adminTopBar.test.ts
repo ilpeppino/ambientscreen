@@ -31,6 +31,15 @@ beforeAll(async () => {
   AdminTopBar = mod.AdminTopBar;
 });
 
+function flattenStyle(style: unknown): Record<string, unknown> {
+  if (!style) return {};
+  if (!Array.isArray(style)) return style as Record<string, unknown>;
+  return style.reduce<Record<string, unknown>>((acc, entry) => {
+    if (!entry || typeof entry !== "object") return acc;
+    return { ...acc, ...(entry as Record<string, unknown>) };
+  }, {});
+}
+
 const sampleProfiles = [
   { id: "p-1", userId: "u-1", name: "Home", isDefault: true, createdAt: "" },
   { id: "p-2", userId: "u-1", name: "Office", isDefault: false, createdAt: "" },
@@ -266,6 +275,40 @@ describe("AdminTopBar — global actions", () => {
     expect(btn).toBeDefined();
     btn?.props.onPress?.();
     expect(onEnterRemoteControlMode).toHaveBeenCalled();
+  });
+
+  test("keeps a single active mode style and moves it when mode changes", async () => {
+    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
+
+    const displayBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Display Mode",
+    );
+    const remoteBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Remote Control",
+    );
+    expect(displayBtn).toBeDefined();
+    expect(remoteBtn).toBeDefined();
+
+    const initialDisplayStyle = flattenStyle(displayBtn?.props.style);
+    const initialRemoteStyle = flattenStyle(remoteBtn?.props.style);
+    expect(initialDisplayStyle.borderColor).toBe("#2d8cff");
+    expect(initialRemoteStyle.borderColor).not.toBe("#2d8cff");
+
+    await TestRenderer.act(async () => {
+      remoteBtn?.props.onPress?.();
+    });
+
+    const displayBtnAfter = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Display Mode",
+    );
+    const remoteBtnAfter = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Remote Control",
+    );
+
+    const nextDisplayStyle = flattenStyle(displayBtnAfter?.props.style);
+    const nextRemoteStyle = flattenStyle(remoteBtnAfter?.props.style);
+    expect(nextDisplayStyle.borderColor).not.toBe("#2d8cff");
+    expect(nextRemoteStyle.borderColor).toBe("#2d8cff");
   });
 });
 

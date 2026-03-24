@@ -33,6 +33,7 @@ export function AdminTopBar({
 }: AdminTopBarProps) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [activeMode, setActiveMode] = useState<"display" | "remote">("display");
 
   const activeProfile = profiles.find((p) => p.id === activeProfileId) ?? null;
 
@@ -137,25 +138,64 @@ export function AdminTopBar({
       </View>
 
       <View style={styles.right}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Display Mode"
-          style={[styles.actionButton, styles.actionButtonPrimary]}
-          onPress={onEnterDisplayMode}
-        >
-          <AppIcon name="grid" size="sm" color="statusInfoText" />
-          <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Display</Text>
-        </Pressable>
+        <View style={styles.modeSwitchWrap}>
+          <Text style={styles.modeLabel}>Mode</Text>
+          <View style={styles.modeSwitch}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Display Mode"
+              style={[
+                styles.modeButton,
+                activeMode === "display" ? styles.modeButtonActive : null,
+              ]}
+              onPress={() => {
+                setActiveMode("display");
+                onEnterDisplayMode();
+              }}
+            >
+              <AppIcon
+                name="grid"
+                size="sm"
+                color={activeMode === "display" ? "statusInfoText" : "textSecondary"}
+              />
+              <Text
+                style={[
+                  styles.modeButtonLabel,
+                  activeMode === "display" ? styles.modeButtonLabelActive : null,
+                ]}
+              >
+                Display
+              </Text>
+            </Pressable>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Remote Control"
-          style={styles.actionButton}
-          onPress={onEnterRemoteControlMode}
-        >
-          <AppIcon name="refresh" size="sm" color="textSecondary" />
-          <Text style={styles.actionLabel}>Remote</Text>
-        </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Remote Control"
+              style={[
+                styles.modeButton,
+                activeMode === "remote" ? styles.modeButtonActive : null,
+              ]}
+              onPress={() => {
+                setActiveMode("remote");
+                onEnterRemoteControlMode();
+              }}
+            >
+              <AppIcon
+                name="refresh"
+                size="sm"
+                color={activeMode === "remote" ? "statusInfoText" : "textSecondary"}
+              />
+              <Text
+                style={[
+                  styles.modeButtonLabel,
+                  activeMode === "remote" ? styles.modeButtonLabelActive : null,
+                ]}
+              >
+                Remote
+              </Text>
+            </Pressable>
+          </View>
+        </View>
 
         <View style={styles.dropdownAnchor}>
           <Pressable
@@ -353,27 +393,50 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
     marginHorizontal: spacing.md,
   },
-  actionButton: {
+  modeSwitchWrap: {
+    alignItems: "flex-end",
+    gap: 4,
+  },
+  modeLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+    fontWeight: "600",
+  },
+  modeSwitch: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
+    padding: 3,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.buttonPassiveBg,
   },
-  actionButtonPrimary: {
+  modeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    minWidth: 86,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: radius.sm,
+    backgroundColor: colors.buttonPassiveBg,
+  },
+  modeButtonActive: {
     borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
   },
-  actionLabel: {
+  modeButtonLabel: {
     ...typography.small,
     color: colors.textSecondary,
     fontWeight: "600",
   },
-  actionLabelPrimary: {
+  modeButtonLabelActive: {
     color: colors.statusInfoText,
   },
   userButton: {

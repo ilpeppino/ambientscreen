@@ -105,6 +105,17 @@ describe("WidgetSidebar marketplace", () => {
       React.createElement(WidgetSidebar, baseProps),
     );
 
+    const libraryTabBefore = tree.root.findAllByType("pressable" as any).find(
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === "Sidebar tab library",
+    );
+    const styleBefore = Array.isArray(libraryTabBefore?.props.style)
+      ? libraryTabBefore?.props.style
+      : [libraryTabBefore?.props.style];
+    const isLibraryActiveBefore = styleBefore.some(
+      (s: unknown) => s && typeof s === "object" && (s as Record<string, unknown>).borderColor === "#2d8cff",
+    );
+    expect(isLibraryActiveBefore).toBe(true);
+
     const textsBefore = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => String(n.props.children));
     expect(textsBefore).toContain("LIBRARY_PANEL");
 
@@ -118,6 +129,17 @@ describe("WidgetSidebar marketplace", () => {
     const textsAfter = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => String(n.props.children));
     expect(textsAfter).toContain("Weather Pro");
     expect(textsAfter).toContain("Calendar Plus");
+
+    const marketplaceTabAfter = tree.root.findAllByType("pressable" as any).find(
+      (node: { props: { accessibilityLabel?: string } }) => node.props.accessibilityLabel === "Sidebar tab marketplace",
+    );
+    const styleAfter = Array.isArray(marketplaceTabAfter?.props.style)
+      ? marketplaceTabAfter?.props.style
+      : [marketplaceTabAfter?.props.style];
+    const isMarketplaceActiveAfter = styleAfter.some(
+      (s: unknown) => s && typeof s === "object" && (s as Record<string, unknown>).borderColor === "#2d8cff",
+    );
+    expect(isMarketplaceActiveAfter).toBe(true);
   });
 
   test("marketplace actions are reachable from sidebar", async () => {
