@@ -103,37 +103,29 @@ beforeEach(() => {
     return newWidget as never;
   });
 
+  process.env.OPENWEATHER_API_KEY = "test-api-key";
+
   globalThis.fetch = async (input) => {
     const requestUrl = String(input);
 
-    if (requestUrl.startsWith("https://geocoding-api.open-meteo.com/v1/search")) {
+    if (requestUrl.startsWith("https://api.openweathermap.org/data/2.5/weather")) {
       return new Response(
         JSON.stringify({
-          results: [
-            {
-              name: "Amsterdam",
-              admin1: "North Holland",
-              country: "Netherlands",
-              latitude: 52.374,
-              longitude: 4.8897,
-            },
-          ],
+          name: "Amsterdam",
+          sys: { country: "NL" },
+          main: { temp: 9.2 },
+          weather: [{ id: 501 }],
+          dt: 1742464500,
         }),
         { status: 200 },
       );
     }
 
-    if (requestUrl.startsWith("https://api.open-meteo.com/v1/forecast")) {
+    if (requestUrl.startsWith("https://api.openweathermap.org/data/2.5/forecast")) {
       return new Response(
         JSON.stringify({
-          current: {
-            temperature_2m: 9.24,
-            weather_code: 61,
-            time: "2026-03-20T08:15:00.000Z",
-          },
-          current_units: {
-            temperature_2m: "°C",
-          },
+          city: { name: "Amsterdam", country: "NL" },
+          list: [],
         }),
         { status: 200 },
       );
@@ -154,6 +146,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   globalThis.fetch = originalFetch;
+  delete process.env.OPENWEATHER_API_KEY;
 });
 
 function getRouteHandler(router: Router, method: RouteMethod, path: string) {
@@ -240,7 +233,7 @@ test("M6-2: critical admin and display flows pass for clockDate, weather, and ca
     body: {
       type: "weather",
       config: {
-        location: "Amsterdam",
+        city: "Amsterdam",
         units: "metric",
       },
     },
@@ -284,7 +277,7 @@ test("M6-2: critical admin and display flows pass for clockDate, weather, and ca
   expect((weatherEnvelopeResponse.body as { state: string }).state).toBe("ready");
   expect(
     (weatherEnvelopeResponse.body as { data: { location: string } }).data.location,
-  ).toBe("Amsterdam, North Holland, Netherlands");
+  ).toBe("Amsterdam, NL");
 
   const calendarEnvelopeResponse = await invokeRoute(widgetDataRouter, "get", "/:id", {
     params: { id: (calendarCreateResponse.body as { id: string }).id },

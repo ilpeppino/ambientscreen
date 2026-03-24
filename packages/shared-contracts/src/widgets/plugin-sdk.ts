@@ -144,7 +144,7 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       key: "weather",
       version: manifestVersion,
       name: "Weather",
-      description: "Shows current weather conditions for a location.",
+      description: "Shows current weather conditions and short forecast for a location.",
       category: "environment",
       defaultLayout: {
         w: 4,
@@ -155,12 +155,15 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       refreshPolicy: { intervalMs: 300000 },
     },
     defaultConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
+      forecastSlots: 3,
     },
     configSchema: {
-      location: "string",
-      units: ["metric", "imperial"],
+      city: "string",
+      countryCode: "string",
+      units: ["metric", "imperial", "standard"],
+      forecastSlots: "number",
     },
   },
   calendar: {

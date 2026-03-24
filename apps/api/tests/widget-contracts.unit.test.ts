@@ -15,7 +15,7 @@ test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
 
   const weather = createWidgetSchema.safeParse({
     type: "weather",
-    config: { location: "Amsterdam", units: "metric" },
+    config: { city: "Amsterdam", units: "metric" },
   });
   expect(weather.success).toBe(true);
 
@@ -37,7 +37,7 @@ test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
     type: "weather",
     config: { units: "kelvin" },
   });
-  expect(invalidWeather.success).toBe(false);
+  expect(invalidWeather.success).toBe(false); // "kelvin" not in ["metric","imperial","standard"]
 
   const invalidCalendar = createWidgetSchema.safeParse({
     type: "calendar",
@@ -70,8 +70,9 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
 
   const normalizedWeather = normalizeWidgetConfig("weather", null);
   expect(normalizedWeather).toEqual({
-    location: "Amsterdam",
+    city: "Amsterdam",
     units: "metric",
+    forecastSlots: 3,
   });
 
   const normalizedCalendar = normalizeWidgetConfig("calendar", {});

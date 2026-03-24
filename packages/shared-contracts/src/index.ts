@@ -34,8 +34,10 @@ export interface ClockDateWidgetConfig {
 }
 
 export interface WeatherWidgetConfig {
-  location?: string;
-  units?: "metric" | "imperial";
+  city?: string;
+  countryCode?: string;
+  units?: "metric" | "imperial" | "standard";
+  forecastSlots?: number;
 }
 
 export interface CalendarWidgetConfig {
@@ -88,12 +90,15 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
     key: "weather",
     name: "Weather",
     defaultConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
+      forecastSlots: 3,
     },
     configSchema: {
-      location: "string",
-      units: ["metric", "imperial"],
+      city: "string",
+      countryCode: "string",
+      units: ["metric", "imperial", "standard"],
+      forecastSlots: "number",
     },
   },
   calendar: {
@@ -261,10 +266,17 @@ export interface ClockDateWidgetData {
   weekdayLabel: string | null;
 }
 
+export interface WeatherForecastSlot {
+  timeIso: string;
+  temperatureC: number | null;
+  conditionLabel: string | null;
+}
+
 export interface WeatherWidgetData {
   location: string | null;
   temperatureC: number | null;
   conditionLabel: string | null;
+  forecast: WeatherForecastSlot[];
 }
 
 export interface CalendarWidgetData {

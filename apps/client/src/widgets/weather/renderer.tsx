@@ -24,6 +24,8 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
     }
   }
 
+  const forecastSlots = data?.forecast ?? [];
+
   return (
     <BaseWidgetFrame
       title="Weather"
@@ -46,7 +48,7 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
           >
             {data?.temperatureC === null ? "--" : data?.temperatureC}
           </Text>
-          <Text style={[styles.temperatureUnit, { fontSize: Math.round(16 * scale) }]}>C</Text>
+          <Text style={[styles.temperatureUnit, { fontSize: Math.round(16 * scale) }]}>°C</Text>
         </View>
       </View>
       <Text
@@ -67,8 +69,34 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
           {data?.conditionLabel ?? "No condition available"}
         </Text>
       ) : null}
+      {!compact && forecastSlots.length > 0 ? (
+        <View style={styles.forecastRow}>
+          {forecastSlots.map((slot, index) => (
+            <View key={index} style={styles.forecastSlot}>
+              <Text style={[styles.forecastTime, { fontSize: Math.round(10 * scale) }]} numberOfLines={1}>
+                {formatForecastTime(slot.timeIso)}
+              </Text>
+              <Text style={[styles.forecastTemp, { fontSize: Math.round(13 * scale) }]} numberOfLines={1}>
+                {slot.temperatureC !== null ? `${slot.temperatureC}°` : "--"}
+              </Text>
+              <Text style={[styles.forecastCondition, { fontSize: Math.round(9 * scale) }]} numberOfLines={1}>
+                {slot.conditionLabel ?? ""}
+              </Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
     </BaseWidgetFrame>
   );
+}
+
+function formatForecastTime(isoString: string): string {
+  try {
+    const date = new Date(isoString);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -127,5 +155,32 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: "center",
     maxWidth: "100%",
+  },
+  forecastRow: {
+    flexDirection: "row",
+    marginTop: spacing.sm,
+    gap: spacing.xs,
+    justifyContent: "center",
+    maxWidth: "100%",
+  },
+  forecastSlot: {
+    alignItems: "center",
+    minWidth: 44,
+    paddingHorizontal: spacing.xs,
+  },
+  forecastTime: {
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  forecastTemp: {
+    fontWeight: "600",
+    color: colors.textPrimary,
+    textAlign: "center",
+    marginTop: 2,
+  },
+  forecastCondition: {
+    color: colors.textSecondary,
+    textAlign: "center",
+    marginTop: 1,
   },
 });
