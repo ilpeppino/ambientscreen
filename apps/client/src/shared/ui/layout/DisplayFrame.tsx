@@ -13,11 +13,11 @@ interface DisplayFrameProps {
   footer?: React.ReactNode;
 }
 
-const ARC_WIDTH = 156;
-const ARC_HEIGHT = 84;
-const ARC_RADIUS = 62;
-const ARC_CENTER_X = 78;
-const ARC_CENTER_Y = 78;
+const ARC_WIDTH = 320;
+const ARC_HEIGHT = 160;
+const ARC_RADIUS = 128;
+const ARC_CENTER_X = 160;
+const ARC_CENTER_Y = 160;
 const ARC_PATH = `M ${ARC_CENTER_X - ARC_RADIUS} ${ARC_CENTER_Y} A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 1 ${ARC_CENTER_X + ARC_RADIUS} ${ARC_CENTER_Y}`;
 const ARC_LENGTH = Math.PI * ARC_RADIUS;
 
@@ -29,9 +29,9 @@ function AmbientCountdownArc({ progress }: AmbientCountdownArcProps) {
   const dashOffset = ARC_LENGTH * (1 - progress);
 
   return (
-    <Svg width={ARC_WIDTH} height={ARC_HEIGHT} viewBox="0 0 156 84">
+    <Svg width={ARC_WIDTH} height={ARC_HEIGHT} viewBox="0 0 320 160">
       <Defs>
-        <LinearGradient id="ambientCountdownGradient" x1="16" y1="78" x2="140" y2="78">
+        <LinearGradient id="ambientCountdownGradient" x1="32" y1="160" x2="288" y2="160">
           <Stop offset="0%" stopColor={colors.statusInfoText} />
           <Stop offset="60%" stopColor={colors.accentBlue} />
           <Stop offset="100%" stopColor={colors.buttonSecondaryBorder} />
@@ -43,7 +43,7 @@ function AmbientCountdownArc({ progress }: AmbientCountdownArcProps) {
         strokeWidth={5}
         strokeLinecap="round"
         fill="none"
-        transform={`translate(${ARC_WIDTH} 0) scale(-1 1)`}
+        transform={`translate(${ARC_WIDTH} 0) scale(-1 1) scaleY(-1)`}
       />
       <Path
         d={ARC_PATH}
@@ -53,7 +53,7 @@ function AmbientCountdownArc({ progress }: AmbientCountdownArcProps) {
         strokeDasharray={`${ARC_LENGTH} ${ARC_LENGTH}`}
         strokeDashoffset={dashOffset}
         fill="none"
-        transform={`translate(${ARC_WIDTH} 0) scale(-1 1)`}
+        transform={`translate(${ARC_WIDTH} 0) scale(-1 1) scaleY(-1)`}
       />
     </Svg>
   );
@@ -129,12 +129,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingTop: spacing.xl,
     paddingBottom: 14,
-    minHeight: 132,
-    justifyContent: "flex-end",
+    minHeight: 180,
+    justifyContent: "center",
   },
   arcWrap: {
     position: "absolute",
-    top: 0,
+    top: 14,
     alignSelf: "center",
   },
   title: {
