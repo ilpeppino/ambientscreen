@@ -34,6 +34,7 @@ import {
 import { AdminTopBar } from "../components/AdminTopBar";
 import { DashboardCanvas } from "../components/DashboardCanvas";
 import { WidgetSidebar } from "../components/WidgetSidebar";
+import { WidgetDragPreviewOverlay } from "../components/WidgetDragPreviewOverlay";
 import { SettingsScreen } from "./SettingsScreen";
 
 // Register widget renderers once for the canvas
@@ -484,6 +485,9 @@ export function AdminEditorScreen({
       </View>
 
       <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
+
+      {/* Floating skeleton that follows the cursor during widget library drag */}
+      <WidgetDragPreviewOverlay />
 
       <ConfirmDialog
         visible={confirmClearCanvas}

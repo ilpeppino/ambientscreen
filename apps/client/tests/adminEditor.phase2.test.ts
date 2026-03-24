@@ -3,7 +3,10 @@
  */
 import React from "react";
 import TestRenderer from "react-test-renderer";
-import { beforeAll, describe, expect, test, vi } from "vitest";
+import { describe, expect, test, vi } from "vitest";
+
+// vi.mock calls are hoisted above all imports by Vitest, so these mocks are
+// guaranteed to be in place before any component module is loaded.
 
 vi.mock("react-native", () => {
   const ReactRuntime = require("react");
@@ -16,6 +19,8 @@ vi.mock("react-native", () => {
     ActivityIndicator: (props: Record<string, unknown>) => ReactRuntime.createElement("activity-indicator", props),
     StyleSheet: {
       create: <T extends Record<string, unknown>>(styles: T) => styles,
+      flatten: (style: unknown) => style,
+      absoluteFillObject: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
     },
   };
 });
@@ -26,13 +31,6 @@ vi.mock("../src/shared/ui/components/AppIcon", () => {
     AppIcon: (props: Record<string, unknown>) => ReactRuntime.createElement("mock-icon", props),
   };
 });
-
-// WidgetLibraryPanel
-let WidgetLibraryPanel: typeof import("../src/features/admin/components/WidgetLibraryPanel").WidgetLibraryPanel;
-// WidgetPropertiesPanel
-let WidgetPropertiesPanel: typeof import("../src/features/admin/components/WidgetPropertiesPanel").WidgetPropertiesPanel;
-// DashboardCanvas
-let DashboardCanvas: typeof import("../src/features/admin/components/DashboardCanvas").DashboardCanvas;
 
 // LayoutGrid mock — avoid rendering the real grid in unit tests
 vi.mock("../src/features/display/components/LayoutGrid", () => {
@@ -47,16 +45,10 @@ vi.mock("../src/widgets/registerBuiltinPlugins", () => ({
   registerBuiltinWidgetPlugins: () => undefined,
 }));
 
-beforeAll(async () => {
-  const libraryModule = await import("../src/features/admin/components/WidgetLibraryPanel");
-  WidgetLibraryPanel = libraryModule.WidgetLibraryPanel;
-
-  const propertiesModule = await import("../src/features/admin/components/WidgetPropertiesPanel");
-  WidgetPropertiesPanel = propertiesModule.WidgetPropertiesPanel;
-
-  const canvasModule = await import("../src/features/admin/components/DashboardCanvas");
-  DashboardCanvas = canvasModule.DashboardCanvas;
-});
+// Static imports — safe because vi.mock is hoisted above these by Vitest.
+import { WidgetLibraryPanel } from "../src/features/admin/components/WidgetLibraryPanel";
+import { WidgetPropertiesPanel } from "../src/features/admin/components/WidgetPropertiesPanel";
+import { DashboardCanvas } from "../src/features/admin/components/DashboardCanvas";
 
 // ---------------------------------------------------------------------------
 // WidgetLibraryPanel
@@ -122,9 +114,10 @@ describe("WidgetLibraryPanel", () => {
       React.createElement(WidgetLibraryPanel, defaultProps),
     );
 
+    // Find a widget row that has onDragStart — draggable attribute starts false until long-press arms
     const draggableRow = tree.root.findAllByType("pressable" as any)
-      .find((node: { props: { draggable?: boolean; onDragStart?: (event: unknown) => void } }) => (
-        node.props.draggable === true && typeof node.props.onDragStart === "function"
+      .find((node: { props: { onDragStart?: (event: unknown) => void } }) => (
+        typeof node.props.onDragStart === "function"
       ));
 
     expect(draggableRow).toBeDefined();
@@ -149,14 +142,16 @@ describe("WidgetLibraryPanel", () => {
       React.createElement(WidgetLibraryPanel, defaultProps),
     );
 
+    // Find a widget row with onDragStart — draggable attribute starts false until long-press arms
     const draggableRow = tree.root.findAllByType("pressable" as any)
-      .find((node: { props: { draggable?: boolean; onDragStart?: (event: unknown) => void } }) => (
-        node.props.draggable === true && typeof node.props.onDragStart === "function"
+      .find((node: { props: { onDragStart?: (event: unknown) => void } }) => (
+        typeof node.props.onDragStart === "function"
       ));
 
     expect(draggableRow).toBeDefined();
 
     const setData = vi.fn();
+    const setDragImage = vi.fn();
     draggableRow?.props.onMouseDown?.();
     await TestRenderer.act(async () => {
       vi.advanceTimersByTime(330);
@@ -164,6 +159,7 @@ describe("WidgetLibraryPanel", () => {
     draggableRow?.props.onDragStart?.({
       dataTransfer: {
         setData,
+        setDragImage,
         effectAllowed: "copy",
       },
     });
