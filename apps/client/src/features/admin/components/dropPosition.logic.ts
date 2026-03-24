@@ -53,3 +53,44 @@ export function computeDropLayout(options: ComputeDropLayoutOptions): WidgetLayo
     layoutsById: options.existingLayoutsById,
   });
 }
+
+export interface CanvasDropPlacement {
+  /** The resolved grid layout (collision-free). */
+  layout: WidgetLayout;
+  /**
+   * Whether the desired drop position was collision-free.
+   * false means the widget was relocated to avoid an existing widget.
+   */
+  isValid: boolean;
+}
+
+/**
+ * Like computeDropLayout, but also returns whether the placement is collision-free
+ * at the desired position. Used to drive the canvas snap preview visual state.
+ */
+export function computeCanvasDropPlacement(options: ComputeDropLayoutOptions): CanvasDropPlacement {
+  const widgetW = options.widgetW ?? DEFAULT_DROP_W;
+  const widgetH = options.widgetH ?? DEFAULT_DROP_H;
+  const safeWidth = Math.max(options.containerWidth, 1);
+  const safeHeight = Math.max(options.containerHeight, 1);
+
+  const rawGridX = Math.floor((options.dropX / safeWidth) * DISPLAY_GRID_COLUMNS);
+  const rawGridY = Math.floor((options.dropY / safeHeight) * DISPLAY_GRID_BASE_ROWS);
+  const clampedX = Math.min(Math.max(rawGridX, 0), DISPLAY_GRID_COLUMNS - widgetW);
+  const clampedY = Math.min(Math.max(rawGridY, 0), DISPLAY_GRID_BASE_ROWS - widgetH);
+
+  const desiredLayout: WidgetLayout = { x: clampedX, y: clampedY, w: widgetW, h: widgetH };
+  const resolvedLayout = resolveWidgetLayoutCollision({
+    widgetId: "__drop_preview__",
+    proposedLayout: desiredLayout,
+    layoutsById: options.existingLayoutsById,
+  });
+
+  const isValid =
+    resolvedLayout.x === desiredLayout.x &&
+    resolvedLayout.y === desiredLayout.y &&
+    resolvedLayout.w === desiredLayout.w &&
+    resolvedLayout.h === desiredLayout.h;
+
+  return { layout: resolvedLayout, isValid };
+}

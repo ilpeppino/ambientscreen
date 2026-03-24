@@ -122,9 +122,10 @@ describe("WidgetLibraryPanel", () => {
       React.createElement(WidgetLibraryPanel, defaultProps),
     );
 
+    // Find a widget row that has onDragStart — draggable attribute starts false until long-press arms
     const draggableRow = tree.root.findAllByType("pressable" as any)
-      .find((node: { props: { draggable?: boolean; onDragStart?: (event: unknown) => void } }) => (
-        node.props.draggable === true && typeof node.props.onDragStart === "function"
+      .find((node: { props: { onDragStart?: (event: unknown) => void } }) => (
+        typeof node.props.onDragStart === "function"
       ));
 
     expect(draggableRow).toBeDefined();
@@ -149,14 +150,16 @@ describe("WidgetLibraryPanel", () => {
       React.createElement(WidgetLibraryPanel, defaultProps),
     );
 
+    // Find a widget row with onDragStart — draggable attribute starts false until long-press arms
     const draggableRow = tree.root.findAllByType("pressable" as any)
-      .find((node: { props: { draggable?: boolean; onDragStart?: (event: unknown) => void } }) => (
-        node.props.draggable === true && typeof node.props.onDragStart === "function"
+      .find((node: { props: { onDragStart?: (event: unknown) => void } }) => (
+        typeof node.props.onDragStart === "function"
       ));
 
     expect(draggableRow).toBeDefined();
 
     const setData = vi.fn();
+    const setDragImage = vi.fn();
     draggableRow?.props.onMouseDown?.();
     await TestRenderer.act(async () => {
       vi.advanceTimersByTime(330);
@@ -164,6 +167,7 @@ describe("WidgetLibraryPanel", () => {
     draggableRow?.props.onDragStart?.({
       dataTransfer: {
         setData,
+        setDragImage,
         effectAllowed: "copy",
       },
     });

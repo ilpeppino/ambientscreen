@@ -9,7 +9,9 @@ import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 import {
   MANUAL_WIDGET_DRAG_END_EVENT,
   MANUAL_WIDGET_DRAG_MOVE_EVENT,
+  WIDGET_DRAG_START_EVENT,
   type ManualWidgetDragDetail,
+  type WidgetDragStartDetail,
 } from "./widgetManualDrag.events";
 
 const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
@@ -280,9 +282,31 @@ export function WidgetLibraryPanel({
                         event.dataTransfer?.setData("text/plain", widgetKey);
                         if (event.dataTransfer) {
                           event.dataTransfer.effectAllowed = "copy";
+                          // Suppress the browser's default drag ghost — we render our own overlay
+                          if (typeof document !== "undefined") {
+                            const ghost = document.createElement("canvas");
+                            ghost.width = 1;
+                            ghost.height = 1;
+                            event.dataTransfer.setDragImage(ghost, 0, 0);
+                          }
                         }
                         setDraggingWidgetType(widgetKey);
                         setArmedWidgetType(null);
+
+                        // Notify the floating drag preview overlay
+                        if (typeof window !== "undefined") {
+                          window.dispatchEvent(
+                            new CustomEvent<WidgetDragStartDetail>(WIDGET_DRAG_START_EVENT, {
+                              detail: {
+                                widgetType: widgetKey,
+                                defaultLayout: {
+                                  w: defaultLayout.w,
+                                  h: defaultLayout.h,
+                                },
+                              },
+                            }),
+                          );
+                        }
                       },
                       onDragEnd: () => {
                         manualDragRef.current = { active: false, widgetType: null };
