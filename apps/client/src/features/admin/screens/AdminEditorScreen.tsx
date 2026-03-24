@@ -437,12 +437,9 @@ export function AdminEditorScreen({
         onCreateProfile={() => setCreateProfileModalVisible(true)}
         onManageProfiles={() => setIsSettingsOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onClearCanvas={() => setConfirmClearCanvas(true)}
-        clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
-        clearingCanvas={clearingCanvas}
+        onUpgradePlan={() => setUpgradeModalVisible(true)}
         onEnterDisplayMode={onEnterDisplayMode}
         onEnterRemoteControlMode={onEnterRemoteControlMode}
-        onEnterMarketplace={onEnterMarketplace}
         onLogout={onLogout}
       />
 
@@ -483,6 +480,9 @@ export function AdminEditorScreen({
           onSaveLayout={() => void handleSaveLayout()}
           onCancelLayout={() => handleCancelLayout()}
           widgetPlacementError={widgetPlacementError}
+          onClearCanvas={() => setConfirmClearCanvas(true)}
+          clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
+          clearingCanvas={clearingCanvas}
           onWidgetDropped={(widgetType, layout) =>
             void handlePlaceWidgetFromLibrary(widgetType, layout)
           }
