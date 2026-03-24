@@ -419,10 +419,6 @@ export function AdminEditorScreen({
           onRenameDevice={(id) => void handleRenameDevice(id)}
           onDeleteDevice={(id) => void handleDeleteDevice(id)}
           onRetryLoadDevices={() => void loadDevices()}
-          onEnterDisplayMode={onEnterDisplayMode}
-          onEnterRemoteControlMode={onEnterRemoteControlMode}
-          onEnterMarketplace={onEnterMarketplace}
-          onLogout={onLogout}
         />
         <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
       </>
@@ -439,7 +435,9 @@ export function AdminEditorScreen({
         clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
         clearingCanvas={clearingCanvas}
         onEnterDisplayMode={onEnterDisplayMode}
+        onEnterRemoteControlMode={onEnterRemoteControlMode}
         onEnterMarketplace={onEnterMarketplace}
+        onLogout={onLogout}
       />
 
       <View style={styles.body}>

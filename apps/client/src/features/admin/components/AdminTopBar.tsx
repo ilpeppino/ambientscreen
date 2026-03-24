@@ -9,7 +9,9 @@ interface AdminTopBarProps {
   plan: "free" | "pro";
   onOpenSettings: () => void;
   onEnterDisplayMode: () => void;
+  onEnterRemoteControlMode: () => void;
   onEnterMarketplace: () => void;
+  onLogout: () => void;
   onClearCanvas: () => void;
   clearCanvasDisabled?: boolean;
   clearingCanvas?: boolean;
@@ -20,7 +22,9 @@ export function AdminTopBar({
   plan,
   onOpenSettings,
   onEnterDisplayMode,
+  onEnterRemoteControlMode,
   onEnterMarketplace,
+  onLogout,
   onClearCanvas,
   clearCanvasDisabled = false,
   clearingCanvas = false,
@@ -67,12 +71,30 @@ export function AdminTopBar({
         </Pressable>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel="Remote Control"
+          style={styles.actionButton}
+          onPress={onEnterRemoteControlMode}
+        >
+          <AppIcon name="refresh" size="sm" color="textSecondary" />
+          <Text style={styles.actionLabel}>Remote</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
           accessibilityLabel="Display Mode"
           style={[styles.actionButton, styles.actionButtonPrimary]}
           onPress={onEnterDisplayMode}
         >
           <AppIcon name="grid" size="sm" color="statusInfoText" />
           <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Display</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Logout"
+          style={styles.actionButton}
+          onPress={onLogout}
+        >
+          <AppIcon name="close" size="sm" color="textSecondary" />
+          <Text style={styles.actionLabel}>Logout</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
