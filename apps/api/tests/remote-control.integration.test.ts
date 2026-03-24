@@ -3,12 +3,15 @@ import express from "express";
 import { afterEach, beforeEach, test, expect, vi } from "vitest";
 import WebSocket from "ws";
 import { authService } from "../src/modules/auth/auth.service";
+import { tokenBlocklistRepository } from "../src/modules/auth/tokenBlocklist.repository";
 import { devicesRepository } from "../src/modules/devices/devices.repository";
 import { requireAuth } from "../src/modules/auth/auth.middleware";
 import { devicesRouter } from "../src/modules/devices/devices.routes";
 import { globalErrorMiddleware } from "../src/core/http/error-middleware";
 import { createRealtimeServer } from "../src/modules/realtime/realtime.server";
 import { configureRealtimeServer, resetRealtimeServerForTests } from "../src/modules/realtime/realtime.runtime";
+
+process.env.NODE_ENV = "test";
 
 function rawDataToString(data: WebSocket.RawData): string {
   if (typeof data === "string") return data;
@@ -71,6 +74,7 @@ function createAuthToken(userId = "user-1"): string {
 }
 
 beforeEach(() => {
+  vi.spyOn(tokenBlocklistRepository, "isBlocked").mockResolvedValue(false);
   vi.spyOn(devicesRepository, "findByIdForUser").mockImplementation(async ({ id, userId }) => {
     if ((id === "device-1" || id === "device-2") && userId === "user-1") {
       return {
