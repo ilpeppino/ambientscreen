@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { Profile } from "@ambient/shared-contracts";
 import { AppIcon } from "../../../shared/ui/components";
-import { InlineStatusBadge } from "../../../shared/ui/management";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 
 interface AdminTopBarProps {
@@ -13,13 +12,10 @@ interface AdminTopBarProps {
   onCreateProfile: () => void;
   onManageProfiles: () => void;
   onOpenSettings: () => void;
+  onUpgradePlan?: () => void;
   onEnterDisplayMode: () => void;
   onEnterRemoteControlMode: () => void;
-  onEnterMarketplace: () => void;
   onLogout: () => void;
-  onClearCanvas: () => void;
-  clearCanvasDisabled?: boolean;
-  clearingCanvas?: boolean;
 }
 
 export function AdminTopBar({
@@ -30,13 +26,10 @@ export function AdminTopBar({
   onCreateProfile,
   onManageProfiles,
   onOpenSettings,
+  onUpgradePlan = () => undefined,
   onEnterDisplayMode,
   onEnterRemoteControlMode,
-  onEnterMarketplace,
   onLogout,
-  onClearCanvas,
-  clearCanvasDisabled = false,
-  clearingCanvas = false,
 }: AdminTopBarProps) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -50,7 +43,6 @@ export function AdminTopBar({
 
   return (
     <View style={styles.bar}>
-      {/* Dismiss overlay — covers the bar when any dropdown is open */}
       {(profileDropdownOpen || userMenuOpen) ? (
         <Pressable
           style={styles.dismissOverlay}
@@ -59,7 +51,6 @@ export function AdminTopBar({
         />
       ) : null}
 
-      {/* Left: title + profile selector */}
       <View style={styles.left}>
         <Text style={styles.title}>Dashboard Editor</Text>
 
@@ -145,98 +136,79 @@ export function AdminTopBar({
         </View>
       </View>
 
-      {/* Right: action groups */}
       <View style={styles.right}>
-        {/* Group 1: canvas actions */}
-        <View style={styles.group}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Display Mode"
+          style={[styles.actionButton, styles.actionButtonPrimary]}
+          onPress={onEnterDisplayMode}
+        >
+          <AppIcon name="grid" size="sm" color="statusInfoText" />
+          <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Display</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Remote Control"
+          style={styles.actionButton}
+          onPress={onEnterRemoteControlMode}
+        >
+          <AppIcon name="refresh" size="sm" color="textSecondary" />
+          <Text style={styles.actionLabel}>Remote</Text>
+        </Pressable>
+
+        <View style={styles.dropdownAnchor}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Clear Canvas"
-            style={[
-              styles.ghostButton,
-              clearCanvasDisabled ? styles.actionDisabled : null,
-            ]}
-            onPress={onClearCanvas}
-            disabled={clearCanvasDisabled}
+            accessibilityLabel="User menu"
+            style={styles.userButton}
+            onPress={() => {
+              setUserMenuOpen((v) => !v);
+              setProfileDropdownOpen(false);
+            }}
           >
-            <AppIcon name="trash" size="sm" color="textSecondary" />
-            <Text style={styles.ghostButtonLabel}>
-              {clearingCanvas ? "Clearing…" : "Clear"}
-            </Text>
+            <AppIcon name="user" size="sm" color="textSecondary" />
           </Pressable>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Remote Control"
-            style={styles.actionButton}
-            onPress={onEnterRemoteControlMode}
-          >
-            <AppIcon name="refresh" size="sm" color="textSecondary" />
-            <Text style={styles.actionLabel}>Remote</Text>
-          </Pressable>
+          {userMenuOpen ? (
+            <View style={[styles.dropdown, styles.dropdownAlignRight, styles.userMenu]}>
+              <View style={styles.menuSection}>
+                <Text style={styles.menuSectionLabel}>Account</Text>
+                <Text accessibilityLabel="Plan" style={styles.planText}>
+                  {plan === "pro" ? "Plan: Pro" : "Plan: Free"}
+                </Text>
+                {plan === "free" ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Upgrade plan"
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      onUpgradePlan();
+                      setUserMenuOpen(false);
+                    }}
+                  >
+                    <AppIcon name="star" size="sm" color="accent" />
+                    <Text style={styles.dropdownItemLabel}>Upgrade</Text>
+                  </Pressable>
+                ) : null}
+              </View>
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Display Mode"
-            style={[styles.actionButton, styles.actionButtonPrimary]}
-            onPress={onEnterDisplayMode}
-          >
-            <AppIcon name="grid" size="sm" color="statusInfoText" />
-            <Text style={[styles.actionLabel, styles.actionLabelPrimary]}>Display</Text>
-          </Pressable>
-        </View>
+              <View style={styles.dropdownDivider} />
 
-        <View style={styles.groupSeparator} />
+              <View style={styles.menuSection}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Settings"
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    onOpenSettings();
+                    setUserMenuOpen(false);
+                  }}
+                >
+                  <AppIcon name="settings" size="sm" color="textSecondary" />
+                  <Text style={styles.dropdownItemLabel}>Settings</Text>
+                </Pressable>
 
-        {/* Group 2: navigation */}
-        <View style={styles.group}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Marketplace"
-            style={styles.actionButton}
-            onPress={onEnterMarketplace}
-          >
-            <AppIcon name="star" size="sm" color="textSecondary" />
-            <Text style={styles.actionLabel}>Marketplace</Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            style={styles.settingsButton}
-            onPress={onOpenSettings}
-          >
-            <AppIcon name="settings" size="sm" color="textPrimary" />
-            <Text style={styles.settingsLabel}>Settings</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.groupSeparator} />
-
-        {/* Group 3: account */}
-        <View style={styles.group}>
-          <InlineStatusBadge
-            label={plan === "pro" ? "Pro" : "Free"}
-            tone={plan === "pro" ? "premium" : "neutral"}
-            icon={plan === "pro" ? "star" : "grid"}
-          />
-
-          <View style={styles.dropdownAnchor}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="User menu"
-              style={styles.actionButton}
-              onPress={() => {
-                setUserMenuOpen((v) => !v);
-                setProfileDropdownOpen(false);
-              }}
-            >
-              <AppIcon name="user" size="sm" color="textSecondary" />
-              <AppIcon name="chevronDown" size="sm" color="textSecondary" />
-            </Pressable>
-
-            {userMenuOpen ? (
-              <View style={[styles.dropdown, styles.dropdownAlignRight]}>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Logout"
@@ -250,8 +222,8 @@ export function AdminTopBar({
                   <Text style={styles.dropdownItemLabel}>Logout</Text>
                 </Pressable>
               </View>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
         </View>
       </View>
     </View>
@@ -283,6 +255,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+    zIndex: 20,
+  },
+  right: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
     zIndex: 20,
   },
   title: {
@@ -326,6 +304,27 @@ const styles = StyleSheet.create({
     left: "auto" as unknown as number,
     right: 0,
   },
+  userMenu: {
+    minWidth: 220,
+  },
+  menuSection: {
+    paddingVertical: spacing.xs,
+  },
+  menuSectionLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xs,
+  },
+  planText: {
+    ...typography.small,
+    color: colors.textPrimary,
+    fontWeight: "600",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+  },
   dropdownItem: {
     flexDirection: "row",
     alignItems: "center",
@@ -354,34 +353,6 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
     marginHorizontal: spacing.md,
   },
-  right: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    zIndex: 20,
-  },
-  group: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  groupSeparator: {
-    width: 1,
-    height: 20,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.xs,
-  },
-  ghostButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 7,
-  },
-  ghostButtonLabel: {
-    ...typography.small,
-    color: colors.textSecondary,
-  },
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -397,9 +368,6 @@ const styles = StyleSheet.create({
     borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
   },
-  actionDisabled: {
-    opacity: 0.4,
-  },
   actionLabel: {
     ...typography.small,
     color: colors.textSecondary,
@@ -408,20 +376,14 @@ const styles = StyleSheet.create({
   actionLabelPrimary: {
     color: colors.statusInfoText,
   },
-  settingsButton: {
-    flexDirection: "row",
+  userButton: {
     alignItems: "center",
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: colors.borderInput,
+    justifyContent: "center",
+    minWidth: 34,
+    height: 34,
     borderRadius: radius.md,
-    backgroundColor: colors.surfaceInput,
-  },
-  settingsLabel: {
-    ...typography.small,
-    color: colors.textPrimary,
-    fontWeight: "600",
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.buttonPassiveBg,
   },
 });

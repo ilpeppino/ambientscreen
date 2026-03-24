@@ -93,6 +93,9 @@ interface DashboardCanvasProps {
   savingLayout: boolean;
   layoutError: string | null;
   widgetPlacementError?: string | null;
+  onClearCanvas: () => void;
+  clearCanvasDisabled?: boolean;
+  clearingCanvas?: boolean;
   onSaveLayout: () => void;
   onCancelLayout: () => void;
   /** Called when a widget type is dropped onto the canvas with a resolved grid layout. */
@@ -113,6 +116,9 @@ export function DashboardCanvas({
   savingLayout,
   layoutError,
   widgetPlacementError,
+  onClearCanvas,
+  clearCanvasDisabled = false,
+  clearingCanvas = false,
   onSaveLayout,
   onCancelLayout,
   onWidgetDropped,
@@ -357,6 +363,22 @@ export function DashboardCanvas({
           Canvas{isDragOver ? " — drop to place" : ""}
         </Text>
         <View style={styles.canvasActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear Canvas"
+            style={[
+              styles.actionButton,
+              styles.clearButton,
+              clearCanvasDisabled ? styles.actionDisabled : null,
+            ]}
+            onPress={onClearCanvas}
+            disabled={clearCanvasDisabled}
+          >
+            <Text style={styles.clearLabel}>
+              {clearingCanvas ? "Clearing…" : "Clear Canvas"}
+            </Text>
+          </Pressable>
+
           {hasLayoutChanges ? (
             <>
               <Pressable
@@ -499,6 +521,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: "rgba(0,0,0,0.8)",
   },
+  clearButton: {
+    borderColor: colors.border,
+    backgroundColor: "transparent",
+  },
   saveButton: {
     borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
@@ -507,6 +533,11 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   cancelLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  clearLabel: {
     ...typography.small,
     color: colors.textSecondary,
     fontWeight: "600",

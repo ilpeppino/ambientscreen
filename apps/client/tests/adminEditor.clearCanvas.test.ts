@@ -157,6 +157,10 @@ vi.mock("../src/features/admin/components/DashboardCanvas", () => {
         "view",
         { "data-testid": "dashboard-canvas" },
         ReactRuntime.createElement("text", { "data-testid": "canvas-count" }, `widgets:${widgets.length}`),
+        ReactRuntime.createElement("pressable", {
+          accessibilityLabel: "Clear Canvas",
+          onPress: () => (props.onClearCanvas as (() => void) | undefined)?.(),
+        }),
         widgets.length > 0
           ? ReactRuntime.createElement("pressable", {
               accessibilityLabel: "Select first canvas widget",

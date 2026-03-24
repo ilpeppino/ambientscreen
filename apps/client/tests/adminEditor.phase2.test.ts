@@ -506,6 +506,7 @@ describe("DashboardCanvas", () => {
     hasLayoutChanges: false,
     savingLayout: false,
     layoutError: null,
+    onClearCanvas: vi.fn(),
     onSaveLayout: vi.fn(),
     onCancelLayout: vi.fn(),
   } as const;
@@ -548,6 +549,21 @@ describe("DashboardCanvas", () => {
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
     expect(texts.some((t) => String(t).includes("Save Layout"))).toBe(true);
+  });
+
+  test("renders Clear Canvas action and dispatches onClearCanvas", () => {
+    const onClearCanvas = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(DashboardCanvas, { ...baseProps, onClearCanvas }),
+    );
+
+    const clearButton = tree.root.findAllByType("pressable" as any).find(
+      (node: { props: { accessibilityLabel?: string } }) =>
+        node.props.accessibilityLabel === "Clear Canvas",
+    );
+    expect(clearButton).toBeDefined();
+    clearButton?.props.onPress?.();
+    expect(onClearCanvas).toHaveBeenCalled();
   });
 
   test("shows loading state when fetching layout", () => {
