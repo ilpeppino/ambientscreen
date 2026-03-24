@@ -453,7 +453,7 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "space-between",
     gap: spacing.sm,
-    paddingVertical: 4,
+    paddingVertical: spacing.xs,
   },
   keyLabel: {
     ...typography.caption,
