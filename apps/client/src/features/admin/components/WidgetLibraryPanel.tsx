@@ -119,6 +119,17 @@ export function WidgetLibraryPanel({
       setArmedWidgetType(null);
     }
 
+    function handleWindowMouseMove(event: MouseEvent) {
+      if (!manualDragRef.current.active || !manualDragRef.current.widgetType) return;
+      if (event.buttons !== 1) return;
+      dispatchManualMove({
+        widgetType: manualDragRef.current.widgetType,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        defaultLayout: manualDragRef.current.defaultLayout,
+      });
+    }
+
     function handleWindowMouseUp(event: MouseEvent) {
       if (manualDragRef.current.active && manualDragRef.current.widgetType) {
         const detail: ManualWidgetDragDetail = {
@@ -134,11 +145,13 @@ export function WidgetLibraryPanel({
       clearPendingPress();
     }
 
+    window.addEventListener("mousemove", handleWindowMouseMove);
     window.addEventListener("mouseup", handleWindowMouseUp);
     window.addEventListener("touchend", clearPendingPress);
     window.addEventListener("touchcancel", clearPendingPress);
 
     return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
       window.removeEventListener("touchend", clearPendingPress);
       window.removeEventListener("touchcancel", clearPendingPress);
