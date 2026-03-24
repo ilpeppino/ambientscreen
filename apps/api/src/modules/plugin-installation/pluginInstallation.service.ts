@@ -2,6 +2,7 @@ import { z } from "zod";
 import { apiErrors } from "../../core/http/api-error";
 import { pluginInstallationRepository } from "./pluginInstallation.repository";
 import { pluginRegistryRepository } from "../plugin-registry/pluginRegistry.repository";
+import { getWidgetPlugin } from "../widgets/widgetPluginRegistry";
 
 const updateInstallSchema = z.object({
   isEnabled: z.boolean(),
@@ -57,6 +58,11 @@ export const pluginInstallationService = {
   async assertPluginInstalledAndEnabled(userId: string, pluginKey: string) {
     // Only enforce installation for plugins registered in the DB registry.
     // Builtin plugins (in-memory only) are available to all users by default.
+    const widgetPlugin = getWidgetPlugin(pluginKey);
+    if (widgetPlugin) {
+      return;
+    }
+
     const registryPlugin = await pluginRegistryRepository.findByKey(pluginKey);
     if (!registryPlugin) {
       // Not a marketplace plugin — no installation check required.
