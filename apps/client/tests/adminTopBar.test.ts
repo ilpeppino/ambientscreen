@@ -1,5 +1,5 @@
 /**
- * AdminTopBar unit tests — profile selector, user menu, action groups.
+ * AdminTopBar unit tests — profile selector, user menu, global actions.
  */
 import React from "react";
 import TestRenderer from "react-test-renderer";
@@ -44,12 +44,9 @@ const baseProps = {
   onCreateProfile: vi.fn(),
   onManageProfiles: vi.fn(),
   onOpenSettings: vi.fn(),
-  onClearCanvas: vi.fn(),
-  clearCanvasDisabled: false,
-  clearingCanvas: false,
+  onUpgradePlan: vi.fn(),
   onEnterDisplayMode: vi.fn(),
   onEnterRemoteControlMode: vi.fn(),
-  onEnterMarketplace: vi.fn(),
   onLogout: vi.fn(),
 };
 
@@ -62,30 +59,25 @@ describe("AdminTopBar — layout", () => {
     expect(texts.some((t) => String(t).includes("Dashboard Editor"))).toBe(true);
   });
 
-  test("shows plan badge for free plan", () => {
-    const tree = TestRenderer.create(
-      React.createElement(AdminTopBar, { ...baseProps, plan: "free" }),
-    );
-    const texts = tree.root
-      .findAllByType("text")
-      .map((n: { props: { children?: unknown } }) => n.props.children);
-    expect(texts.some((t) => String(t) === "Free")).toBe(true);
-  });
-
-  test("shows plan badge for pro plan", () => {
-    const tree = TestRenderer.create(
-      React.createElement(AdminTopBar, { ...baseProps, plan: "pro" }),
-    );
-    const texts = tree.root
-      .findAllByType("text")
-      .map((n: { props: { children?: unknown } }) => n.props.children);
-    expect(texts.some((t) => String(t) === "Pro")).toBe(true);
-  });
-
-  test("renders action buttons with icons", () => {
+  test("renders compact global actions with icons", () => {
     const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
     const icons = tree.root.findAllByType("mock-icon" as any);
     expect(icons.length).toBeGreaterThanOrEqual(3);
+  });
+
+  test("does not render Marketplace or Clear in the top bar", () => {
+    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
+    const pressables = tree.root.findAllByType("pressable" as any);
+
+    const marketplace = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Marketplace",
+    );
+    const clear = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Clear Canvas",
+    );
+
+    expect(marketplace).toBeUndefined();
+    expect(clear).toBeUndefined();
   });
 });
 
@@ -108,247 +100,159 @@ describe("AdminTopBar — profile selector", () => {
     expect(texts.some((t) => String(t).includes("Select profile"))).toBe(true);
   });
 
-  test("profile dropdown is closed by default", () => {
-    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
-    const pressables = tree.root.findAllByType("pressable" as any);
-    const switchOffice = pressables.find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
-    );
-    expect(switchOffice).toBeUndefined();
-  });
-
-  test("profile dropdown opens when selector is pressed", async () => {
-    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
-    const trigger = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
-    );
-    await TestRenderer.act(async () => {
-      trigger?.props.onPress?.();
-    });
-    const pressables = tree.root.findAllByType("pressable" as any);
-    const switchOffice = pressables.find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
-    );
-    expect(switchOffice).toBeDefined();
-  });
-
-  test("profile dropdown closes when selector is pressed again", async () => {
-    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
-    const trigger = () => tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
-    );
-    await TestRenderer.act(async () => { trigger()?.props.onPress?.(); });
-    await TestRenderer.act(async () => { trigger()?.props.onPress?.(); });
-    const switchOffice = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
-    );
-    expect(switchOffice).toBeUndefined();
-  });
-
-  test("selecting a profile calls onActivateProfile with correct id", async () => {
+  test("profile dropdown opens and selecting a profile calls onActivateProfile", async () => {
     const onActivateProfile = vi.fn();
     const tree = TestRenderer.create(
       React.createElement(AdminTopBar, { ...baseProps, onActivateProfile }),
     );
+
     const trigger = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Profile selector",
     );
     await TestRenderer.act(async () => { trigger?.props.onPress?.(); });
 
     const switchOffice = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Switch to Office",
     );
     await TestRenderer.act(async () => { switchOffice?.props.onPress?.(); });
+
     expect(onActivateProfile).toHaveBeenCalledWith("p-2");
   });
 
-  test("selecting a profile closes the dropdown", async () => {
-    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
-    const trigger = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
-    );
-    await TestRenderer.act(async () => { trigger?.props.onPress?.(); });
-
-    const switchHome = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Home",
-    );
-    await TestRenderer.act(async () => { switchHome?.props.onPress?.(); });
-
-    const switchOffice = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
-    );
-    expect(switchOffice).toBeUndefined();
-  });
-
-  test("'Create profile' calls onCreateProfile and closes dropdown", async () => {
+  test("create/manage profile actions dispatch and close dropdown", async () => {
     const onCreateProfile = vi.fn();
+    const onManageProfiles = vi.fn();
     const tree = TestRenderer.create(
-      React.createElement(AdminTopBar, { ...baseProps, onCreateProfile }),
+      React.createElement(AdminTopBar, { ...baseProps, onCreateProfile, onManageProfiles }),
     );
+
     const trigger = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Profile selector",
     );
     await TestRenderer.act(async () => { trigger?.props.onPress?.(); });
 
     const createBtn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Create profile",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Create profile",
     );
     await TestRenderer.act(async () => { createBtn?.props.onPress?.(); });
     expect(onCreateProfile).toHaveBeenCalled();
 
-    // Dropdown should be closed
-    const switchOffice = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
-    );
-    expect(switchOffice).toBeUndefined();
-  });
-
-  test("'Manage profiles' calls onManageProfiles and closes dropdown", async () => {
-    const onManageProfiles = vi.fn();
-    const tree = TestRenderer.create(
-      React.createElement(AdminTopBar, { ...baseProps, onManageProfiles }),
-    );
-    const trigger = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
-    );
     await TestRenderer.act(async () => { trigger?.props.onPress?.(); });
-
     const manageBtn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Manage profiles",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Manage profiles",
     );
     await TestRenderer.act(async () => { manageBtn?.props.onPress?.(); });
     expect(onManageProfiles).toHaveBeenCalled();
-
-    const switchOffice = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
-    );
-    expect(switchOffice).toBeUndefined();
   });
 });
 
 describe("AdminTopBar — user menu", () => {
-  test("user menu is closed by default — Logout not visible", () => {
+  test("user menu contains plan, settings, and logout", async () => {
     const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
-    const logoutBtn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Logout",
-    );
-    expect(logoutBtn).toBeUndefined();
-  });
 
-  test("user menu opens when user menu button is pressed", async () => {
-    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
     const menuBtn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "User menu",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "User menu",
     );
     await TestRenderer.act(async () => { menuBtn?.props.onPress?.(); });
 
-    const logoutBtn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Logout",
-    );
-    expect(logoutBtn).toBeDefined();
+    const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => String(n.props.children));
+    expect(texts.some((t) => t.includes("Plan: Free"))).toBe(true);
+    expect(texts).toContain("Settings");
+    expect(texts).toContain("Logout");
   });
 
-  test("Logout calls onLogout and closes user menu", async () => {
+  test("settings action calls onOpenSettings", async () => {
+    const onOpenSettings = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(AdminTopBar, { ...baseProps, onOpenSettings }),
+    );
+
+    const menuBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "User menu",
+    );
+    await TestRenderer.act(async () => { menuBtn?.props.onPress?.(); });
+
+    const settingsBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Settings",
+    );
+    await TestRenderer.act(async () => { settingsBtn?.props.onPress?.(); });
+
+    expect(onOpenSettings).toHaveBeenCalled();
+  });
+
+  test("free plan shows upgrade and calls onUpgradePlan", async () => {
+    const onUpgradePlan = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(AdminTopBar, { ...baseProps, plan: "free", onUpgradePlan }),
+    );
+
+    const menuBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "User menu",
+    );
+    await TestRenderer.act(async () => { menuBtn?.props.onPress?.(); });
+
+    const upgradeBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Upgrade plan",
+    );
+    expect(upgradeBtn).toBeDefined();
+
+    await TestRenderer.act(async () => { upgradeBtn?.props.onPress?.(); });
+    expect(onUpgradePlan).toHaveBeenCalled();
+  });
+
+  test("pro plan does not show upgrade action", async () => {
+    const tree = TestRenderer.create(
+      React.createElement(AdminTopBar, { ...baseProps, plan: "pro" }),
+    );
+
+    const menuBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "User menu",
+    );
+    await TestRenderer.act(async () => { menuBtn?.props.onPress?.(); });
+
+    const upgradeBtn = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Upgrade plan",
+    );
+    expect(upgradeBtn).toBeUndefined();
+  });
+
+  test("logout action calls onLogout and closes menu", async () => {
     const onLogout = vi.fn();
     const tree = TestRenderer.create(
       React.createElement(AdminTopBar, { ...baseProps, onLogout }),
     );
+
     const menuBtn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "User menu",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "User menu",
     );
     await TestRenderer.act(async () => { menuBtn?.props.onPress?.(); });
 
     const logoutBtn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Logout",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Logout",
     );
     await TestRenderer.act(async () => { logoutBtn?.props.onPress?.(); });
+
     expect(onLogout).toHaveBeenCalled();
 
-    // Menu should be closed
     const logoutBtnAfter = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Logout",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Logout",
     );
     expect(logoutBtnAfter).toBeUndefined();
   });
 });
 
-describe("AdminTopBar — action buttons", () => {
+describe("AdminTopBar — global actions", () => {
   test("calls onEnterDisplayMode when Display button is pressed", () => {
     const onEnterDisplayMode = vi.fn();
     const tree = TestRenderer.create(
       React.createElement(AdminTopBar, { ...baseProps, onEnterDisplayMode }),
     );
     const btn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Display Mode",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Display Mode",
     );
     expect(btn).toBeDefined();
     btn?.props.onPress?.();
     expect(onEnterDisplayMode).toHaveBeenCalled();
-  });
-
-  test("calls onOpenSettings when Settings button is pressed", () => {
-    const onOpenSettings = vi.fn();
-    const tree = TestRenderer.create(
-      React.createElement(AdminTopBar, { ...baseProps, onOpenSettings }),
-    );
-    const btn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Settings",
-    );
-    expect(btn).toBeDefined();
-    btn?.props.onPress?.();
-    expect(onOpenSettings).toHaveBeenCalled();
-  });
-
-  test("Clear Canvas button is present and calls onClearCanvas", () => {
-    const onClearCanvas = vi.fn();
-    const tree = TestRenderer.create(
-      React.createElement(AdminTopBar, { ...baseProps, onClearCanvas }),
-    );
-    const btn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Clear Canvas",
-    );
-    expect(btn).toBeDefined();
-    btn?.props.onPress?.();
-    expect(onClearCanvas).toHaveBeenCalled();
-  });
-
-  test("calls onEnterMarketplace when Marketplace button is pressed", () => {
-    const onEnterMarketplace = vi.fn();
-    const tree = TestRenderer.create(
-      React.createElement(AdminTopBar, { ...baseProps, onEnterMarketplace }),
-    );
-    const btn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Marketplace",
-    );
-    expect(btn).toBeDefined();
-    btn?.props.onPress?.();
-    expect(onEnterMarketplace).toHaveBeenCalled();
   });
 
   test("calls onEnterRemoteControlMode when Remote button is pressed", () => {
@@ -357,8 +261,7 @@ describe("AdminTopBar — action buttons", () => {
       React.createElement(AdminTopBar, { ...baseProps, onEnterRemoteControlMode }),
     );
     const btn = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Remote Control",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Remote Control",
     );
     expect(btn).toBeDefined();
     btn?.props.onPress?.();
@@ -370,35 +273,31 @@ describe("AdminTopBar — dismiss overlay", () => {
   test("dismiss overlay appears when profile dropdown is open", async () => {
     const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
     const trigger = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Profile selector",
     );
     await TestRenderer.act(async () => { trigger?.props.onPress?.(); });
 
     const overlay = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Close menu",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Close menu",
     );
     expect(overlay).toBeDefined();
   });
 
-  test("pressing dismiss overlay closes both dropdowns", async () => {
+  test("pressing dismiss overlay closes dropdowns", async () => {
     const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
-    const trigger = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Profile selector",
+
+    const openProfile = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Profile selector",
     );
-    await TestRenderer.act(async () => { trigger?.props.onPress?.(); });
+    await TestRenderer.act(async () => { openProfile?.props.onPress?.(); });
 
     const overlay = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Close menu",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Close menu",
     );
     await TestRenderer.act(async () => { overlay?.props.onPress?.(); });
 
     const switchOffice = tree.root.findAllByType("pressable" as any).find(
-      (p: { props: { accessibilityLabel?: string } }) =>
-        p.props.accessibilityLabel === "Switch to Office",
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Switch to Office",
     );
     expect(switchOffice).toBeUndefined();
   });
