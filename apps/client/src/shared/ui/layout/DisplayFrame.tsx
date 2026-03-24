@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Defs, LinearGradient, Path, Stop } from "react-native-svg";
 import { colors, radius, spacing, typography } from "../theme";
@@ -13,47 +13,48 @@ interface DisplayFrameProps {
   footer?: React.ReactNode;
 }
 
-const ARC_WIDTH = 320;
-const ARC_HEIGHT = 160;
-const ARC_RADIUS = 128;
-const ARC_CENTER_X = 160;
-const ARC_CENTER_Y = 160;
-const ARC_PATH = `M ${ARC_CENTER_X - ARC_RADIUS} ${ARC_CENTER_Y} A ${ARC_RADIUS} ${ARC_RADIUS} 0 0 1 ${ARC_CENTER_X + ARC_RADIUS} ${ARC_CENTER_Y}`;
-const ARC_LENGTH = Math.PI * ARC_RADIUS;
+const HEADER_GLOW_SIZE = 420;
+const HEADER_GLOW_TOP_OFFSET = -260;
+const HEADER_GLOW_RADIUS = HEADER_GLOW_SIZE / 2;
+const HEADER_GLOW_CENTER_Y = HEADER_GLOW_TOP_OFFSET + HEADER_GLOW_RADIUS;
+const ARC_HEIGHT = 170;
+const ARC_STROKE_WIDTH = 6;
 
 interface AmbientCountdownArcProps {
   progress: number;
+  width: number;
 }
 
-function AmbientCountdownArc({ progress }: AmbientCountdownArcProps) {
-  const dashOffset = ARC_LENGTH * (1 - progress);
+function AmbientCountdownArc({ progress, width }: AmbientCountdownArcProps) {
+  const centerX = width / 2;
+  const arcPath = `M ${centerX - HEADER_GLOW_RADIUS} ${HEADER_GLOW_CENTER_Y} A ${HEADER_GLOW_RADIUS} ${HEADER_GLOW_RADIUS} 0 0 0 ${centerX + HEADER_GLOW_RADIUS} ${HEADER_GLOW_CENTER_Y}`;
+  const arcLength = Math.PI * HEADER_GLOW_RADIUS;
+  const dashOffset = arcLength * (1 - progress);
 
   return (
-    <Svg width={ARC_WIDTH} height={ARC_HEIGHT} viewBox="0 0 320 160">
+    <Svg width={width} height={ARC_HEIGHT} viewBox={`0 0 ${width} ${ARC_HEIGHT}`}>
       <Defs>
-        <LinearGradient id="ambientCountdownGradient" x1="32" y1="160" x2="288" y2="160">
+        <LinearGradient id="ambientCountdownGradient" x1={centerX - HEADER_GLOW_RADIUS} y1={ARC_HEIGHT} x2={centerX + HEADER_GLOW_RADIUS} y2={ARC_HEIGHT}>
           <Stop offset="0%" stopColor={colors.statusInfoText} />
           <Stop offset="60%" stopColor={colors.accentBlue} />
           <Stop offset="100%" stopColor={colors.buttonSecondaryBorder} />
         </LinearGradient>
       </Defs>
       <Path
-        d={ARC_PATH}
-        stroke="rgba(121, 166, 209, 0.25)"
-        strokeWidth={5}
+        d={arcPath}
+        stroke="rgba(121, 166, 209, 0.18)"
+        strokeWidth={ARC_STROKE_WIDTH}
         strokeLinecap="round"
         fill="none"
-        transform="scaleY(-1)"
       />
       <Path
-        d={ARC_PATH}
+        d={arcPath}
         stroke="url(#ambientCountdownGradient)"
-        strokeWidth={5}
+        strokeWidth={ARC_STROKE_WIDTH}
         strokeLinecap="round"
-        strokeDasharray={`${ARC_LENGTH} ${ARC_LENGTH}`}
+        strokeDasharray={`${arcLength} ${arcLength}`}
         strokeDashoffset={dashOffset}
         fill="none"
-        transform="scaleY(-1)"
       />
     </Svg>
   );
@@ -67,6 +68,9 @@ export function DisplayFrame({
   children,
   footer,
 }: DisplayFrameProps) {
+  const { width: windowWidth } = useWindowDimensions();
+  const contentWidth = Math.max(0, windowWidth - spacing.xl * 2);
+
   const progress = typeof countdownProgress === "number"
     ? Math.max(0, Math.min(1, countdownProgress))
     : null;
@@ -80,7 +84,7 @@ export function DisplayFrame({
           <View style={styles.header}>
             {progress !== null ? (
               <View style={styles.arcWrap}>
-                <AmbientCountdownArc progress={progress} />
+                <AmbientCountdownArc progress={progress} width={contentWidth} />
               </View>
             ) : null}
             {title ? <Text style={styles.title}>{title}</Text> : null}
@@ -134,8 +138,10 @@ const styles = StyleSheet.create({
   },
   arcWrap: {
     position: "absolute",
-    top: 14,
-    alignSelf: "center",
+    top: 0,
+    left: 0,
+    right: 0,
+    alignItems: "center",
   },
   title: {
     color: colors.textPrimary,
