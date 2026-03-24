@@ -1,9 +1,17 @@
 import React from "react";
 import { vi } from "vitest";
 
+type ReactActEnvironmentGlobal = typeof globalThis & {
+  IS_REACT_ACT_ENVIRONMENT: boolean;
+};
+
+type ReactTestRendererModule = typeof import("react-test-renderer") & {
+  default?: typeof import("react-test-renderer");
+};
+
 // React 19 requires test renders to run under act() for tree access.
 // Centralize that behavior here so existing tests keep working.
-(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as ReactActEnvironmentGlobal).IS_REACT_ACT_ENVIRONMENT = true;
 
 function host(name: string) {
   return (props: Record<string, unknown>) =>
@@ -12,7 +20,7 @@ function host(name: string) {
 
 vi.mock("react-test-renderer", async () => {
   const actual = await vi.importActual<typeof import("react-test-renderer")>("react-test-renderer");
-  const testRenderer = actual as typeof import("react-test-renderer") & { default?: typeof import("react-test-renderer") };
+  const testRenderer = actual as ReactTestRendererModule;
   const rendererApi = testRenderer.default ?? testRenderer;
 
   const create = (
