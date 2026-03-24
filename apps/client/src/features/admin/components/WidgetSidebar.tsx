@@ -1,5 +1,6 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import type { FeatureFlagKey } from "@ambient/shared-contracts";
 import { AppIcon } from "../../../shared/ui/components";
 import { InlineStatusBadge, ManagementActionButton } from "../../../shared/ui/management";
@@ -34,10 +35,16 @@ export function WidgetSidebar({
   selectedWidget,
   onSaveConfig,
 }: WidgetSidebarProps) {
-  const panelSubtitle = inspectorMode === "canvas"
-    ? (selectedWidget ? `Canvas widget · ${selectedWidget.widgetKey}` : "Canvas widget")
-    : inspectorMode === "library" && selectedLibraryWidgetType
-      ? `Library type · ${selectedLibraryWidgetType}`
+  const canvasWidgetName = selectedWidget
+    ? (widgetBuiltinDefinitions[selectedWidget.widgetKey]?.manifest.name ?? selectedWidget.widgetKey)
+    : null;
+  const libraryWidgetName = selectedLibraryWidgetType
+    ? (widgetBuiltinDefinitions[selectedLibraryWidgetType]?.manifest.name ?? selectedLibraryWidgetType)
+    : null;
+  const panelSubtitle = inspectorMode === "canvas" && canvasWidgetName
+    ? `Type: ${canvasWidgetName}`
+    : inspectorMode === "library" && libraryWidgetName
+      ? `Type: ${libraryWidgetName}`
       : null;
 
   return (

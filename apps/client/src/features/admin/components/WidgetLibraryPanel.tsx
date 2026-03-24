@@ -195,13 +195,14 @@ export function WidgetLibraryPanel({
                 key={widgetKey}
                 accessibilityRole="button"
                 accessibilityLabel={`${manifest.name} widget`}
-                style={[
+                style={(state) => [
                   styles.widgetRow,
+                  (state as { hovered?: boolean }).hovered && !isSelected ? styles.widgetRowHover : null,
                   isSelected ? styles.widgetRowSelected : null,
                   isArmed ? styles.widgetRowArmed : null,
                   isDragging ? styles.widgetRowDragging : null,
                   // web-only cursor — ignored on native
-                  { cursor: draggable ? "grab" : "default" } as object,
+                  { cursor: draggable ? (isDragging ? "grabbing" : "grab") : "default" } as object,
                 ]}
                 onPress={() => {
                   if (locked) {
@@ -395,8 +396,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: spacing.sm,
   },
-  widgetRowSelected: {
+  widgetRowHover: {
     backgroundColor: colors.surfaceInput,
+  },
+  widgetRowSelected: {
+    backgroundColor: colors.statusInfoBg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accentBlue,
+    paddingLeft: spacing.lg - 3,
   },
   widgetRowArmed: {
     borderLeftWidth: 2,

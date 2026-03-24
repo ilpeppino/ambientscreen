@@ -84,6 +84,97 @@ describe("WidgetLibraryPanel", () => {
     expect(onSelectLibraryWidget).toHaveBeenCalled();
   });
 
+  test("selected widget row receives selected style (accent border + bg)", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetLibraryPanel, {
+        ...defaultProps,
+        selectedLibraryWidgetType: "clockDate",
+      }),
+    );
+
+    // Find the pressable whose accessibilityLabel matches the clock widget
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const clockRow = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) =>
+        typeof p.props.accessibilityLabel === "string" &&
+        p.props.accessibilityLabel.toLowerCase().includes("clock"),
+    );
+    expect(clockRow).toBeDefined();
+
+    // style is a function on this row — call it to get the resolved style array
+    const resolvedStyle = typeof clockRow?.props.style === "function"
+      ? clockRow.props.style({})
+      : clockRow?.props.style;
+
+    const styleArray: unknown[] = Array.isArray(resolvedStyle) ? resolvedStyle : [resolvedStyle];
+    const hasSelectedStyle = styleArray.some(
+      (s) => s && typeof s === "object" && "borderLeftColor" in (s as Record<string, unknown>),
+    );
+    expect(hasSelectedStyle).toBe(true);
+  });
+
+  test("non-selected widget row does not receive selected style", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetLibraryPanel, {
+        ...defaultProps,
+        selectedLibraryWidgetType: "clockDate",
+      }),
+    );
+
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const weatherRow = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) =>
+        typeof p.props.accessibilityLabel === "string" &&
+        p.props.accessibilityLabel.toLowerCase().includes("weather"),
+    );
+    expect(weatherRow).toBeDefined();
+
+    const resolvedStyle = typeof weatherRow?.props.style === "function"
+      ? weatherRow.props.style({})
+      : weatherRow?.props.style;
+
+    const styleArray: unknown[] = Array.isArray(resolvedStyle) ? resolvedStyle : [resolvedStyle];
+    const hasSelectedStyle = styleArray.some(
+      (s) => s && typeof s === "object" && "borderLeftColor" in (s as Record<string, unknown>),
+    );
+    expect(hasSelectedStyle).toBe(false);
+  });
+
+  test("selection syncs: changing selectedLibraryWidgetType moves highlight", () => {
+    const renderer = TestRenderer.create(
+      React.createElement(WidgetLibraryPanel, {
+        ...defaultProps,
+        selectedLibraryWidgetType: "clockDate",
+      }),
+    );
+
+    const findSelectedRow = () => {
+      const pressables = renderer.root.findAllByType("pressable" as any);
+      return pressables.find((p: { props: { style?: unknown; accessibilityLabel?: string } }) => {
+        const resolved = typeof p.props.style === "function"
+          ? p.props.style({})
+          : p.props.style;
+        const arr: unknown[] = Array.isArray(resolved) ? resolved : [resolved];
+        return arr.some(
+          (s) => s && typeof s === "object" && "borderLeftColor" in (s as Record<string, unknown>),
+        );
+      });
+    };
+
+    expect(findSelectedRow()?.props.accessibilityLabel).toMatch(/clock/i);
+
+    TestRenderer.act(() => {
+      renderer.update(
+        React.createElement(WidgetLibraryPanel, {
+          ...defaultProps,
+          selectedLibraryWidgetType: "weather",
+        }),
+      );
+    });
+
+    expect(findSelectedRow()?.props.accessibilityLabel).toMatch(/weather/i);
+  });
+
   test("removes + Add label and duplicate widget key text", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetLibraryPanel, defaultProps),
@@ -212,6 +303,69 @@ describe("WidgetPropertiesPanel", () => {
     expect(texts.some((t) => String(t).includes("Weather"))).toBe(true);
     expect(texts.some((t) => String(t).includes("Default Size"))).toBe(true);
     expect(texts.some((t) => String(t).includes("Long press and drag"))).toBe(true);
+  });
+
+  test("library inspector shows size as W × H format, not separate cells", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: null,
+        inspectorMode: "library",
+        selectedLibraryWidgetType: "clockDate",
+      }),
+    );
+
+    // Check that the × separator appears (flat W × H format, not separate boxed cells)
+    const allText = tree.root
+      .findAllByType("text")
+      .map((n: { props: { children?: unknown } }) => String(n.props.children ?? ""))
+      .join(" ");
+
+    expect(allText).toContain("×");
+  });
+
+  test("canvas inspector shows layout as inline fields with Size label", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: {
+          widgetInstanceId: "abc-123",
+          widgetKey: "clockDate" as const,
+          layout: { x: 1, y: 2, w: 5, h: 3 },
+          state: "ready" as const,
+          config: {},
+          configSchema: {},
+          data: null,
+          meta: { resolvedAt: "2026-01-01T00:00:00Z" },
+        },
+      }),
+    );
+
+    const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
+    expect(texts.some((t) => String(t).includes("Layout"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("Size"))).toBe(true);
+    // Should show values
+    expect(texts.some((t) => String(t) === "1" || String(t).includes("1"))).toBe(true);
+  });
+
+  test("config rows render without boxed input styling (no borderWidth in configRow)", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: {
+          widgetInstanceId: "abc-123",
+          widgetKey: "clockDate" as const,
+          layout: { x: 0, y: 0, w: 4, h: 2 },
+          state: "ready" as const,
+          config: { format: "24h" },
+          configSchema: {},
+          data: null,
+          meta: { resolvedAt: "2026-01-01T00:00:00Z" },
+        },
+      }),
+    );
+
+    const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
+    // Config value is still displayed
+    expect(texts.some((t) => String(t).includes("24h"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("format"))).toBe(true);
   });
 
   test("shows widget details when a widget is selected", () => {

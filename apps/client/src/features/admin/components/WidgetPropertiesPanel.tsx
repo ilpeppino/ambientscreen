@@ -118,19 +118,17 @@ export function WidgetPropertiesPanel({
         <View style={styles.divider} />
 
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Metadata</Text>
-          <Text style={styles.libraryText}>Category: {manifest.category}</Text>
-          <Text style={styles.libraryText}>Description: {manifest.description}</Text>
+          <Text style={styles.sectionLabelMuted}>Metadata</Text>
+          <Text style={styles.libraryText}>{manifest.category} · {manifest.description}</Text>
         </View>
 
         <View style={styles.divider} />
 
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Default Size</Text>
-          <View style={styles.layoutGrid}>
-            <LayoutCell label="W" value={manifest.defaultLayout.w} />
-            <LayoutCell label="H" value={manifest.defaultLayout.h} />
-          </View>
+          <Text style={styles.sizeText}>
+            {manifest.defaultLayout.w} × {manifest.defaultLayout.h}
+          </Text>
         </View>
 
         {defaultConfigEntries.length > 0 ? (
@@ -238,11 +236,21 @@ export function WidgetPropertiesPanel({
       {/* Layout */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Layout</Text>
-        <View style={styles.layoutGrid}>
-          <LayoutCell label="X" value={selectedWidget.layout.x} />
-          <LayoutCell label="Y" value={selectedWidget.layout.y} />
-          <LayoutCell label="W" value={selectedWidget.layout.w} />
-          <LayoutCell label="H" value={selectedWidget.layout.h} />
+        <View style={styles.layoutInline}>
+          <Text style={styles.layoutInlineItem}>
+            <Text style={styles.layoutInlineLabel}>X </Text>
+            <Text style={styles.layoutInlineValue}>{selectedWidget.layout.x}</Text>
+          </Text>
+          <Text style={styles.layoutInlineItem}>
+            <Text style={styles.layoutInlineLabel}>Y </Text>
+            <Text style={styles.layoutInlineValue}>{selectedWidget.layout.y}</Text>
+          </Text>
+          <Text style={styles.layoutInlineItem}>
+            <Text style={styles.layoutInlineLabel}>Size </Text>
+            <Text style={styles.layoutInlineValue}>
+              {selectedWidget.layout.w} × {selectedWidget.layout.h}
+            </Text>
+          </Text>
         </View>
       </View>
 
@@ -366,47 +374,6 @@ function InlineFieldEditor({ descriptor, value, onChange }: InlineFieldEditorPro
   );
 }
 
-// ---------------------------------------------------------------------------
-// LayoutCell
-// ---------------------------------------------------------------------------
-
-interface LayoutCellProps {
-  label: string;
-  value: number;
-}
-
-function LayoutCell({ label, value }: LayoutCellProps) {
-  return (
-    <View style={layoutCellStyles.cell}>
-      <Text style={layoutCellStyles.label}>{label}</Text>
-      <Text style={layoutCellStyles.value}>{value}</Text>
-    </View>
-  );
-}
-
-const layoutCellStyles = StyleSheet.create({
-  cell: {
-    flex: 1,
-    alignItems: "center",
-    backgroundColor: colors.surfaceInput,
-    borderWidth: 1,
-    borderColor: colors.borderInput,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.sm,
-  },
-  label: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  value: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
-  },
-});
 
 const styles = StyleSheet.create({
   emptyState: {
@@ -504,9 +471,34 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
-  layoutGrid: {
+  sectionLabelMuted: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    letterSpacing: 0.3,
+  },
+  sizeText: {
+    ...typography.small,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  layoutInline: {
     flexDirection: "row",
-    gap: spacing.sm,
+    gap: spacing.md,
+    flexWrap: "wrap",
+  },
+  layoutInlineItem: {
+    fontSize: 12,
+  },
+  layoutInlineLabel: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: "600",
+    textTransform: "uppercase",
+  },
+  layoutInlineValue: {
+    fontSize: 12,
+    color: colors.textPrimary,
+    fontWeight: "600",
   },
   configList: {
     gap: spacing.sm,
@@ -515,12 +507,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: spacing.sm,
     alignItems: "flex-start",
-    backgroundColor: colors.surfaceInput,
-    borderWidth: 1,
-    borderColor: colors.borderInput,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   configKey: {
     fontSize: 11,
