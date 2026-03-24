@@ -692,12 +692,14 @@ describe("DashboardCanvas", () => {
       .find((node: { props: { onDragEnter?: (event: unknown) => void } }) => typeof node.props.onDragEnter === "function");
     expect(dropZone).toBeDefined();
 
-    dropZone?.props.onDragEnter?.({
-      preventDefault: vi.fn(),
-      dataTransfer: {
-        types: ["application/x-ambient-widget"],
-        dropEffect: "copy",
-      },
+    TestRenderer.act(() => {
+      dropZone?.props.onDragEnter?.({
+        preventDefault: vi.fn(),
+        dataTransfer: {
+          types: ["application/x-ambient-widget"],
+          dropEffect: "copy",
+        },
+      });
     });
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => String(n.props.children));

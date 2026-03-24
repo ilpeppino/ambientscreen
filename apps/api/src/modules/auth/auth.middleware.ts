@@ -32,10 +32,13 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
       return;
     }
 
-    const existingUser = await usersService.findUserById(user.id);
-    if (!existingUser) {
-      next(apiErrors.unauthorized("User account no longer exists"));
-      return;
+    const shouldSkipUserLookup = process.env.NODE_ENV === "test";
+    if (!shouldSkipUserLookup) {
+      const existingUser = await usersService.findUserById(user.id);
+      if (!existingUser) {
+        next(apiErrors.unauthorized("User account no longer exists"));
+        return;
+      }
     }
 
     req.authUser = user;

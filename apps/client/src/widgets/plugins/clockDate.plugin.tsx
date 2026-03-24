@@ -1,10 +1,11 @@
+import React from "react";
 import type { WidgetClientPluginModule } from "@ambient/shared-contracts";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import { ClockDateRenderer } from "../clockDate/renderer";
 
 const definition = widgetBuiltinDefinitions.clockDate;
 
-export const clockDateWidgetPlugin: WidgetClientPluginModule<"clockDate", JSX.Element> = {
+export const clockDateWidgetPlugin: WidgetClientPluginModule<"clockDate", React.ReactElement> = {
   manifest: definition.manifest,
   configSchema: definition.configSchema,
   defaultConfig: definition.defaultConfig,
