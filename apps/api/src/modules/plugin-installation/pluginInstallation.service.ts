@@ -2,11 +2,19 @@ import { z } from "zod";
 import { apiErrors } from "../../core/http/api-error";
 import { pluginInstallationRepository } from "./pluginInstallation.repository";
 import { pluginRegistryRepository } from "../plugin-registry/pluginRegistry.repository";
+import type { WidgetKey } from "@ambient/shared-contracts";
+import { widgetConfigRegistry } from "@ambient/shared-contracts";
 import { getWidgetPlugin } from "../widgets/widgetPluginRegistry";
 
 const updateInstallSchema = z.object({
   isEnabled: z.boolean(),
 });
+
+const builtinWidgetKeys = Object.keys(widgetConfigRegistry) as WidgetKey[];
+
+function isWidgetKey(value: string): value is WidgetKey {
+  return builtinWidgetKeys.includes(value as WidgetKey);
+}
 
 export const pluginInstallationService = {
   async listInstalledForUser(userId: string) {
@@ -58,9 +66,11 @@ export const pluginInstallationService = {
   async assertPluginInstalledAndEnabled(userId: string, pluginKey: string) {
     // Only enforce installation for plugins registered in the DB registry.
     // Builtin plugins (in-memory only) are available to all users by default.
-    const widgetPlugin = getWidgetPlugin(pluginKey);
-    if (widgetPlugin) {
-      return;
+    if (isWidgetKey(pluginKey)) {
+      const widgetPlugin = getWidgetPlugin(pluginKey);
+      if (widgetPlugin) {
+        return;
+      }
     }
 
     const registryPlugin = await pluginRegistryRepository.findByKey(pluginKey);
