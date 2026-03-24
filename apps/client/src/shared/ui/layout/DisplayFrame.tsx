@@ -43,7 +43,7 @@ function AmbientCountdownArc({ progress }: AmbientCountdownArcProps) {
         strokeWidth={5}
         strokeLinecap="round"
         fill="none"
-        transform={`translate(${ARC_WIDTH} 0) scale(-1 1) scaleY(-1)`}
+        transform="scaleY(-1)"
       />
       <Path
         d={ARC_PATH}
@@ -53,7 +53,7 @@ function AmbientCountdownArc({ progress }: AmbientCountdownArcProps) {
         strokeDasharray={`${ARC_LENGTH} ${ARC_LENGTH}`}
         strokeDashoffset={dashOffset}
         fill="none"
-        transform={`translate(${ARC_WIDTH} 0) scale(-1 1) scaleY(-1)`}
+        transform="scaleY(-1)"
       />
     </Svg>
   );
