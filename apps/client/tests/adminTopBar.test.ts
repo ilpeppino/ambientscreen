@@ -39,7 +39,9 @@ const baseProps = {
   clearCanvasDisabled: false,
   clearingCanvas: false,
   onEnterDisplayMode: vi.fn(),
+  onEnterRemoteControlMode: vi.fn(),
   onEnterMarketplace: vi.fn(),
+  onLogout: vi.fn(),
 };
 
 describe("AdminTopBar", () => {
@@ -145,6 +147,38 @@ describe("AdminTopBar", () => {
     expect(marketplaceBtn).toBeDefined();
     marketplaceBtn?.props.onPress?.();
     expect(onEnterMarketplace).toHaveBeenCalled();
+  });
+
+  test("calls onEnterRemoteControlMode when Remote button is pressed", () => {
+    const onEnterRemoteControlMode = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(AdminTopBar, { ...baseProps, onEnterRemoteControlMode }),
+    );
+
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const remoteBtn = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) =>
+        p.props.accessibilityLabel === "Remote Control",
+    );
+    expect(remoteBtn).toBeDefined();
+    remoteBtn?.props.onPress?.();
+    expect(onEnterRemoteControlMode).toHaveBeenCalled();
+  });
+
+  test("calls onLogout when Logout button is pressed", () => {
+    const onLogout = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(AdminTopBar, { ...baseProps, onLogout }),
+    );
+
+    const pressables = tree.root.findAllByType("pressable" as any);
+    const logoutBtn = pressables.find(
+      (p: { props: { accessibilityLabel?: string } }) =>
+        p.props.accessibilityLabel === "Logout",
+    );
+    expect(logoutBtn).toBeDefined();
+    logoutBtn?.props.onPress?.();
+    expect(onLogout).toHaveBeenCalled();
   });
 
   test("omits profile name when null", () => {

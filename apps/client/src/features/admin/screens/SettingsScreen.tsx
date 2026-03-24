@@ -1,20 +1,17 @@
-import React from "react";
+import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
+import { AppIcon } from "../../../shared/ui/components";
 import { ConfirmDialog } from "../../../shared/ui/overlays";
 import { ErrorState } from "../../../shared/ui/ErrorState";
 import {
-  ActionRow,
   EmptyPanel,
   FilterChips,
   InlineStatusBadge,
   ManagementActionButton,
-  ManagementCard,
-  SectionHeader,
 } from "../../../shared/ui/management";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
-import { DeviceCard } from "../../devices/DeviceCard";
 import type { Device, UserPlan } from "@ambient/shared-contracts";
 import type { Profile } from "@ambient/shared-contracts";
 
@@ -57,12 +54,20 @@ interface SettingsScreenProps {
   onRenameDevice: (deviceId: string) => void;
   onDeleteDevice: (deviceId: string) => void;
   onRetryLoadDevices: () => void;
+}
 
-  // Navigation
-  onEnterDisplayMode: () => void;
-  onEnterRemoteControlMode: () => void;
-  onEnterMarketplace: () => void;
-  onLogout: () => void;
+function devicePresence(device: Device): "online" | "offline" {
+  if (device.connectionStatus === "online") return "online";
+  if (device.connectionStatus === "offline") return "offline";
+  const lastSeen = new Date(device.lastSeenAt).getTime();
+  return !Number.isNaN(lastSeen) && Date.now() - lastSeen < 5 * 60 * 1000
+    ? "online"
+    : "offline";
+}
+
+function formatLastSeen(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Unknown" : date.toLocaleString();
 }
 
 export function SettingsScreen({
@@ -98,16 +103,14 @@ export function SettingsScreen({
   onRenameDevice,
   onDeleteDevice,
   onRetryLoadDevices,
-  onEnterDisplayMode,
-  onEnterRemoteControlMode,
-  onEnterMarketplace,
-  onLogout,
 }: SettingsScreenProps) {
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
+  const [expandProfileActions, setExpandProfileActions] = useState(false);
+  const [renameOpenDeviceId, setRenameOpenDeviceId] = useState<string | null>(null);
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Settings top bar */}
+      {/* Top bar */}
       <View style={styles.topBar}>
         <Pressable
           accessibilityRole="button"
@@ -115,202 +118,212 @@ export function SettingsScreen({
           style={styles.backButton}
           onPress={onBack}
         >
-          <Text style={styles.backLabel}>← Back to Editor</Text>
+          <Text style={styles.backLabel}>← Back</Text>
         </Pressable>
         <Text style={styles.topBarTitle}>Settings</Text>
       </View>
 
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-        <SectionHeader
-          icon="settings"
-          title="Settings"
-          subtitle={`Active profile: ${activeProfile?.name ?? "none"}`}
-        />
 
-        {/* Profile Management */}
-        <ManagementCard
-          title="Profile Management"
-          icon="calendar"
-          subtitle="Create, rename or switch your display profiles."
-          badges={
-            activeProfileId ? (
-              <InlineStatusBadge label="Active profile selected" tone="info" icon="check" />
-            ) : null
-          }
-        >
-          <FilterChips
-            items={profiles.map((profile) => ({
-              key: profile.id,
-              label: profile.name,
-              icon: "calendar",
-            }))}
-            activeKey={activeProfileId}
-            onChange={(next) => {
-              if (next) {
-                onActivateProfile(next);
-              }
-            }}
-          />
-
-          <View style={styles.inlineFields}>
-            <AppTextInput
-              accessibilityLabel="New profile name"
-              style={[styles.textInput, styles.growInput]}
-              value={newProfileName}
-              onChangeText={setNewProfileName}
-              placeholder="New profile name"
-            />
-            <ManagementActionButton
-              label="Create"
-              tone="primary"
-              icon="plus"
-              loading={creatingProfile}
-              onPress={onCreateProfile}
-            />
+        {/* ── Section 1: Profile ─────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Profile</Text>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Manage profiles"
+              onPress={() => setExpandProfileActions((v) => !v)}
+            >
+              <Text style={styles.textButton}>
+                {expandProfileActions ? "Done" : "Manage profiles"}
+              </Text>
+            </Pressable>
           </View>
 
-          <View style={styles.inlineFields}>
-            <AppTextInput
-              accessibilityLabel="Rename active profile"
-              style={[styles.textInput, styles.growInput]}
-              value={renameProfileName}
-              onChangeText={setRenameProfileName}
-              placeholder="Rename active profile"
-            />
-            <ManagementActionButton
-              label="Rename"
-              tone="secondary"
-              loading={renamingProfile}
-              onPress={onRenameProfile}
-            />
-            <ManagementActionButton
-              label="Delete"
-              tone="destructive"
-              icon="trash"
-              disabled={profiles.length <= 1}
-              loading={deletingProfile}
-              onPress={() => setConfirmDeleteProfile(true)}
-            />
-          </View>
+          {/* Active profile highlight */}
+          {activeProfile ? (
+            <View style={styles.activeProfileRow}>
+              <Text style={styles.activeProfileName}>{activeProfile.name}</Text>
+              <InlineStatusBadge label="Active" tone="neutral" />
+            </View>
+          ) : (
+            <Text style={styles.noProfileText}>No profile selected</Text>
+          )}
 
-          {profileError ? <ErrorState compact message={profileError} /> : null}
-        </ManagementCard>
+          {/* Collapsible profile management */}
+          {expandProfileActions ? (
+            <View style={styles.profileActions}>
+              {profiles.length > 1 ? (
+                <FilterChips
+                  items={profiles.map((p) => ({ key: p.id, label: p.name, icon: "calendar" }))}
+                  activeKey={activeProfileId}
+                  onChange={(next) => { if (next) onActivateProfile(next); }}
+                />
+              ) : null}
 
-        {/* Device Management */}
-        <ManagementCard
-          title="Device Management"
-          subtitle="Rename devices and remove old registrations."
-          icon="grid"
-        >
+              <View style={styles.separator} />
+
+              <View style={styles.inlineRow}>
+                <AppTextInput
+                  accessibilityLabel="New profile name"
+                  style={[styles.textInput, styles.growInput]}
+                  value={newProfileName}
+                  onChangeText={setNewProfileName}
+                  placeholder="New profile name"
+                />
+                <ManagementActionButton
+                  label="Create"
+                  tone="primary"
+                  icon="plus"
+                  loading={creatingProfile}
+                  onPress={onCreateProfile}
+                />
+              </View>
+
+              <View style={styles.inlineRow}>
+                <AppTextInput
+                  accessibilityLabel="Rename active profile"
+                  style={[styles.textInput, styles.growInput]}
+                  value={renameProfileName}
+                  onChangeText={setRenameProfileName}
+                  placeholder="Rename active profile"
+                />
+                <ManagementActionButton
+                  label="Rename"
+                  tone="secondary"
+                  loading={renamingProfile}
+                  onPress={onRenameProfile}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete active profile"
+                  style={[styles.iconButton, profiles.length <= 1 ? styles.iconButtonDisabled : null]}
+                  disabled={profiles.length <= 1}
+                  onPress={() => setConfirmDeleteProfile(true)}
+                >
+                  <AppIcon name="trash" size="sm" color="error" />
+                </Pressable>
+              </View>
+
+              {profileError ? <ErrorState compact message={profileError} /> : null}
+            </View>
+          ) : null}
+        </View>
+
+        <View style={styles.divider} />
+
+        {/* ── Section 2: Devices ────────────────────────────────── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Devices</Text>
+
           {loadingDevices ? (
             <EmptyPanel variant="loading" title="Loading devices" message="Fetching registered devices." />
           ) : devices.length === 0 ? (
-            <EmptyPanel title="No devices registered" message="Open display mode on a device to register it." />
+            <EmptyPanel title="No devices" message="Open display mode on a device to register it." />
           ) : (
-            <View style={styles.stack}>
+            <View style={styles.deviceList}>
               {devices.map((device) => {
                 const isCurrentDevice = currentDeviceId === device.id;
                 const isRenaming = renamingDeviceId === device.id;
                 const isDeleting = deletingDeviceId === device.id;
+                const presence = devicePresence(device);
+                const renameOpen = renameOpenDeviceId === device.id;
 
                 return (
-                  <DeviceCard key={device.id} device={device} isCurrentDevice={isCurrentDevice}>
-                    <View style={styles.inlineFields}>
-                      <AppTextInput
-                        accessibilityLabel={`Rename device ${device.name}`}
-                        style={[styles.textInput, styles.growInput]}
-                        value={renameDraftByDeviceId[device.id] ?? ""}
-                        onChangeText={(value) => onChangeDeviceNameDraft(device.id, value)}
-                        placeholder="Device name"
-                      />
-                      <ManagementActionButton
-                        label="Rename"
-                        tone="secondary"
-                        loading={isRenaming}
-                        onPress={() => onRenameDevice(device.id)}
-                      />
-                      <ManagementActionButton
-                        label="Delete"
-                        tone="destructive"
-                        icon="trash"
-                        disabled={isCurrentDevice}
-                        loading={isDeleting}
-                        onPress={() => setConfirmDeleteDeviceId(device.id)}
-                      />
+                  <View key={device.id} style={styles.deviceRow}>
+                    <View style={styles.deviceMain}>
+                      <View style={styles.deviceInfo}>
+                        <Text style={styles.deviceName}>{device.name}</Text>
+                        <Text style={styles.deviceType}>
+                          {device.platform} · {device.deviceType}
+                        </Text>
+                        <Text style={styles.deviceLastSeen}>
+                          Last seen: {formatLastSeen(device.lastSeenAt)}
+                        </Text>
+                      </View>
+                      <View style={styles.deviceBadges}>
+                        <InlineStatusBadge label={presence} tone="neutral" />
+                        {isCurrentDevice ? (
+                          <InlineStatusBadge label="This device" tone="neutral" />
+                        ) : null}
+                      </View>
                     </View>
-                  </DeviceCard>
+
+                    <View style={styles.deviceActions}>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rename device ${device.name}`}
+                        onPress={() =>
+                          setRenameOpenDeviceId(renameOpen ? null : device.id)
+                        }
+                      >
+                        <Text style={styles.textButton}>Rename</Text>
+                      </Pressable>
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete device ${device.name}`}
+                        style={[styles.iconButton, (isCurrentDevice || isDeleting) ? styles.iconButtonDisabled : null]}
+                        disabled={isCurrentDevice || isDeleting}
+                        onPress={() => setConfirmDeleteDeviceId(device.id)}
+                      >
+                        <AppIcon name="trash" size="sm" color="error" />
+                      </Pressable>
+                    </View>
+
+                    {renameOpen ? (
+                      <View style={styles.inlineRow}>
+                        <AppTextInput
+                          accessibilityLabel={`New name for device ${device.name}`}
+                          style={[styles.textInput, styles.growInput]}
+                          value={renameDraftByDeviceId[device.id] ?? ""}
+                          onChangeText={(value) => onChangeDeviceNameDraft(device.id, value)}
+                          placeholder="Device name"
+                        />
+                        <ManagementActionButton
+                          label="Save"
+                          tone="secondary"
+                          loading={isRenaming}
+                          onPress={() => {
+                            onRenameDevice(device.id);
+                            setRenameOpenDeviceId(null);
+                          }}
+                        />
+                      </View>
+                    ) : null}
+                  </View>
                 );
               })}
             </View>
           )}
+
           {devicesError ? (
             <ErrorState compact message={devicesError} onRetry={onRetryLoadDevices} />
           ) : null}
-        </ManagementCard>
+        </View>
 
-        {/* Account & Plan */}
-        <ManagementCard
-          title="Account & Plan"
-          subtitle="Your current subscription and available features."
-          icon="star"
-          badges={
-            <InlineStatusBadge
-              label={plan === "pro" ? "Pro" : "Free"}
-              tone={plan === "pro" ? "success" : "info"}
-            />
-          }
-        >
-          <View style={styles.planRow}>
-            <Text style={styles.planName}>
-              {plan === "pro" ? "Pro Plan" : "Free Plan"}
-            </Text>
-            <Text style={styles.planDescription}>
-              {plan === "pro"
-                ? "You have access to all features including premium widgets."
-                : "Upgrade to Pro to unlock premium widgets and advanced features."}
-            </Text>
-          </View>
+        <View style={styles.divider} />
+
+        {/* ── Section 3: Account ────────────────────────────────── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <Text style={styles.planName}>
+            {plan === "pro" ? "Pro Plan" : "Free Plan"}
+          </Text>
+          <Text style={styles.planDescription}>
+            {plan === "pro"
+              ? "You have access to all features including premium widgets."
+              : "Upgrade to Pro to unlock premium widgets and advanced features."}
+          </Text>
           {plan !== "pro" ? (
-            <ActionRow>
-              <ManagementActionButton
-                label="Upgrade to Pro"
-                tone="primary"
-                icon="star"
-                onPress={onUpgradePress}
-              />
-            </ActionRow>
-          ) : null}
-        </ManagementCard>
-
-        {/* Navigation */}
-        <ManagementCard title="Navigation" subtitle="Switch product modes." icon="chevronRight">
-          <ActionRow>
             <ManagementActionButton
-              label="Plugin Marketplace"
+              label="Upgrade to Pro"
               tone="primary"
               icon="star"
-              onPress={onEnterMarketplace}
+              onPress={onUpgradePress}
             />
-            <ManagementActionButton
-              label="Display Mode"
-              tone="secondary"
-              icon="grid"
-              onPress={onEnterDisplayMode}
-            />
-            <ManagementActionButton
-              label="Remote Control"
-              tone="secondary"
-              icon="refresh"
-              onPress={onEnterRemoteControlMode}
-            />
-            <ManagementActionButton
-              label="Logout"
-              tone="destructive"
-              icon="close"
-              onPress={onLogout}
-            />
-          </ActionRow>
-        </ManagementCard>
+          ) : null}
+        </View>
+
       </ScrollView>
 
       <ConfirmDialog
@@ -384,14 +397,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: spacing.screenPadding,
     paddingBottom: spacing.xl,
-    gap: spacing.md,
-    maxWidth: 800,
+    maxWidth: 700,
     alignSelf: "center",
     width: "100%",
   },
-  inlineFields: {
+  section: {
+    paddingHorizontal: spacing.screenPadding,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.8,
+  },
+  textButton: {
+    ...typography.small,
+    color: colors.accentBlue,
+    fontWeight: "600",
+  },
+  activeProfileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  activeProfileName: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  noProfileText: {
+    ...typography.small,
+    color: colors.textSecondary,
+  },
+  profileActions: {
+    gap: spacing.sm,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.screenPadding,
+  },
+  inlineRow: {
     flexDirection: "row",
     gap: spacing.sm,
     alignItems: "center",
@@ -399,7 +458,7 @@ const styles = StyleSheet.create({
   },
   growInput: {
     flex: 1,
-    minWidth: 180,
+    minWidth: 160,
   },
   textInput: {
     borderWidth: 1,
@@ -411,11 +470,56 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: typography.body.fontSize,
   },
-  stack: {
-    gap: 10,
+  iconButton: {
+    padding: spacing.sm,
+    borderRadius: radius.sm,
   },
-  planRow: {
+  iconButtonDisabled: {
+    opacity: 0.35,
+  },
+  deviceList: {
+    gap: spacing.md,
+  },
+  deviceRow: {
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  deviceMain: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: spacing.md,
+  },
+  deviceInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  deviceName: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  deviceType: {
+    ...typography.small,
+    color: colors.textSecondary,
+  },
+  deviceLastSeen: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    opacity: 0.7,
+  },
+  deviceBadges: {
+    flexDirection: "row",
     gap: spacing.xs,
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+  },
+  deviceActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
   },
   planName: {
     ...typography.body,
