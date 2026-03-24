@@ -168,7 +168,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
-    opacity: 0.9,
+    opacity: 0.94,
+    shadowColor: colors.accentBlue,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
   },
   name: {
     ...typography.small,

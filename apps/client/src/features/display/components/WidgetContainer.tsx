@@ -411,7 +411,8 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.surface}B3`,
   },
   selectedContainer: {
-    borderColor: `${colors.accent}EE`,
+    borderColor: `${colors.accentBlue}EE`,
+    backgroundColor: `${colors.statusInfoBg}55`,
     ...shadows.selected,
   },
   secondaryInEditMode: {
@@ -436,8 +437,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: `${colors.accent}AA`,
+    borderColor: `${colors.accentBlue}DD`,
     borderRadius: radius.sm,
-    backgroundColor: `${colors.backgroundPrimary}CC`,
+    backgroundColor: `${colors.surfaceCard}E6`,
   },
 });

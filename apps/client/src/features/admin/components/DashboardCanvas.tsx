@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { LayoutChangeEvent } from "react-native";
 import { ErrorState } from "../../../shared/ui/ErrorState";
 import { EmptyPanel } from "../../../shared/ui/management";
+import { AppIcon } from "../../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { LayoutGrid } from "../../display/components/LayoutGrid";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
@@ -359,9 +360,12 @@ export function DashboardCanvas({
     <View style={styles.canvas}>
       {/* Top bar: canvas label + save/reset actions */}
       <View style={styles.canvasTopBar}>
-        <Text style={styles.canvasLabel}>
-          Canvas{isDragOver ? " — drop to place" : ""}
-        </Text>
+        <View style={styles.canvasLabelWrap}>
+          <Text style={styles.canvasLabel}>Canvas</Text>
+          <Text style={styles.canvasMetaLabel}>
+            {isDragOver ? "Release to place widget" : "Select, drag, and resize widgets"}
+          </Text>
+        </View>
         <View style={styles.canvasActions}>
           <Pressable
             accessibilityRole="button"
@@ -433,13 +437,16 @@ export function DashboardCanvas({
                 isDragOver ? styles.emptyPlaceholderDragOver : null,
               ]}
             >
+              <View style={styles.emptyIconWrap}>
+                <AppIcon name="grid" size="md" color={isDragOver ? "statusInfoText" : "textSecondary"} />
+              </View>
               <Text style={styles.emptyTitle}>
-                {isDragOver ? "Release to add widget" : "Canvas is empty"}
+                {isDragOver ? "Drop to place widget" : "Canvas is ready"}
               </Text>
               <Text style={styles.emptyMessage}>
                 {isDragOver
-                  ? "The widget will be placed at this position."
-                  : "Long press and drag a widget from the sidebar to place it here."}
+                  ? "The widget will snap to this highlighted position."
+                  : "Drag a widget from the sidebar library onto this canvas to begin."}
               </Text>
             </View>
           </View>
@@ -468,7 +475,7 @@ export function DashboardCanvas({
         {/* Drop overlay hint shown over the grid when dragging (no snapped preview) */}
         {isDragOver && hasWidgets && !dropPreview ? (
           <View style={styles.dragOverlay} pointerEvents="none">
-            <Text style={styles.dragOverlayText}>Release to place widget</Text>
+            <Text style={styles.dragOverlayText}>Drop to place on grid</Text>
           </View>
         ) : null}
       </View>
@@ -500,11 +507,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
   },
   canvasLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
+    ...typography.small,
+    color: colors.textPrimary,
     fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+  },
+  canvasLabelWrap: {
+    gap: 2,
+  },
+  canvasMetaLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    opacity: 0.78,
   },
   canvasActions: {
     flexDirection: "row",
@@ -557,6 +570,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.accentBlue,
     borderStyle: "dashed",
+    backgroundColor: "rgba(17, 34, 57, 0.35)",
   },
   emptyCanvas: {
     flex: 1,
@@ -565,16 +579,27 @@ const styles = StyleSheet.create({
   },
   emptyPlaceholder: {
     maxWidth: 360,
-    padding: spacing.xl,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     alignItems: "center",
     gap: spacing.sm,
+    backgroundColor: colors.surfaceCard,
   },
   emptyPlaceholderDragOver: {
     borderColor: colors.accentBlue,
     backgroundColor: colors.statusInfoBg,
+  },
+  emptyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceInput,
   },
   emptyTitle: {
     ...typography.body,
