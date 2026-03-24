@@ -1,7 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import type { LayoutChangeEvent } from "react-native";
 import { ErrorState } from "../../../shared/ui/ErrorState";
 import { EmptyPanel } from "../../../shared/ui/management";
+import { AppIcon } from "../../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { LayoutGrid } from "../../display/components/LayoutGrid";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
@@ -10,14 +12,18 @@ import {
   DISPLAY_GRID_BASE_ROWS,
 } from "../../display/components/LayoutGrid.logic";
 import type { WidgetLayout } from "../../display/components/LayoutGrid.logic";
-import { computeDropLayout } from "./dropPosition.logic";
+import { computeDropLayout, computeCanvasDropPlacement } from "./dropPosition.logic";
+import type { CanvasDropPlacement } from "./dropPosition.logic";
+import { CanvasDropPreview } from "./CanvasDropPreview";
 import type { CreatableWidgetType } from "../adminHome.logic";
 import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 import { getWidgetDefaultSize } from "../widgetPlacement.logic";
 import {
   MANUAL_WIDGET_DRAG_END_EVENT,
   MANUAL_WIDGET_DRAG_MOVE_EVENT,
+  WIDGET_DRAG_CANVAS_HOVER_EVENT,
   type ManualWidgetDragDetail,
+  type WidgetDragCanvasHoverDetail,
 } from "./widgetManualDrag.events";
 
 const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
@@ -88,6 +94,9 @@ interface DashboardCanvasProps {
   savingLayout: boolean;
   layoutError: string | null;
   widgetPlacementError?: string | null;
+  onClearCanvas: () => void;
+  clearCanvasDisabled?: boolean;
+  clearingCanvas?: boolean;
   onSaveLayout: () => void;
   onCancelLayout: () => void;
   /** Called when a widget type is dropped onto the canvas with a resolved grid layout. */
@@ -108,17 +117,41 @@ export function DashboardCanvas({
   savingLayout,
   layoutError,
   widgetPlacementError,
+  onClearCanvas,
+  clearCanvasDisabled = false,
+  clearingCanvas = false,
   onSaveLayout,
   onCancelLayout,
   onWidgetDropped,
 }: DashboardCanvasProps) {
   const hasWidgets = widgets.length > 0;
   const [isDragOver, setIsDragOver] = useState(false);
+  const [dropPreview, setDropPreview] = useState<CanvasDropPlacement | null>(null);
+  const [canvasDimensions, setCanvasDimensions] = useState({ width: 0, height: 0 });
   const canvasBodyRef = useRef<HTMLElement | null>(null);
+
+  function dispatchCanvasHover(isOverCanvas: boolean) {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(
+      new CustomEvent<WidgetDragCanvasHoverDetail>(WIDGET_DRAG_CANVAS_HOVER_EVENT, {
+        detail: { isOverCanvas },
+      }),
+    );
+  }
+
+  const handleCanvasLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    setCanvasDimensions((prev) => {
+      if (prev.width === width && prev.height === height) return prev;
+      return { width, height };
+    });
+  }, []);
 
   function handleDrop(event: DragEvent) {
     event.preventDefault();
     setIsDragOver(false);
+    setDropPreview(null);
+    dispatchCanvasHover(false);
 
     if (!canAcceptWidgetDrag(event.dataTransfer)) {
       return;
@@ -162,6 +195,9 @@ export function DashboardCanvas({
   function handleManualDrop(detail: ManualWidgetDragDetail) {
     const target = canvasBodyRef.current;
     if (!target) return;
+
+    setDropPreview(null);
+    dispatchCanvasHover(false);
 
     const rect = target.getBoundingClientRect();
     const isInside = (
@@ -214,6 +250,28 @@ export function DashboardCanvas({
         && detail.clientY >= rect.top
         && detail.clientY <= rect.bottom
       );
+
+      if (isInside) {
+        const existingLayoutsById = Object.fromEntries(
+          widgets.map((w) => [w.widgetInstanceId, w.layout]),
+        );
+        const defaultSize = detail.defaultLayout ?? getWidgetDefaultSize(detail.widgetType);
+        const placement = computeCanvasDropPlacement({
+          dropX: detail.clientX - rect.left,
+          dropY: detail.clientY - rect.top,
+          containerWidth: rect.width,
+          containerHeight: rect.height,
+          existingLayoutsById,
+          widgetW: defaultSize.w,
+          widgetH: defaultSize.h,
+        });
+        setDropPreview(placement);
+        dispatchCanvasHover(true);
+      } else {
+        setDropPreview(null);
+        dispatchCanvasHover(false);
+      }
+
       setIsDragOver(isInside);
     }
 
@@ -241,6 +299,9 @@ export function DashboardCanvas({
       if (event.dataTransfer) {
         event.dataTransfer.dropEffect = acceptsDrag ? "copy" : "none";
       }
+      if (acceptsDrag) {
+        dispatchCanvasHover(true);
+      }
       setIsDragOver(acceptsDrag);
     },
     onDragOver: (event: DragEvent) => {
@@ -251,12 +312,36 @@ export function DashboardCanvas({
           event.dataTransfer.dropEffect = "none";
         }
         setIsDragOver(false);
+        setDropPreview(null);
+        dispatchCanvasHover(false);
         return;
       }
       if (event.dataTransfer) {
         event.dataTransfer.dropEffect = "copy";
       }
       setIsDragOver(true);
+
+      // Compute snapped preview for canvas drop indicator
+      const target = event.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
+      const widgetType = getDraggedWidgetType(event.dataTransfer);
+      if (widgetType) {
+        const dragPayload = parseDragWidgetPayload(event.dataTransfer);
+        const defaultSize = dragPayload?.defaultLayout ?? getWidgetDefaultSize(widgetType);
+        const existingLayoutsById = Object.fromEntries(
+          widgets.map((w) => [w.widgetInstanceId, w.layout]),
+        );
+        const placement = computeCanvasDropPlacement({
+          dropX: event.clientX - rect.left,
+          dropY: event.clientY - rect.top,
+          containerWidth: rect.width,
+          containerHeight: rect.height,
+          existingLayoutsById,
+          widgetW: defaultSize.w,
+          widgetH: defaultSize.h,
+        });
+        setDropPreview(placement);
+      }
     },
     onDragLeave: (event: DragEvent) => {
       // Only clear when leaving the container itself, not child elements
@@ -264,6 +349,8 @@ export function DashboardCanvas({
       const currentTarget = event.currentTarget as HTMLElement;
       if (!currentTarget.contains(relatedTarget)) {
         setIsDragOver(false);
+        setDropPreview(null);
+        dispatchCanvasHover(false);
       }
     },
     onDrop: handleDrop,
@@ -273,10 +360,29 @@ export function DashboardCanvas({
     <View style={styles.canvas}>
       {/* Top bar: canvas label + save/reset actions */}
       <View style={styles.canvasTopBar}>
-        <Text style={styles.canvasLabel}>
-          Canvas{isDragOver ? " — drop to place" : ""}
-        </Text>
+        <View style={styles.canvasLabelWrap}>
+          <Text style={styles.canvasLabel}>Canvas</Text>
+          <Text style={styles.canvasMetaLabel}>
+            {isDragOver ? "Release to place widget" : "Select, drag, and resize widgets"}
+          </Text>
+        </View>
         <View style={styles.canvasActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear Canvas"
+            style={[
+              styles.actionButton,
+              styles.clearButton,
+              clearCanvasDisabled ? styles.actionDisabled : null,
+            ]}
+            onPress={onClearCanvas}
+            disabled={clearCanvasDisabled}
+          >
+            <Text style={styles.clearLabel}>
+              {clearingCanvas ? "Clearing…" : "Clear Canvas"}
+            </Text>
+          </Pressable>
+
           {hasLayoutChanges ? (
             <>
               <Pressable
@@ -312,6 +418,7 @@ export function DashboardCanvas({
           canvasBodyRef.current = node as unknown as HTMLElement | null;
         }}
         style={[styles.canvasBody, isDragOver ? styles.canvasBodyDragOver : null]}
+        onLayout={handleCanvasLayout}
         {...dropZoneProps}
       >
         {loadingLayout && !hasWidgets ? (
@@ -330,13 +437,16 @@ export function DashboardCanvas({
                 isDragOver ? styles.emptyPlaceholderDragOver : null,
               ]}
             >
+              <View style={styles.emptyIconWrap}>
+                <AppIcon name="grid" size="md" color={isDragOver ? "statusInfoText" : "textSecondary"} />
+              </View>
               <Text style={styles.emptyTitle}>
-                {isDragOver ? "Release to add widget" : "Canvas is empty"}
+                {isDragOver ? "Drop to place widget" : "Canvas is ready"}
               </Text>
               <Text style={styles.emptyMessage}>
                 {isDragOver
-                  ? "The widget will be placed at this position."
-                  : "Long press and drag a widget from the sidebar to place it here."}
+                  ? "The widget will snap to this highlighted position."
+                  : "Drag a widget from the sidebar library onto this canvas to begin."}
               </Text>
             </View>
           </View>
@@ -352,10 +462,20 @@ export function DashboardCanvas({
           />
         )}
 
-        {/* Drop overlay hint shown over the grid when dragging */}
-        {isDragOver && hasWidgets ? (
+        {/* Snapped grid placement preview — shown over both empty canvas and grid */}
+        {dropPreview && canvasDimensions.width > 0 ? (
+          <CanvasDropPreview
+            layout={dropPreview.layout}
+            containerWidth={canvasDimensions.width}
+            containerHeight={canvasDimensions.height}
+            isValid={dropPreview.isValid}
+          />
+        ) : null}
+
+        {/* Drop overlay hint shown over the grid when dragging (no snapped preview) */}
+        {isDragOver && hasWidgets && !dropPreview ? (
           <View style={styles.dragOverlay} pointerEvents="none">
-            <Text style={styles.dragOverlayText}>Release to place widget</Text>
+            <Text style={styles.dragOverlayText}>Drop to place on grid</Text>
           </View>
         ) : null}
       </View>
@@ -387,11 +507,17 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.6)",
   },
   canvasLabel: {
-    fontSize: 11,
-    color: colors.textSecondary,
+    ...typography.small,
+    color: colors.textPrimary,
     fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
+  },
+  canvasLabelWrap: {
+    gap: 2,
+  },
+  canvasMetaLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    opacity: 0.78,
   },
   canvasActions: {
     flexDirection: "row",
@@ -408,6 +534,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: "rgba(0,0,0,0.8)",
   },
+  clearButton: {
+    borderColor: colors.border,
+    backgroundColor: "transparent",
+  },
   saveButton: {
     borderColor: colors.accentBlue,
     backgroundColor: "rgba(18, 49, 76, 0.95)",
@@ -416,6 +546,11 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   cancelLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  clearLabel: {
     ...typography.small,
     color: colors.textSecondary,
     fontWeight: "600",
@@ -435,6 +570,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: colors.accentBlue,
     borderStyle: "dashed",
+    backgroundColor: "rgba(17, 34, 57, 0.35)",
   },
   emptyCanvas: {
     flex: 1,
@@ -443,16 +579,27 @@ const styles = StyleSheet.create({
   },
   emptyPlaceholder: {
     maxWidth: 360,
-    padding: spacing.xl,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 12,
     alignItems: "center",
     gap: spacing.sm,
+    backgroundColor: colors.surfaceCard,
   },
   emptyPlaceholderDragOver: {
     borderColor: colors.accentBlue,
     backgroundColor: colors.statusInfoBg,
+  },
+  emptyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceInput,
   },
   emptyTitle: {
     ...typography.body,

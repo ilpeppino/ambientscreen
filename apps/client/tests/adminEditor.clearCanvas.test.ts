@@ -12,6 +12,9 @@ vi.mock("react-native", () => {
     ScrollView: (props: Record<string, unknown>) => ReactRuntime.createElement("scroll-view", props, props.children),
     TextInput: (props: Record<string, unknown>) => ReactRuntime.createElement("text-input", props),
     ActivityIndicator: (props: Record<string, unknown>) => ReactRuntime.createElement("activity-indicator", props),
+    Modal: (props: Record<string, unknown>) =>
+      (props.visible ? ReactRuntime.createElement("view", { "data-testid": "modal" }, props.children) : null),
+    KeyboardAvoidingView: (props: Record<string, unknown>) => ReactRuntime.createElement("view", props, props.children),
     NativeModules: {
       SourceCode: {
         scriptURL: "http://localhost:8081/index.bundle",
@@ -154,6 +157,10 @@ vi.mock("../src/features/admin/components/DashboardCanvas", () => {
         "view",
         { "data-testid": "dashboard-canvas" },
         ReactRuntime.createElement("text", { "data-testid": "canvas-count" }, `widgets:${widgets.length}`),
+        ReactRuntime.createElement("pressable", {
+          accessibilityLabel: "Clear Canvas",
+          onPress: () => (props.onClearCanvas as (() => void) | undefined)?.(),
+        }),
         widgets.length > 0
           ? ReactRuntime.createElement("pressable", {
               accessibilityLabel: "Select first canvas widget",
@@ -189,6 +196,17 @@ vi.mock("../src/shared/ui/overlays", () => {
             accessibilityLabel: "Cancel clear canvas",
             onPress: () => (props.onCancel as (() => void) | undefined)?.(),
           }),
+        )
+        : null
+    ),
+    DialogModal: (props: Record<string, unknown>) => (
+      props.visible
+        ? ReactRuntime.createElement(
+          "view",
+          { "data-testid": "dialog-modal" },
+          ReactRuntime.createElement("text", null, props.title),
+          props.children,
+          props.footer,
         )
         : null
     ),

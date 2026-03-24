@@ -115,45 +115,32 @@ export function WidgetPropertiesPanel({
           </View>
         </View>
 
-        <View style={styles.divider} />
-
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Metadata</Text>
-          <Text style={styles.libraryText}>Category: {manifest.category}</Text>
-          <Text style={styles.libraryText}>Description: {manifest.description}</Text>
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Default Size</Text>
-          <View style={styles.layoutGrid}>
-            <LayoutCell label="W" value={manifest.defaultLayout.w} />
-            <LayoutCell label="H" value={manifest.defaultLayout.h} />
-          </View>
+          <Text style={styles.sectionLabel}>Overview</Text>
+          <KeyValueRow label="Category" value={manifest.category} muted />
+          <KeyValueRow label="Description" value={manifest.description} />
+          <KeyValueRow
+            label="Default Size"
+            value={`${manifest.defaultLayout.w} × ${manifest.defaultLayout.h}`}
+            monospace
+          />
         </View>
 
         {defaultConfigEntries.length > 0 ? (
-          <>
-            <View style={styles.divider} />
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Default Configuration</Text>
-              <View style={styles.configList}>
-                {defaultConfigEntries.map(([key, value]) => (
-                  <View key={key} style={styles.configRow}>
-                    <Text style={styles.configKey}>{key}</Text>
-                    <Text style={styles.configValue} numberOfLines={2}>
-                      {String(value)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionLabel}>Default Configuration</Text>
+            <View style={styles.configList}>
+              {defaultConfigEntries.map(([key, value]) => (
+                <KeyValueRow key={key} label={key} value={String(value)} monospace />
+              ))}
             </View>
-          </>
+          </View>
         ) : null}
 
-        <View style={styles.divider} />
-        <Text style={styles.libraryHint}>Long press and drag onto the canvas to place this widget.</Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>How To Use</Text>
+          <Text style={styles.helperText}>Drag from the sidebar library to place this widget on the canvas.</Text>
+        </View>
       </ScrollView>
     );
   }
@@ -166,7 +153,7 @@ export function WidgetPropertiesPanel({
         </View>
         <Text style={styles.emptyTitle}>No widget selected</Text>
         <Text style={styles.emptyMessage}>
-          Select a widget in the library to inspect defaults, or click a canvas widget to edit it.
+          Select a widget in the library to inspect defaults, or select a canvas widget to edit settings.
         </Text>
       </View>
     );
@@ -181,8 +168,8 @@ export function WidgetPropertiesPanel({
   const configEntries = isEditing
     ? null
     : Object.entries(selectedWidget.config).filter(
-        ([, value]) => value !== null && value !== undefined && value !== "",
-      );
+      ([, value]) => value !== null && value !== undefined && value !== "",
+    );
 
   return (
     <ScrollView
@@ -190,7 +177,6 @@ export function WidgetPropertiesPanel({
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
     >
-      {/* Widget identity */}
       <View style={styles.identityRow}>
         <View style={styles.identityIconWrap}>
           <AppIcon name={iconName} size="sm" color="textSecondary" />
@@ -233,68 +219,67 @@ export function WidgetPropertiesPanel({
         ) : null}
       </View>
 
-      <View style={styles.divider} />
-
-      {/* Layout */}
       <View style={styles.section}>
         <Text style={styles.sectionLabel}>Layout</Text>
-        <View style={styles.layoutGrid}>
-          <LayoutCell label="X" value={selectedWidget.layout.x} />
-          <LayoutCell label="Y" value={selectedWidget.layout.y} />
-          <LayoutCell label="W" value={selectedWidget.layout.w} />
-          <LayoutCell label="H" value={selectedWidget.layout.h} />
-        </View>
+        <KeyValueRow label="X" value={String(selectedWidget.layout.x)} monospace />
+        <KeyValueRow label="Y" value={String(selectedWidget.layout.y)} monospace />
+        <KeyValueRow
+          label="Size"
+          value={`${selectedWidget.layout.w} × ${selectedWidget.layout.h}`}
+          monospace
+        />
       </View>
 
-      {/* Config — read-only view */}
       {!isEditing && configEntries && configEntries.length > 0 ? (
-        <>
-          <View style={styles.divider} />
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Configuration</Text>
-            <View style={styles.configList}>
-              {configEntries.map(([key, value]) => (
-                <View key={key} style={styles.configRow}>
-                  <Text style={styles.configKey}>{key}</Text>
-                  <Text style={styles.configValue} numberOfLines={2}>
-                    {String(value)}
-                  </Text>
-                </View>
-              ))}
-            </View>
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Configuration</Text>
+          <View style={styles.configList}>
+            {configEntries.map(([key, value]) => (
+              <KeyValueRow key={key} label={key} value={String(value)} monospace />
+            ))}
           </View>
-        </>
+        </View>
       ) : null}
 
-      {/* Config — edit mode */}
       {isEditing && descriptors.length > 0 ? (
-        <>
-          <View style={styles.divider} />
-          <View style={styles.section}>
-            <Text style={styles.sectionLabel}>Configuration</Text>
-            <View style={styles.configList}>
-              {descriptors.map((descriptor) => (
-                <InlineFieldEditor
-                  key={descriptor.key}
-                  descriptor={descriptor}
-                  value={draft[descriptor.key]}
-                  onChange={setFieldValue}
-                />
-              ))}
-            </View>
-            {(validationError ?? saveError) ? (
-              <Text style={styles.errorText}>{validationError ?? saveError}</Text>
-            ) : null}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Edit Configuration</Text>
+          <View style={styles.configList}>
+            {descriptors.map((descriptor) => (
+              <InlineFieldEditor
+                key={descriptor.key}
+                descriptor={descriptor}
+                value={draft[descriptor.key]}
+                onChange={setFieldValue}
+              />
+            ))}
           </View>
-        </>
+          {(validationError ?? saveError) ? (
+            <Text style={styles.errorText}>{validationError ?? saveError}</Text>
+          ) : null}
+        </View>
       ) : null}
     </ScrollView>
   );
 }
 
-// ---------------------------------------------------------------------------
-// InlineFieldEditor
-// ---------------------------------------------------------------------------
+interface KeyValueRowProps {
+  label: string;
+  value: string;
+  monospace?: boolean;
+  muted?: boolean;
+}
+
+function KeyValueRow({ label, value, monospace = false, muted = false }: KeyValueRowProps) {
+  return (
+    <View style={styles.keyValueRow}>
+      <Text style={[styles.keyLabel, muted ? styles.keyLabelMuted : null]}>{label}</Text>
+      <Text style={[styles.keyValue, monospace ? styles.keyValueMono : null]} numberOfLines={3}>
+        {value}
+      </Text>
+    </View>
+  );
+}
 
 interface InlineFieldEditorProps {
   descriptor: WidgetConfigFieldDescriptor;
@@ -366,48 +351,6 @@ function InlineFieldEditor({ descriptor, value, onChange }: InlineFieldEditorPro
   );
 }
 
-// ---------------------------------------------------------------------------
-// LayoutCell
-// ---------------------------------------------------------------------------
-
-interface LayoutCellProps {
-  label: string;
-  value: number;
-}
-
-function LayoutCell({ label, value }: LayoutCellProps) {
-  return (
-    <View style={layoutCellStyles.cell}>
-      <Text style={layoutCellStyles.label}>{label}</Text>
-      <Text style={layoutCellStyles.value}>{value}</Text>
-    </View>
-  );
-}
-
-const layoutCellStyles = StyleSheet.create({
-  cell: {
-    flex: 1,
-    alignItems: "center",
-    backgroundColor: colors.surfaceInput,
-    borderWidth: 1,
-    borderColor: colors.borderInput,
-    borderRadius: radius.sm,
-    paddingVertical: spacing.sm,
-  },
-  label: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontWeight: "700",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  value: {
-    ...typography.body,
-    color: colors.textPrimary,
-    fontWeight: "700",
-  },
-});
-
 const styles = StyleSheet.create({
   emptyState: {
     flex: 1,
@@ -438,18 +381,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: "center",
     lineHeight: 18,
+    opacity: 0.82,
   },
   panel: {
     flex: 1,
   },
   content: {
     padding: spacing.lg,
-    gap: spacing.md,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
-    marginHorizontal: -spacing.lg,
+    gap: spacing.lg,
   },
   identityRow: {
     flexDirection: "row",
@@ -479,6 +418,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     fontFamily: "monospace",
+    opacity: 0.75,
   },
   editActions: {
     flexDirection: "row",
@@ -503,47 +443,47 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textTransform: "uppercase",
     letterSpacing: 0.8,
-  },
-  layoutGrid: {
-    flexDirection: "row",
-    gap: spacing.sm,
+    opacity: 0.86,
   },
   configList: {
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
-  configRow: {
+  keyValueRow: {
     flexDirection: "row",
-    gap: spacing.sm,
     alignItems: "flex-start",
-    backgroundColor: colors.surfaceInput,
-    borderWidth: 1,
-    borderColor: colors.borderInput,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    justifyContent: "space-between",
+    gap: spacing.sm,
+    paddingVertical: 4,
   },
-  configKey: {
-    fontSize: 11,
+  keyLabel: {
+    ...typography.caption,
     color: colors.textSecondary,
-    fontWeight: "600",
-    minWidth: 72,
-    fontFamily: "monospace",
+    minWidth: 84,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
-  configValue: {
+  keyLabelMuted: {
+    opacity: 0.72,
+  },
+  keyValue: {
     flex: 1,
-    fontSize: 12,
+    ...typography.small,
     color: colors.textPrimary,
+    textAlign: "right",
+  },
+  keyValueMono: {
+    fontFamily: "monospace",
   },
   fieldRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     backgroundColor: colors.surfaceInput,
+    borderRadius: radius.sm,
     borderWidth: 1,
     borderColor: colors.borderInput,
-    borderRadius: radius.sm,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
   },
   fieldColumn: {
     gap: spacing.xs,
@@ -569,15 +509,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceInput,
   },
   enumOptionSelected: {
-    borderColor: colors.accent ?? colors.textPrimary,
-    backgroundColor: colors.surfaceCard,
+    borderColor: colors.accentBlue,
+    backgroundColor: colors.statusInfoBg,
   },
   enumOptionText: {
     fontSize: 12,
     color: colors.textSecondary,
   },
   enumOptionTextSelected: {
-    color: colors.textPrimary,
+    color: colors.statusInfoText,
     fontWeight: "700",
   },
   textInput: {
@@ -590,19 +530,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textPrimary,
   },
+  helperText: {
+    fontSize: 12,
+    color: colors.statusInfoText,
+    lineHeight: 18,
+    opacity: 0.92,
+  },
   errorText: {
     fontSize: 11,
     color: colors.error,
     marginTop: spacing.xs,
-  },
-  libraryText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  libraryHint: {
-    fontSize: 12,
-    color: colors.statusInfoText,
-    lineHeight: 18,
   },
 });

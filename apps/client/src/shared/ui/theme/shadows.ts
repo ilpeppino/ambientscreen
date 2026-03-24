@@ -14,7 +14,7 @@ export const shadows = {
     elevation: 2,
   } as ViewStyle,
   selected: {
-    shadowColor: colors.accent,
+    shadowColor: colors.accentBlue,
     shadowOpacity: 0.3,
     shadowRadius: 10,
     shadowOffset: {

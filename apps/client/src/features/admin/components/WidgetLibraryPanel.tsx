@@ -9,7 +9,9 @@ import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 import {
   MANUAL_WIDGET_DRAG_END_EVENT,
   MANUAL_WIDGET_DRAG_MOVE_EVENT,
+  WIDGET_DRAG_START_EVENT,
   type ManualWidgetDragDetail,
+  type WidgetDragStartDetail,
 } from "./widgetManualDrag.events";
 
 const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
@@ -117,6 +119,17 @@ export function WidgetLibraryPanel({
       setArmedWidgetType(null);
     }
 
+    function handleWindowMouseMove(event: MouseEvent) {
+      if (!manualDragRef.current.active || !manualDragRef.current.widgetType) return;
+      if (event.buttons !== 1) return;
+      dispatchManualMove({
+        widgetType: manualDragRef.current.widgetType,
+        clientX: event.clientX,
+        clientY: event.clientY,
+        defaultLayout: manualDragRef.current.defaultLayout,
+      });
+    }
+
     function handleWindowMouseUp(event: MouseEvent) {
       if (manualDragRef.current.active && manualDragRef.current.widgetType) {
         const detail: ManualWidgetDragDetail = {
@@ -132,11 +145,13 @@ export function WidgetLibraryPanel({
       clearPendingPress();
     }
 
+    window.addEventListener("mousemove", handleWindowMouseMove);
     window.addEventListener("mouseup", handleWindowMouseUp);
     window.addEventListener("touchend", clearPendingPress);
     window.addEventListener("touchcancel", clearPendingPress);
 
     return () => {
+      window.removeEventListener("mousemove", handleWindowMouseMove);
       window.removeEventListener("mouseup", handleWindowMouseUp);
       window.removeEventListener("touchend", clearPendingPress);
       window.removeEventListener("touchcancel", clearPendingPress);
@@ -156,6 +171,7 @@ export function WidgetLibraryPanel({
           accessibilityLabel="Search widget library"
         />
       </View>
+      <Text style={styles.helperText}>Click to inspect, long press and drag to place.</Text>
 
       <ScrollView
         style={styles.list}
@@ -180,13 +196,14 @@ export function WidgetLibraryPanel({
                 key={widgetKey}
                 accessibilityRole="button"
                 accessibilityLabel={`${manifest.name} widget`}
-                style={[
+                style={(state) => [
                   styles.widgetRow,
+                  (state as { hovered?: boolean }).hovered && !isSelected ? styles.widgetRowHover : null,
                   isSelected ? styles.widgetRowSelected : null,
                   isArmed ? styles.widgetRowArmed : null,
                   isDragging ? styles.widgetRowDragging : null,
                   // web-only cursor — ignored on native
-                  { cursor: draggable ? "grab" : "default" } as object,
+                  { cursor: draggable ? (isDragging ? "grabbing" : "grab") : "default" } as object,
                 ]}
                 onPress={() => {
                   if (locked) {
@@ -280,9 +297,31 @@ export function WidgetLibraryPanel({
                         event.dataTransfer?.setData("text/plain", widgetKey);
                         if (event.dataTransfer) {
                           event.dataTransfer.effectAllowed = "copy";
+                          // Suppress the browser's default drag ghost — we render our own overlay
+                          if (typeof document !== "undefined") {
+                            const ghost = document.createElement("canvas");
+                            ghost.width = 1;
+                            ghost.height = 1;
+                            event.dataTransfer.setDragImage(ghost, 0, 0);
+                          }
                         }
                         setDraggingWidgetType(widgetKey);
                         setArmedWidgetType(null);
+
+                        // Notify the floating drag preview overlay
+                        if (typeof window !== "undefined") {
+                          window.dispatchEvent(
+                            new CustomEvent<WidgetDragStartDetail>(WIDGET_DRAG_START_EVENT, {
+                              detail: {
+                                widgetType: widgetKey,
+                                defaultLayout: {
+                                  w: defaultLayout.w,
+                                  h: defaultLayout.h,
+                                },
+                              },
+                            }),
+                          );
+                        }
                       },
                       onDragEnd: () => {
                         manualDragRef.current = { active: false, widgetType: null };
@@ -297,7 +336,6 @@ export function WidgetLibraryPanel({
                   <AppIcon name={WIDGET_ICON[widgetKey]} size="sm" color="textSecondary" />
                   <View style={styles.widgetTextBlock}>
                     <Text style={styles.widgetName}>{manifest.name}</Text>
-                    <Text style={styles.widgetCategory}>{manifest.category}</Text>
                   </View>
                 </View>
                 <View style={styles.widgetActions}>
@@ -336,11 +374,19 @@ const styles = StyleSheet.create({
     fontSize: typography.small.fontSize,
     paddingVertical: 6,
   },
+  helperText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.sm,
+    opacity: 0.7,
+  },
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 2,
+    gap: spacing.xs,
     paddingVertical: spacing.sm,
   },
   emptyText: {
@@ -358,8 +404,14 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     gap: spacing.sm,
   },
-  widgetRowSelected: {
+  widgetRowHover: {
     backgroundColor: colors.surfaceInput,
+  },
+  widgetRowSelected: {
+    backgroundColor: colors.statusInfoBg,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accentBlue,
+    paddingLeft: spacing.lg - 3,
   },
   widgetRowArmed: {
     borderLeftWidth: 2,
@@ -377,17 +429,11 @@ const styles = StyleSheet.create({
   },
   widgetTextBlock: {
     flex: 1,
-    gap: 1,
   },
   widgetName: {
     ...typography.small,
     color: colors.textPrimary,
     fontWeight: "600",
-  },
-  widgetCategory: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    textTransform: "capitalize",
   },
   widgetActions: {
     alignItems: "flex-end",

@@ -139,7 +139,8 @@ function WidgetContainerBase({
     return {
       width: previewWidth,
       height: previewHeight,
-      opacity: mountOpacity.value,
+      // Edit mode must keep widgets fully visible even if animated phase changes.
+      opacity: editMode ? 1 : mountOpacity.value,
       transform: [
         { translateX: dragTranslateX.value },
         { translateY: dragTranslateY.value },
@@ -309,6 +310,7 @@ function WidgetContainerBase({
           frameStyle,
           animatedContainerStyle,
           editMode ? styles.editModeContainer : null,
+          isSelected ? styles.selectedLayer : styles.unselectedLayer,
           canEditSelectedWidget ? styles.selectedContainer : null,
           editMode && hasSelectedWidget && isSelected === false ? styles.secondaryInEditMode : null,
         ] as any}
@@ -411,8 +413,15 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.surface}B3`,
   },
   selectedContainer: {
-    borderColor: `${colors.accent}EE`,
+    borderColor: `${colors.accentBlue}EE`,
+    backgroundColor: `${colors.statusInfoBg}55`,
     ...shadows.selected,
+  },
+  selectedLayer: {
+    zIndex: 3,
+  },
+  unselectedLayer: {
+    zIndex: 2,
   },
   secondaryInEditMode: {
     opacity: 0.72,
@@ -436,8 +445,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 1,
-    borderColor: `${colors.accent}AA`,
+    borderColor: `${colors.accentBlue}DD`,
     borderRadius: radius.sm,
-    backgroundColor: `${colors.backgroundPrimary}CC`,
+    backgroundColor: `${colors.surfaceCard}E6`,
   },
 });

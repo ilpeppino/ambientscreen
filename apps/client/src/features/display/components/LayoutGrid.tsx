@@ -30,9 +30,30 @@ interface LayoutGridProps {
   onRemoveWidget?: (widgetId: string) => void;
 }
 
+interface RenderableWidgetEntry {
+  renderKey: string;
+  widget: DisplayLayoutWidgetEnvelope;
+}
+
 interface PositionedWidget {
-  widgetEntry: AnimatedItem<DisplayLayoutWidgetEnvelope>;
+  widgetEntry: AnimatedItem<RenderableWidgetEntry>;
   frameStyle: ViewStyle;
+}
+
+function toRenderableWidgetEntries(widgets: DisplayLayoutWidgetEnvelope[]): RenderableWidgetEntry[] {
+  const duplicateCountByWidgetId = new Map<string, number>();
+
+  return widgets.map((widget) => {
+    const occurrence = duplicateCountByWidgetId.get(widget.widgetInstanceId) ?? 0;
+    duplicateCountByWidgetId.set(widget.widgetInstanceId, occurrence + 1);
+
+    return {
+      renderKey: occurrence === 0
+        ? widget.widgetInstanceId
+        : `${widget.widgetInstanceId}__duplicate_${occurrence}`,
+      widget,
+    };
+  });
 }
 
 export function LayoutGrid({
@@ -50,23 +71,35 @@ export function LayoutGrid({
     width: windowDimensions.width,
     height: windowDimensions.height,
   });
-  const [animatedWidgetEntries, setAnimatedWidgetEntries] = useState<AnimatedItem<DisplayLayoutWidgetEnvelope>[]>(
-    () =>
-      widgets.map((widget) => ({
-        key: widget.widgetInstanceId,
-        item: widget,
+  const [animatedWidgetEntries, setAnimatedWidgetEntries] = useState<AnimatedItem<RenderableWidgetEntry>[]>(
+    () => {
+      const initialEntries = toRenderableWidgetEntries(widgets);
+      return initialEntries.map((entry) => ({
+        key: entry.renderKey,
+        item: entry,
         phase: "stable",
-      })),
+      }));
+    },
   );
   const settleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const nextEntries = toRenderableWidgetEntries(widgets);
+    if (editMode) {
+      setAnimatedWidgetEntries(nextEntries.map((entry) => ({
+        key: entry.renderKey,
+        item: entry,
+        phase: "stable",
+      })));
+      return;
+    }
+
     setAnimatedWidgetEntries((previous) => reconcileAnimatedItems(
       previous,
-      widgets,
-      (widget) => widget.widgetInstanceId,
+      nextEntries,
+      (entry) => entry.renderKey,
     ));
-  }, [widgets]);
+  }, [editMode, widgets]);
 
   useEffect(() => {
     const hasTransitioningWidgets = animatedWidgetEntries.some((entry) => entry.phase !== "stable");
@@ -93,7 +126,7 @@ export function LayoutGrid({
   const positionedWidgets = useMemo<PositionedWidget[]>(() => {
     const resolvedLayouts = animatedWidgetEntries.map((entry) =>
       clampWidgetLayout({
-        layout: entry.item.layout,
+        layout: entry.item.widget.layout,
         columns: DISPLAY_GRID_COLUMNS,
         rows: DISPLAY_GRID_BASE_ROWS,
       }),
@@ -144,12 +177,12 @@ export function LayoutGrid({
       {positionedWidgets.map(({ widgetEntry, frameStyle }) => (
         <WidgetContainer
           key={widgetEntry.key}
-          widget={widgetEntry.item}
+          widget={widgetEntry.item.widget}
           frameStyle={frameStyle}
           animationPhase={widgetEntry.phase}
           editMode={editMode}
           hasSelectedWidget={selectedWidgetId !== null}
-          isSelected={widgetEntry.item.widgetInstanceId === selectedWidgetId}
+          isSelected={widgetEntry.item.widget.widgetInstanceId === selectedWidgetId}
           containerSize={containerSize}
           onSelectWidget={onSelectWidget}
           onWidgetLayoutChange={onWidgetLayoutChange}

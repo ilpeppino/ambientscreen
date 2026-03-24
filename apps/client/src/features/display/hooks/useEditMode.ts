@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import {
   clampWidgetLayout,
@@ -47,6 +47,29 @@ export function useEditModeOps({
   const [draftLayoutsByWidgetId, setDraftLayoutsByWidgetId] = useState<Record<string, WidgetLayout>>({});
   const [savingLayout, setSavingLayout] = useState(false);
   const [layoutError, setLayoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraftLayoutsByWidgetId((current) => {
+      const synced: Record<string, WidgetLayout> = {};
+
+      widgets.forEach((widget) => {
+        synced[widget.widgetInstanceId] = current[widget.widgetInstanceId] ?? widget.layout;
+      });
+
+      return synced;
+    });
+  }, [widgets]);
+
+  useEffect(() => {
+    if (!selectedWidgetId) {
+      return;
+    }
+
+    const selectionStillExists = widgets.some((widget) => widget.widgetInstanceId === selectedWidgetId);
+    if (!selectionStillExists) {
+      setSelectedWidgetId(null);
+    }
+  }, [selectedWidgetId, widgets]);
 
   const hasLayoutChanges = useMemo(() => {
     if (!editMode) {

@@ -21,9 +21,14 @@ export function WidgetEditHandles({
 
   return (
     <>
+      <View pointerEvents="none" style={styles.selectionOutline} />
       <View pointerEvents="none" style={styles.dragHandle}>
         <AppIcon name="grid" size="sm" color="textPrimary" />
       </View>
+      <View pointerEvents="none" style={[styles.cornerHandle, styles.cornerTopLeft]} />
+      <View pointerEvents="none" style={[styles.cornerHandle, styles.cornerTopRight]} />
+      <View pointerEvents="none" style={[styles.cornerHandle, styles.cornerBottomLeft]} />
+      <View pointerEvents="none" style={[styles.cornerHandle, styles.cornerBottomRight]} />
       {snapLabel ? (
         <View pointerEvents="none" style={styles.snapFeedback}>
           <Text variant="caption" style={styles.snapFeedbackLabel}>
@@ -37,6 +42,12 @@ export function WidgetEditHandles({
 }
 
 const styles = StyleSheet.create({
+  selectionOutline: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 2,
+    borderColor: `${colors.accentBlue}CC`,
+    borderRadius: radius.md,
+  },
   dragHandle: {
     position: "absolute",
     top: spacing.sm,
@@ -59,6 +70,31 @@ const styles = StyleSheet.create({
     backgroundColor: `${colors.backgroundPrimary}D9`,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
+  },
+  cornerHandle: {
+    position: "absolute",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: `${colors.accentBlue}DD`,
+    backgroundColor: colors.surfaceCard,
+  },
+  cornerTopLeft: {
+    top: -4,
+    left: -4,
+  },
+  cornerTopRight: {
+    top: -4,
+    right: -4,
+  },
+  cornerBottomLeft: {
+    bottom: -4,
+    left: -4,
+  },
+  cornerBottomRight: {
+    bottom: -4,
+    right: -4,
   },
   snapFeedbackLabel: {
     color: colors.textPrimary,
