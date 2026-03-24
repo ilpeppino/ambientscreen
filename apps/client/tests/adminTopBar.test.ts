@@ -88,6 +88,26 @@ describe("AdminTopBar — layout", () => {
     expect(marketplace).toBeUndefined();
     expect(clear).toBeUndefined();
   });
+
+  test("uses fixed 60px height with centered row alignment", () => {
+    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
+    const bar = tree.root.findAllByType("view" as any).find((node: { props: { style?: unknown } }) => {
+      const style = flattenStyle(node.props.style);
+      return style.height === 60 && style.paddingHorizontal === 16;
+    });
+    expect(bar).toBeDefined();
+    const style = flattenStyle(bar?.props.style);
+    expect(style.alignItems).toBe("center");
+    expect(style.justifyContent).toBe("space-between");
+  });
+
+  test("does not render standalone Mode label", () => {
+    const tree = TestRenderer.create(React.createElement(AdminTopBar, baseProps));
+    const texts = tree.root
+      .findAllByType("text")
+      .map((n: { props: { children?: unknown } }) => String(n.props.children ?? ""));
+    expect(texts).not.toContain("Mode");
+  });
 });
 
 describe("AdminTopBar — profile selector", () => {
