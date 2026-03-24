@@ -133,6 +133,8 @@ export interface WidgetInstance<TKey extends WidgetKey = WidgetKey> {
 
 export type CreateWidgetInput<TKey extends WidgetKey = WidgetKey> = {
   profileId?: string;
+  /** Attach the new widget to this specific slide. Falls back to the profile's lowest-order slide when omitted. */
+  slideId?: string;
   type: TKey;
   config?: WidgetConfigByKey[TKey];
   layout?: {

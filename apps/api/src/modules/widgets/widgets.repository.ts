@@ -20,6 +20,8 @@ export interface WidgetRecord {
 
 interface CreateWidgetInput {
   profileId: string;
+  /** When provided the widget's SlideItem is created on this slide. Falls back to the lowest-order slide. */
+  slideId?: string;
   type: string;
   config: Prisma.InputJsonValue;
   layout: WidgetLayout;
@@ -157,11 +159,15 @@ export const widgetsRepository = {
         },
       });
 
-      // Attach to the profile's default slide (lowest order).
-      const defaultSlide = await tx.slide.findFirst({
-        where: { profileId: input.profileId },
-        orderBy: { order: "asc" },
-      });
+      // Attach to the explicit slide when provided; otherwise use the lowest-order slide.
+      const defaultSlide = input.slideId
+        ? await tx.slide.findFirst({
+            where: { id: input.slideId, profileId: input.profileId },
+          })
+        : await tx.slide.findFirst({
+            where: { profileId: input.profileId },
+            orderBy: { order: "asc" },
+          });
 
       if (defaultSlide) {
         await tx.slideItem.create({

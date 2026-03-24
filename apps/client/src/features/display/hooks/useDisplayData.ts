@@ -20,6 +20,9 @@ const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 
 interface UseDisplayDataOptions {
   effectiveActiveProfileId: string | null | undefined;
+  /** When provided the hook loads this specific slide's layout. Changing the
+   *  value triggers an immediate reload. Falls back to the first enabled slide. */
+  slideId?: string | null;
   editMode: boolean;
   isAppActive: boolean;
   realtimeConnectionState: RealtimeConnectionState;
@@ -42,6 +45,7 @@ interface UseDisplayDataReturn {
 
 export function useDisplayData({
   effectiveActiveProfileId,
+  slideId,
   editMode,
   isAppActive,
   realtimeConnectionState,
@@ -96,7 +100,10 @@ export function useDisplayData({
         setLoadingLayout(true);
       }
 
-      const response = await getDisplayLayout(effectiveActiveProfileId);
+      const response = await getDisplayLayout(
+        effectiveActiveProfileId,
+        slideId ?? undefined,
+      );
       setActiveSlide(resolveSlideComposition(response));
       setError(null);
     } catch (err) {
@@ -110,7 +117,7 @@ export function useDisplayData({
         setLoadingLayout(false);
       }
     }
-  }, [effectiveActiveProfileId]);
+  }, [effectiveActiveProfileId, slideId]);
 
   const loadDisplayLayoutRef = useRef(loadDisplayLayout);
   loadDisplayLayoutRef.current = loadDisplayLayout;
@@ -132,7 +139,7 @@ export function useDisplayData({
     return () => {
       cancelled = true;
     };
-  }, [effectiveActiveProfileId, loadDisplayLayout]);
+  }, [effectiveActiveProfileId, slideId, loadDisplayLayout]);
 
   // Polling interval — paused when editing or backgrounded
   useEffect(() => {

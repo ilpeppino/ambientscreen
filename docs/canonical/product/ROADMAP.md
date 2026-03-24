@@ -16,6 +16,12 @@
   - developer publishing APIs
   - admin moderation APIs
 - Plan/entitlement feature gating (`free` vs `pro`) and client entitlement context.
+- **Slide foundation** — multi-slide composition model:
+  - `Slide` and `SlideItem` data models with per-slide ordering, duration, and enable/disable
+  - Full slide CRUD API (`/slides`)
+  - `SlideRail` editor component for in-editor slide management (create, rename, delete, duration)
+  - `useSlidePlayback` display hook for timed slide rotation based on per-slide `durationSeconds`
+  - Single-slide profiles work transparently without any rotation
 
 ## Near-Term Priorities
 1. Billing integration on top of existing hooks.

@@ -47,8 +47,10 @@ import {
 import { useDisplayData } from "../hooks/useDisplayData";
 import { useEditModeOps } from "../hooks/useEditMode";
 import { useSlideshowConfig } from "../hooks/useSlideshowConfig";
+import { useSlidePlayback } from "../hooks/useSlidePlayback";
 import { useWidgetSettings } from "../hooks/useWidgetSettings";
 import { useDashboardTransition } from "../hooks/useDashboardTransition";
+import { listSlides, type SlideRecord } from "../../../services/api/slidesApi";
 import { DisplayEditPanel } from "../components/DisplayEditPanel";
 import { applyWidgetConfigUpdate } from "../components/WidgetSettingsModal.logic";
 
@@ -74,6 +76,9 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   const [isAppActive, setIsAppActive] = useState(true);
   const [pendingExitDisplay, setPendingExitDisplay] = useState(false);
   const [newSharedSessionName, setNewSharedSessionName] = useState("Main shared session");
+
+  // Slide playback state: slides for the effective profile
+  const [profileSlides, setProfileSlides] = useState<SlideRecord[]>([]);
 
   const fallbackDeviceIdRef = useRef(`display-${Math.random().toString(36).slice(2, 10)}`);
   const effectiveDeviceId = deviceId ?? fallbackDeviceIdRef.current;
@@ -109,6 +114,28 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
     await activateProfile(profileId);
   }, [activeProfileId, activateProfile]);
 
+  // Load slides for the active profile so the playback engine can rotate them.
+  useEffect(() => {
+    if (!effectiveActiveProfileId) {
+      setProfileSlides([]);
+      return;
+    }
+
+    void listSlides(effectiveActiveProfileId)
+      .then(({ slides }) => {
+        setProfileSlides(slides);
+      })
+      .catch(() => {
+        setProfileSlides([]);
+      });
+  }, [effectiveActiveProfileId]);
+
+  // Timed slide rotation — runs in display mode when the app is in the foreground.
+  const { currentSlide } = useSlidePlayback({
+    slides: profileSlides,
+    enabled: !editMode && isAppActive,
+  });
+
   const realtimeConnectionState = useRealtimeDisplaySync({
     apiBaseUrl: API_BASE_URL,
     activeProfileId: effectiveActiveProfileId,
@@ -120,6 +147,9 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
 
   const displayData = useDisplayData({
     effectiveActiveProfileId,
+    // When the playback engine selects a slide, scope the data fetch to that slide.
+    // Falls back to the first enabled slide when currentSlide is null (single-slide profiles).
+    slideId: currentSlide?.id ?? null,
     editMode,
     isAppActive,
     realtimeConnectionState,

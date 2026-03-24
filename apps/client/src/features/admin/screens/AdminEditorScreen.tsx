@@ -36,6 +36,8 @@ import { DashboardCanvas } from "../components/DashboardCanvas";
 import { WidgetSidebar } from "../components/WidgetSidebar";
 import { WidgetDragPreviewOverlay } from "../components/WidgetDragPreviewOverlay";
 import { SettingsScreen } from "./SettingsScreen";
+import { SlideRail } from "../components/SlideRail";
+import { useSlideManager } from "../hooks/useSlideManager";
 
 // Register widget renderers once for the canvas
 registerBuiltinWidgetPlugins();
@@ -100,6 +102,18 @@ export function AdminEditorScreen({
   const [clearingCanvas, setClearingCanvas] = useState(false);
   const [createProfileModalVisible, setCreateProfileModalVisible] = useState(false);
 
+  // ---- Slide management ----
+  const slideManager = useSlideManager(activeProfileId);
+  const {
+    slides,
+    activeSlideId,
+    handleCreateSlide,
+    handleRenameSlide,
+    handleDeleteSlide,
+    handleUpdateSlideDuration,
+    selectSlide,
+  } = slideManager;
+
   // ---- Canvas data ----
   // Realtime sync keeps canvas fresh without blocking edit mode
   const realtimeConnectionState = useRealtimeDisplaySync({
@@ -116,6 +130,9 @@ export function AdminEditorScreen({
 
   const displayData = useDisplayData({
     effectiveActiveProfileId: activeProfileId,
+    // Scope the canvas to the currently selected slide. When activeSlideId is
+    // null (slides still loading) the hook falls back to the first enabled slide.
+    slideId: activeSlideId,
     editMode: false, // pass false so polling continues in the editor
     isAppActive: true,
     realtimeConnectionState,
@@ -153,6 +170,13 @@ export function AdminEditorScreen({
     handleSaveLayout,
     handleToggleEditMode,
   } = editOps;
+
+  // Switching slides resets the inspector so stale widget state is cleared.
+  const handleSelectSlide = (slideId: string) => {
+    selectSlide(slideId);
+    setSelectedWidgetId(null);
+    setInspectorMode(selectedLibraryWidgetType ? "library" : null);
+  };
 
   // Keep canvas always in edit mode
   const handleToggleEditModeRef = useRef(handleToggleEditMode);
@@ -220,7 +244,10 @@ export function AdminEditorScreen({
         }),
         layout,
       };
-      const newWidget = await createWidget(payload, activeProfileId);
+      const newWidget = await createWidget(
+        { ...payload, slideId: activeSlideId ?? undefined },
+        activeProfileId,
+      );
       // Reload layout so the new widget appears on canvas
       await loadDisplayLayout(false);
       // Auto-select the newly created widget in the properties panel
@@ -465,35 +492,46 @@ export function AdminEditorScreen({
           onSaveConfig={(id, config) => handleSaveWidgetConfig(id, config)}
         />
 
-        <DashboardCanvas
-          widgets={layoutWidgets}
-          selectedWidgetId={selectedWidgetId}
-          onSelectWidget={(widgetId) => {
-            setSelectedWidgetId(widgetId);
-            setInspectorMode("canvas");
-          }}
-          onClearSelection={() => {
-            setSelectedWidgetId(null);
-            setInspectorMode(selectedLibraryWidgetType ? "library" : null);
-          }}
-          onWidgetLayoutChange={handleWidgetLayoutChange}
-          onRemoveWidget={(widgetId) => void handleRemoveWidgetFromCanvas(widgetId)}
-          loadingLayout={loadingLayout}
-          error={layoutLoadError}
-          onRetry={() => void loadDisplayLayout(true)}
-          hasLayoutChanges={hasLayoutChanges}
-          savingLayout={savingLayout}
-          layoutError={layoutError}
-          onSaveLayout={() => void handleSaveLayout()}
-          onCancelLayout={() => handleCancelLayout()}
-          widgetPlacementError={widgetPlacementError}
-          onClearCanvas={() => setConfirmClearCanvas(true)}
-          clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
-          clearingCanvas={clearingCanvas}
-          onWidgetDropped={(widgetType, layout) =>
-            void handlePlaceWidgetFromLibrary(widgetType, layout)
-          }
-        />
+        <View style={styles.canvasArea}>
+          <DashboardCanvas
+            widgets={layoutWidgets}
+            selectedWidgetId={selectedWidgetId}
+            onSelectWidget={(widgetId) => {
+              setSelectedWidgetId(widgetId);
+              setInspectorMode("canvas");
+            }}
+            onClearSelection={() => {
+              setSelectedWidgetId(null);
+              setInspectorMode(selectedLibraryWidgetType ? "library" : null);
+            }}
+            onWidgetLayoutChange={handleWidgetLayoutChange}
+            onRemoveWidget={(widgetId) => void handleRemoveWidgetFromCanvas(widgetId)}
+            loadingLayout={loadingLayout}
+            error={layoutLoadError}
+            onRetry={() => void loadDisplayLayout(true)}
+            hasLayoutChanges={hasLayoutChanges}
+            savingLayout={savingLayout}
+            layoutError={layoutError}
+            onSaveLayout={() => void handleSaveLayout()}
+            onCancelLayout={() => handleCancelLayout()}
+            widgetPlacementError={widgetPlacementError}
+            onClearCanvas={() => setConfirmClearCanvas(true)}
+            clearCanvasDisabled={!activeProfileId || layoutWidgets.length === 0 || clearingCanvas}
+            clearingCanvas={clearingCanvas}
+            onWidgetDropped={(widgetType, layout) =>
+              void handlePlaceWidgetFromLibrary(widgetType, layout)
+            }
+          />
+          <SlideRail
+            slides={slides}
+            activeSlideId={activeSlideId}
+            onSelectSlide={handleSelectSlide}
+            onCreateSlide={(name) => handleCreateSlide(name)}
+            onDeleteSlide={(slideId) => handleDeleteSlide(slideId)}
+            onRenameSlide={(slideId, name) => handleRenameSlide(slideId, name)}
+            onUpdateDuration={(slideId, dur) => handleUpdateSlideDuration(slideId, dur)}
+          />
+        </View>
       </View>
 
       <UpgradeModal visible={upgradeModalVisible} onDismiss={() => setUpgradeModalVisible(false)} />
@@ -504,8 +542,8 @@ export function AdminEditorScreen({
       <ConfirmDialog
         visible={confirmClearCanvas}
         title="Clear Canvas"
-        message="Are you sure you want to remove all widgets from this profile's canvas?"
-        warningText="This cannot be undone. All widgets in this canvas will be permanently removed."
+        message="Are you sure you want to remove all widgets from all slides in this profile?"
+        warningText="This cannot be undone. All widgets across every slide will be permanently removed."
         confirmLabel="Clear Canvas"
         loading={clearingCanvas}
         onConfirm={() => {
@@ -585,6 +623,10 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     flexDirection: "row",
+  },
+  canvasArea: {
+    flex: 1,
+    flexDirection: "column",
   },
   dialogBody: {
     gap: spacing.sm,
