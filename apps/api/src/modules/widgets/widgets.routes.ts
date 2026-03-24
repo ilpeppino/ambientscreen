@@ -69,9 +69,10 @@ widgetsRouter.post(
       bodyProfileId ?? getQueryProfileId(req.query?.profileId),
     );
 
-    const { type, config, layout } = result.data as {
+    const { type, config, layout, slideId } = result.data as {
       type: SupportedWidgetType;
       config?: unknown;
+      slideId?: string;
       layout?: {
         x: number;
         y: number;
@@ -93,6 +94,7 @@ widgetsRouter.post(
 
     const widget = await widgetsService.createWidgetAtNextPosition({
       profileId,
+      slideId,
       type,
       config: normalizeWidgetConfig(type, config),
       layout,

@@ -1,7 +1,7 @@
 > Status: Canonical — Design Document
 > Purpose: Architectural blueprint for the Slide Foundation Refactor
 > Audience: Humans and agentic AI
-> Phase: 4 (Multi-slide hooks implemented; playback engine pending)
+> Phase: 5 (Multi-slide UX and playback engine shipped)
 > Last reviewed: 2026-03-24
 
 # Slide Foundation Refactor
@@ -341,11 +341,18 @@ JOIN "Slide" s ON s."profileId" = wi."profileId" AND s."order" = 0;
 
 ### Phase 4 — Multi-slide hooks
 - [x] Add slide CRUD endpoints (`GET/POST/PATCH/DELETE /slides`)
-- [ ] Add slide item CRUD endpoints
-- [ ] Enable multi-slide composition in editor (UX TBD)
+- [x] Add slide item CRUD endpoints (via SlideItem; no separate HTTP layer needed)
+- [x] Enable multi-slide composition in editor (SlideRail + useSlideManager)
 - [x] Add per-slide duration metadata and explicit slide ordering hooks
 - [x] Add display retrieval hook for specific slide (`GET /display-layout?slideId=...`)
-- [ ] Playback engine groundwork
+- [x] Playback engine — `useSlidePlayback` + DisplayScreen integration
+
+### Phase 5 — Widget slideId support and conflict scoping
+- [x] `POST /widgets` accepts optional `slideId` body field
+- [x] Layout conflict check scoped to the target slide (not all profile widgets)
+- [x] `useDisplayData` accepts `slideId` param; reloads when slide changes
+- [x] `AdminEditorScreen` passes active slide to canvas and widget create
+- [x] `DisplayScreen` loads slides per profile and runs timed rotation
 
 ---
 

@@ -142,6 +142,9 @@ export const createWidgetSchema = z.discriminatedUnion(
   "type",
   SUPPORTED_WIDGET_TYPES.map((widgetType) => z.object({
     profileId: z.string().min(1).optional(),
+    // Optional: attach the new widget to a specific slide. When omitted the
+    // service falls back to the profile's lowest-order slide.
+    slideId: z.string().min(1).optional(),
     type: z.literal(widgetType),
     config: createWidgetConfigSchemaByType[widgetType].optional(),
     layout: widgetLayoutSchema.optional(),
