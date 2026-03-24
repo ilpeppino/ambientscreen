@@ -19,6 +19,18 @@ function getQueryProfileId(queryValue: unknown): string | undefined {
   return undefined;
 }
 
+function getQuerySlideId(queryValue: unknown): string | undefined {
+  if (typeof queryValue === "string" && queryValue.trim().length > 0) {
+    return queryValue;
+  }
+
+  if (Array.isArray(queryValue) && typeof queryValue[0] === "string" && queryValue[0].trim().length > 0) {
+    return queryValue[0];
+  }
+
+  return undefined;
+}
+
 displayRouter.get(
   "/display-layout",
   asyncHandler(async (req, res) => {
@@ -32,7 +44,10 @@ displayRouter.get(
       throw apiErrors.notFound("Profile not found");
     }
 
-    const result = await displayService.getDisplayLayout(profile.id);
+    const result = await displayService.getDisplayLayout(
+      profile.id,
+      getQuerySlideId(req.query?.slideId),
+    );
     res.json(result);
   }),
 );

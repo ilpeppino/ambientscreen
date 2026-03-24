@@ -1,5 +1,6 @@
 import type { WidgetConfigSchema, WidgetDataState, WidgetKey } from "@ambient/shared-contracts";
-import { widgetsService } from "../widgets/widgets.service";
+import { slidesService } from "../slides/slides.service";
+import { widgetsRepository } from "../widgets/widgets.repository";
 import {
   normalizeWidgetConfig,
   validateWidgetConfig,
@@ -34,6 +35,13 @@ export interface DisplayLayoutWidgetEnvelope {
 }
 
 export interface DisplayLayoutResponse {
+  slide: {
+    id: string;
+    name: string;
+    order: number;
+    durationSeconds: number | null;
+    isEnabled: boolean;
+  } | null;
   widgets: DisplayLayoutWidgetEnvelope[];
 }
 
@@ -46,8 +54,23 @@ function normalizeState(state: WidgetDataState): DisplayWidgetState {
 }
 
 export const displayService = {
-  async getDisplayLayout(profileId: string): Promise<DisplayLayoutResponse> {
-    const widgets = await widgetsService.getProfileWidgets(profileId);
+  async getDisplayLayout(profileId: string, slideId?: string): Promise<DisplayLayoutResponse> {
+    const slide = await slidesService.getSlideForDisplay({
+      profileId,
+      slideId: slideId ?? null,
+    });
+
+    if (!slide) {
+      return {
+        slide: null,
+        widgets: [],
+      };
+    }
+
+    const widgets = await widgetsRepository.findAllBySlide({
+      profileId,
+      slideId: slide.id,
+    });
 
     const resolvedWidgets = await Promise.all(widgets.map(async (widget) => {
       const resolvedAt = new Date().toISOString();
@@ -131,6 +154,13 @@ export const displayService = {
     }));
 
     return {
+      slide: {
+        id: slide.id,
+        name: slide.name,
+        order: slide.order,
+        durationSeconds: slide.durationSeconds,
+        isEnabled: slide.isEnabled,
+      },
       widgets: resolvedWidgets,
     };
   },

@@ -46,7 +46,17 @@ export type DisplayLayoutWidgetEnvelope =
       data: CalendarWidgetData | null;
     });
 
+export interface DisplaySlideEnvelope {
+  id: string;
+  name: string;
+  order: number;
+  durationSeconds: number | null;
+  isEnabled: boolean;
+  widgets: DisplayLayoutWidgetEnvelope[];
+}
+
 export interface DisplayLayoutResponse {
+  slide?: DisplaySlideEnvelope | null;
   widgets: DisplayLayoutWidgetEnvelope[];
 }
 
@@ -68,6 +78,21 @@ export interface UpdateWidgetConfigPayload {
   config: Record<string, unknown>;
 }
 
+function withDisplayLayoutQuery(path: string, profileId?: string, slideId?: string) {
+  if (!profileId && !slideId) {
+    return path;
+  }
+
+  const searchParams = new URLSearchParams();
+  if (profileId) {
+    searchParams.set("profileId", profileId);
+  }
+  if (slideId) {
+    searchParams.set("slideId", slideId);
+  }
+  return `${path}?${searchParams.toString()}`;
+}
+
 function withProfileQuery(path: string, profileId?: string) {
   if (!profileId) {
     return path;
@@ -78,9 +103,9 @@ function withProfileQuery(path: string, profileId?: string) {
   return `${path}?${searchParams.toString()}`;
 }
 
-export async function getDisplayLayout(profileId?: string): Promise<DisplayLayoutResponse> {
+export async function getDisplayLayout(profileId?: string, slideId?: string): Promise<DisplayLayoutResponse> {
   const response = await apiFetchWithTimeout(
-    withProfileQuery(`${API_BASE_URL}/display-layout`, profileId),
+    withDisplayLayoutQuery(`${API_BASE_URL}/display-layout`, profileId, slideId),
     undefined,
     DISPLAY_LAYOUT_TIMEOUT_MS,
   );

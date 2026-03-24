@@ -1,7 +1,7 @@
 > Status: Canonical — Design Document
 > Purpose: Architectural blueprint for the Slide Foundation Refactor
 > Audience: Humans and agentic AI
-> Phase: 1 (Audit + Design — implementation begins in Phase 2)
+> Phase: 4 (Multi-slide hooks implemented; playback engine pending)
 > Last reviewed: 2026-03-24
 
 # Slide Foundation Refactor
@@ -340,11 +340,12 @@ JOIN "Slide" s ON s."profileId" = wi."profileId" AND s."order" = 0;
 - Emit layout change events scoped to slide
 
 ### Phase 4 — Multi-slide hooks
-- Add slide CRUD endpoints
-- Add slide item CRUD endpoints
-- Enable multi-slide composition in editor (UX TBD)
-- Add per-slide duration and transition metadata
-- Playback engine groundwork
+- [x] Add slide CRUD endpoints (`GET/POST/PATCH/DELETE /slides`)
+- [ ] Add slide item CRUD endpoints
+- [ ] Enable multi-slide composition in editor (UX TBD)
+- [x] Add per-slide duration metadata and explicit slide ordering hooks
+- [x] Add display retrieval hook for specific slide (`GET /display-layout?slideId=...`)
+- [ ] Playback engine groundwork
 
 ---
 
@@ -356,7 +357,7 @@ Per `VERSIONING_POLICY.md`:
 |---|---|---|
 | Phase 2 | **MINOR** | Additive schema + service changes; no API response shape changes; backward-compatible |
 | Phase 3 (layout field removal) | **MAJOR** if API contract changes; otherwise **MINOR** | Dropping `layoutX/Y/W/H` from `WidgetInstance` is a DB-level breaking change but the API response shape can be preserved; declare with `feat!:` if endpoint contracts change |
-| Phase 4 | **MINOR** | New endpoints are purely additive |
+| Phase 4 | **MINOR** | New slide endpoints and `slide` envelope in display payload are additive and backward-compatible |
 
 Commits for Phase 2 should use `feat(slides): ...` conventional format to produce a `MINOR` release bump when merged to `prd`.
 

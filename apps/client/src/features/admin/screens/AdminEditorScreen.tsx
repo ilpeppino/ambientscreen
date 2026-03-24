@@ -121,12 +121,19 @@ export function AdminEditorScreen({
     realtimeConnectionState,
   });
 
-  const { widgets: layoutWidgetsSource, loadingLayout, error: layoutLoadError, loadDisplayLayout, saveWidgetLayouts } = displayData;
+  const {
+    activeSlide,
+    widgets: layoutWidgetsSource,
+    loadingLayout,
+    error: layoutLoadError,
+    loadDisplayLayout,
+    saveWidgetLayouts,
+  } = displayData;
 
   const editOps = useEditModeOps({
     editMode,
     setEditMode,
-    widgets: layoutWidgetsSource,
+    widgets: activeSlide?.widgets ?? layoutWidgetsSource,
     effectiveActiveProfileId: activeProfileId,
     saveWidgetLayouts,
     onAfterSave: async () => {

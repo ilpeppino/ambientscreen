@@ -5,6 +5,7 @@ import { usersRouter } from "./modules/users/users.routes";
 import { authRouter } from "./modules/auth/auth.routes";
 import { requireAuth } from "./modules/auth/auth.middleware";
 import { profilesRouter } from "./modules/profiles/profiles.routes";
+import { slidesRouter } from "./modules/slides/slides.routes";
 import { widgetsRouter } from "./modules/widgets/widgets.routes";
 import { widgetDataRouter } from "./modules/widgetData/widget-data.routes";
 import { displayRouter } from "./modules/display/display.routes";
@@ -61,6 +62,7 @@ export function createApp() {
   app.use("/auth", authRouter);
   app.use("/users", requireAuth, usersRouter);
   app.use("/profiles", requireAuth, profilesRouter);
+  app.use("/slides", requireAuth, slidesRouter);
   app.use("/widgets", requireAuth, widgetsRouter);
   app.use("/widget-data", requireAuth, widgetDataRouter);
   app.use("/orchestration-rules", requireAuth, orchestrationRouter);

@@ -126,6 +126,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   });
 
   const {
+    activeSlide,
     widgets,
     setWidgets,
     loadingLayout,
@@ -150,7 +151,7 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
   const editOps = useEditModeOps({
     editMode,
     setEditMode,
-    widgets,
+    widgets: activeSlide?.widgets ?? widgets,
     effectiveActiveProfileId,
     saveWidgetLayouts,
     onAfterSave: async () => {
