@@ -17,7 +17,6 @@ interface TestWidget {
     w: number;
     h: number;
   };
-  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -32,7 +31,6 @@ beforeEach(() => {
       type: "clockDate",
       config: {},
       layout: { x: 0, y: 0, w: 2, h: 1 },
-      isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -42,7 +40,6 @@ beforeEach(() => {
       type: "weather",
       config: { location: "Amsterdam" },
       layout: { x: 2, y: 0, w: 2, h: 1 },
-      isActive: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     },

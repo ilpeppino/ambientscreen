@@ -55,9 +55,11 @@ model Profile {
   name      String
   isDefault Boolean          @default(false)
   createdAt DateTime         @default(now())
+  defaultSlideDurationSeconds Int @default(30)
 
   user    User             @relation(fields: [userId], references: [id])
   widgets WidgetInstance[]
+  slides  Slide[]
   activeForUsers User[]    @relation("UserActiveProfile")
 
   @@index([userId])
@@ -75,9 +77,45 @@ model WidgetInstance {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  profile Profile @relation(fields: [profileId], references: [id])
+  profile   Profile    @relation(fields: [profileId], references: [id])
+  slideItem SlideItem?
 
   @@index([profileId])
+}
+
+model Slide {
+  id                  String      @id @default(uuid())
+  profileId           String
+  name                String
+  order               Int         @default(0)
+  durationSeconds     Int?
+  isEnabled           Boolean     @default(true)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  profile    Profile     @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  slideItems SlideItem[]
+
+  @@index([profileId])
+  @@index([profileId, order])
+}
+
+model SlideItem {
+  id               String   @id @default(uuid())
+  slideId          String
+  widgetInstanceId String   @unique
+  layoutX          Int      @default(0)
+  layoutY          Int      @default(0)
+  layoutW          Int      @default(1)
+  layoutH          Int      @default(1)
+  zIndex           Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  slide          Slide          @relation(fields: [slideId], references: [id], onDelete: Cascade)
+  widgetInstance WidgetInstance @relation(fields: [widgetInstanceId], references: [id], onDelete: Cascade)
+
+  @@index([slideId])
 }
 
 model OrchestrationRule {

@@ -24,6 +24,7 @@
   - `canonical/product/ROADMAP.md`
 - Architecture:
   - `canonical/architecture/ARCHITECTURE.md`
+  - `canonical/architecture/slide-foundation-refactor.md` — Phase 1 design doc for Slide/SlideItem/Presentation model
 - Engineering:
   - `canonical/engineering/VERSIONING_POLICY.md`
   - `canonical/engineering/QA_MATRIX.md`
