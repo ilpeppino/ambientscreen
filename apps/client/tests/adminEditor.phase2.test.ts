@@ -302,7 +302,7 @@ describe("WidgetPropertiesPanel", () => {
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
     expect(texts.some((t) => String(t).includes("Weather"))).toBe(true);
     expect(texts.some((t) => String(t).includes("Default Size"))).toBe(true);
-    expect(texts.some((t) => String(t).includes("Long press and drag"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("Drag from the sidebar"))).toBe(true);
   });
 
   test("library inspector shows size as W × H format, not separate cells", () => {
@@ -382,6 +382,18 @@ describe("WidgetPropertiesPanel", () => {
     expect(texts.some((t) => String(t).includes("24h"))).toBe(true);
   });
 
+  test("renders read-only configuration without editable inputs by default", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: clockWidget,
+        onSaveConfig: vi.fn(),
+      }),
+    );
+
+    const inputs = tree.root.findAllByType("text-input" as any);
+    expect(inputs.length).toBe(0);
+  });
+
   test("shows pencil icon when onSaveConfig is provided", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
@@ -423,6 +435,37 @@ describe("WidgetPropertiesPanel", () => {
       (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Cancel edit",
     );
     expect(cancelButton).toBeDefined();
+  });
+
+  test("shows editable text input controls only in edit mode", async () => {
+    const onSaveConfig = vi.fn().mockResolvedValue(undefined);
+    const tree = TestRenderer.create(
+      React.createElement(WidgetPropertiesPanel, {
+        selectedWidget: {
+          ...clockWidget,
+          config: { refreshMinutes: 15 },
+          configSchema: {
+            refreshMinutes: {
+              type: "number",
+              min: 1,
+              max: 120,
+            } as unknown as import("@ambient/shared-contracts").WidgetConfigFieldSchema,
+          },
+        },
+        onSaveConfig,
+      }),
+    );
+
+    expect(tree.root.findAllByType("text-input" as any).length).toBe(0);
+
+    const editButton = tree.root.findAllByType("pressable" as any).find(
+      (p: { props: { accessibilityLabel?: string } }) => p.props.accessibilityLabel === "Edit config",
+    );
+    await TestRenderer.act(async () => {
+      editButton?.props.onPress();
+    });
+
+    expect(tree.root.findAllByType("text-input" as any).length).toBeGreaterThan(0);
   });
 
   test("calls onSaveConfig with updated draft when save is pressed", async () => {
@@ -517,7 +560,7 @@ describe("DashboardCanvas", () => {
     );
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
-    expect(texts.some((t) => String(t).toLowerCase().includes("canvas is empty"))).toBe(true);
+    expect(texts.some((t) => String(t).toLowerCase().includes("canvas is ready"))).toBe(true);
     expect(texts.some((t) => String(t).includes("+ Add"))).toBe(false);
   });
 
@@ -573,6 +616,38 @@ describe("DashboardCanvas", () => {
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
     expect(texts.some((t) => String(t).toLowerCase().includes("loading"))).toBe(true);
+  });
+
+  test("shows drag preview hint when dragging a widget over populated canvas", () => {
+    const widget = {
+      widgetInstanceId: "w1",
+      widgetKey: "clockDate" as const,
+      layout: { x: 0, y: 0, w: 4, h: 2 },
+      state: "ready" as const,
+      config: {},
+      configSchema: {},
+      data: null,
+      meta: { resolvedAt: "2026-01-01T00:00:00Z" },
+    };
+
+    const tree = TestRenderer.create(
+      React.createElement(DashboardCanvas, { ...baseProps, widgets: [widget] }),
+    );
+
+    const dropZone = tree.root.findAllByType("view" as any)
+      .find((node: { props: { onDragEnter?: (event: unknown) => void } }) => typeof node.props.onDragEnter === "function");
+    expect(dropZone).toBeDefined();
+
+    dropZone?.props.onDragEnter?.({
+      preventDefault: vi.fn(),
+      dataTransfer: {
+        types: ["application/x-ambient-widget"],
+        dropEffect: "copy",
+      },
+    });
+
+    const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => String(n.props.children));
+    expect(texts.some((t) => t.includes("Drop to place on grid"))).toBe(true);
   });
 
   test("drop forwards widget type and default-sized layout to onWidgetDropped", () => {

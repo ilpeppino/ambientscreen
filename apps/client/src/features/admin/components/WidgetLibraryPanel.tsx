@@ -171,6 +171,7 @@ export function WidgetLibraryPanel({
           accessibilityLabel="Search widget library"
         />
       </View>
+      <Text style={styles.helperText}>Click to inspect, long press and drag to place.</Text>
 
       <ScrollView
         style={styles.list}
@@ -335,7 +336,13 @@ export function WidgetLibraryPanel({
                   <AppIcon name={WIDGET_ICON[widgetKey]} size="sm" color="textSecondary" />
                   <View style={styles.widgetTextBlock}>
                     <Text style={styles.widgetName}>{manifest.name}</Text>
-                    <Text style={styles.widgetCategory}>{manifest.category}</Text>
+                    <View style={styles.widgetMetaRow}>
+                      <Text style={styles.widgetCategory}>{manifest.category}</Text>
+                      <Text style={styles.widgetMetaDot}>·</Text>
+                      <Text style={styles.widgetMetaSize}>
+                        {manifest.defaultLayout.w}x{manifest.defaultLayout.h}
+                      </Text>
+                    </View>
                   </View>
                 </View>
                 <View style={styles.widgetActions}>
@@ -373,6 +380,14 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontSize: typography.small.fontSize,
     paddingVertical: 6,
+  },
+  helperText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.xs,
+    paddingBottom: spacing.xs,
+    opacity: 0.7,
   },
   list: {
     flex: 1,
@@ -423,6 +438,11 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 1,
   },
+  widgetMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   widgetName: {
     ...typography.small,
     color: colors.textPrimary,
@@ -432,6 +452,18 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
     textTransform: "capitalize",
+    opacity: 0.7,
+  },
+  widgetMetaDot: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    opacity: 0.55,
+  },
+  widgetMetaSize: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    opacity: 0.72,
+    fontFamily: "monospace",
   },
   widgetActions: {
     alignItems: "flex-end",

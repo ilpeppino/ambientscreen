@@ -44,19 +44,20 @@ export function GridOverlay({ visible, columns, rows }: GridOverlayProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(255, 255, 255, 0.01)",
   },
   verticalLine: {
     position: "absolute",
     top: 0,
     bottom: 0,
     width: 1,
-    backgroundColor: `${colors.textSecondary}55`,
+    backgroundColor: `${colors.textSecondary}66`,
   },
   horizontalLine: {
     position: "absolute",
     left: 0,
     right: 0,
     height: 1,
-    backgroundColor: `${colors.textSecondary}55`,
+    backgroundColor: `${colors.textSecondary}66`,
   },
 });

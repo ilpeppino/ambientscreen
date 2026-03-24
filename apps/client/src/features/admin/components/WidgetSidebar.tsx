@@ -20,11 +20,9 @@ interface WidgetSidebarProps {
   hasFeature: (key: FeatureFlagKey) => boolean;
   onUpgradePress: () => void;
 
-  // Library panel
   selectedLibraryWidgetType: CreatableWidgetType | null;
   onSelectLibraryWidget: (type: CreatableWidgetType) => void;
 
-  // Properties panel
   inspectorMode: "canvas" | "library" | null;
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
   onSaveConfig: (widgetId: string, config: Record<string, unknown>) => Promise<void>;
@@ -204,9 +202,12 @@ export function WidgetSidebar({
   return (
     <View style={styles.sidebar}>
       <View style={styles.panelHeader}>
-        <View style={styles.panelTitleRow}>
-          <AppIcon name="grid" size="sm" color="textSecondary" />
-          <Text style={styles.panelTitle}>Widget System</Text>
+        <View style={styles.panelHeading}>
+          <Text style={styles.panelSectionLabel}>Library</Text>
+          <View style={styles.panelTitleRow}>
+            <AppIcon name="grid" size="sm" color="textSecondary" />
+            <Text style={styles.panelTitle}>Widget System</Text>
+          </View>
         </View>
         {plan === "free" ? (
           <ManagementActionButton
@@ -220,23 +221,25 @@ export function WidgetSidebar({
         )}
       </View>
 
-      <View style={styles.tabBar}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Sidebar tab library"
-          style={[styles.tabButton, activeTab === "library" ? styles.tabButtonActive : null]}
-          onPress={() => setActiveTab("library")}
-        >
-          <Text style={[styles.tabLabel, activeTab === "library" ? styles.tabLabelActive : null]}>Library</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Sidebar tab marketplace"
-          style={[styles.tabButton, activeTab === "marketplace" ? styles.tabButtonActive : null]}
-          onPress={() => setActiveTab("marketplace")}
-        >
-          <Text style={[styles.tabLabel, activeTab === "marketplace" ? styles.tabLabelActive : null]}>Marketplace</Text>
-        </Pressable>
+      <View style={styles.tabWrap}>
+        <View style={styles.tabBar}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sidebar tab library"
+            style={[styles.tabButton, activeTab === "library" ? styles.tabButtonActive : null]}
+            onPress={() => setActiveTab("library")}
+          >
+            <Text style={[styles.tabLabel, activeTab === "library" ? styles.tabLabelActive : null]}>Library</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Sidebar tab marketplace"
+            style={[styles.tabButton, activeTab === "marketplace" ? styles.tabButtonActive : null]}
+            onPress={() => setActiveTab("marketplace")}
+          >
+            <Text style={[styles.tabLabel, activeTab === "marketplace" ? styles.tabLabelActive : null]}>Marketplace</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.libraryPanel}>
@@ -255,9 +258,12 @@ export function WidgetSidebar({
       <View style={styles.divider} />
 
       <View style={styles.panelHeader}>
-        <View style={styles.panelTitleRow}>
-          <AppIcon name="settings" size="sm" color="textSecondary" />
-          <Text style={styles.panelTitle}>Properties</Text>
+        <View style={styles.panelHeading}>
+          <Text style={styles.panelSectionLabel}>Inspector</Text>
+          <View style={styles.panelTitleRow}>
+            <AppIcon name="settings" size="sm" color="textSecondary" />
+            <Text style={styles.panelTitle}>Properties</Text>
+          </View>
         </View>
         {panelSubtitle ? <Text style={styles.panelSubtitle}>{panelSubtitle}</Text> : null}
       </View>
@@ -285,13 +291,25 @@ const styles = StyleSheet.create({
   },
   panelHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    minHeight: 44,
+    minHeight: 52,
+    gap: spacing.sm,
+  },
+  panelHeading: {
+    gap: 2,
+    flex: 1,
+  },
+  panelSectionLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.7,
+    opacity: 0.78,
   },
   panelTitleRow: {
     flexDirection: "row",
@@ -304,25 +322,36 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   panelSubtitle: {
-    fontSize: 11,
+    fontSize: 10,
     color: colors.textSecondary,
+    lineHeight: 14,
+    maxWidth: 112,
+    textAlign: "right",
+    opacity: 0.72,
+  },
+  tabWrap: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   tabBar: {
     flexDirection: "row",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     gap: spacing.xs,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    backgroundColor: colors.buttonPassiveBg,
   },
   tabButton: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 30,
+    minHeight: 32,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: "transparent",
     backgroundColor: colors.buttonPassiveBg,
   },
   tabButtonActive: {
