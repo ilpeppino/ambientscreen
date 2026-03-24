@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import type { FeatureFlagKey } from "@ambient/shared-contracts";
-import { AppIcon } from "../../../shared/ui/components";
 import { ErrorState } from "../../../shared/ui/ErrorState";
 import { EmptyPanel, InlineStatusBadge, ManagementActionButton } from "../../../shared/ui/management";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
@@ -194,88 +193,81 @@ export function WidgetSidebar({
     ? (widgetBuiltinDefinitions[selectedLibraryWidgetType]?.manifest.name ?? selectedLibraryWidgetType)
     : null;
   const panelSubtitle = inspectorMode === "canvas" && canvasWidgetName
-    ? `Type: ${canvasWidgetName}`
+    ? canvasWidgetName
     : inspectorMode === "library" && libraryWidgetName
-      ? `Type: ${libraryWidgetName}`
+      ? libraryWidgetName
       : null;
 
   return (
     <View style={styles.sidebar}>
-      <View style={styles.panelHeader}>
-        <View style={styles.panelHeading}>
-          <Text style={styles.panelSectionLabel}>Library</Text>
-          <View style={styles.panelTitleRow}>
-            <AppIcon name="grid" size="sm" color="textSecondary" />
-            <Text style={styles.panelTitle}>Widget System</Text>
+      <View style={styles.section}>
+        <View style={styles.panelHeader}>
+          <View style={styles.panelHeading}>
+            <Text style={styles.panelSectionLabel}>Library</Text>
+          </View>
+          {plan === "free" ? (
+            <ManagementActionButton
+              label="Upgrade"
+              tone="passive"
+              onPress={onUpgradePress}
+            />
+          ) : (
+            <InlineStatusBadge label="Pro" tone="premium" icon="star" />
+          )}
+        </View>
+
+        <View style={styles.tabWrap}>
+          <View style={styles.tabBar}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sidebar tab library"
+              style={[styles.tabButton, activeTab === "library" ? styles.tabButtonActive : null]}
+              onPress={() => setActiveTab("library")}
+            >
+              <Text style={[styles.tabLabel, activeTab === "library" ? styles.tabLabelActive : null]}>Library</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Sidebar tab marketplace"
+              style={[styles.tabButton, activeTab === "marketplace" ? styles.tabButtonActive : null]}
+              onPress={() => setActiveTab("marketplace")}
+            >
+              <Text style={[styles.tabLabel, activeTab === "marketplace" ? styles.tabLabelActive : null]}>Marketplace</Text>
+            </Pressable>
           </View>
         </View>
-        {plan === "free" ? (
-          <ManagementActionButton
-            label="Upgrade"
-            tone="secondary"
-            icon="star"
-            onPress={onUpgradePress}
-          />
-        ) : (
-          <InlineStatusBadge label="Pro" tone="premium" icon="star" />
-        )}
-      </View>
 
-      <View style={styles.tabWrap}>
-        <View style={styles.tabBar}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Sidebar tab library"
-            style={[styles.tabButton, activeTab === "library" ? styles.tabButtonActive : null]}
-            onPress={() => setActiveTab("library")}
-          >
-            <Text style={[styles.tabLabel, activeTab === "library" ? styles.tabLabelActive : null]}>Library</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Sidebar tab marketplace"
-            style={[styles.tabButton, activeTab === "marketplace" ? styles.tabButtonActive : null]}
-            onPress={() => setActiveTab("marketplace")}
-          >
-            <Text style={[styles.tabLabel, activeTab === "marketplace" ? styles.tabLabelActive : null]}>Marketplace</Text>
-          </Pressable>
+        <View style={styles.libraryPanel}>
+          {activeTab === "library" ? (
+            <WidgetLibraryPanel
+              selectedLibraryWidgetType={selectedLibraryWidgetType}
+              hasFeature={hasFeature}
+              onSelectLibraryWidget={onSelectLibraryWidget}
+              onUpgradePress={onUpgradePress}
+            />
+          ) : (
+            <MarketplacePanel hasFeature={hasFeature} onUpgradePress={onUpgradePress} />
+          )}
         </View>
       </View>
 
-      <View style={styles.libraryPanel}>
-        {activeTab === "library" ? (
-          <WidgetLibraryPanel
+      <View style={[styles.section, styles.sectionFill]}>
+        <View style={styles.panelHeader}>
+          <View style={styles.panelHeading}>
+            <Text style={styles.panelSectionLabel}>Inspector</Text>
+          </View>
+          {panelSubtitle ? <Text style={styles.panelSubtitle}>{panelSubtitle}</Text> : null}
+        </View>
+
+        <View style={styles.propertiesPanel}>
+          <WidgetPropertiesPanel
+            key={selectedWidget?.widgetInstanceId ?? "none"}
+            inspectorMode={inspectorMode}
             selectedLibraryWidgetType={selectedLibraryWidgetType}
-            hasFeature={hasFeature}
-            onSelectLibraryWidget={onSelectLibraryWidget}
-            onUpgradePress={onUpgradePress}
+            selectedWidget={selectedWidget}
+            onSaveConfig={onSaveConfig}
           />
-        ) : (
-          <MarketplacePanel hasFeature={hasFeature} onUpgradePress={onUpgradePress} />
-        )}
-      </View>
-
-      <View style={styles.divider} />
-
-      <View style={styles.panelHeader}>
-        <View style={styles.panelHeading}>
-          <Text style={styles.panelSectionLabel}>Inspector</Text>
-          <View style={styles.panelTitleRow}>
-            <AppIcon name="settings" size="sm" color="textSecondary" />
-            <Text style={styles.panelTitle}>Properties</Text>
-          </View>
         </View>
-        {panelSubtitle ? <Text style={styles.panelSubtitle}>{panelSubtitle}</Text> : null}
-      </View>
-
-      <View style={styles.propertiesPanel}>
-        <WidgetPropertiesPanel
-          key={selectedWidget?.widgetInstanceId ?? "none"}
-          inspectorMode={inspectorMode}
-          selectedLibraryWidgetType={selectedLibraryWidgetType}
-          selectedWidget={selectedWidget}
-          onSaveConfig={onSaveConfig}
-        />
       </View>
     </View>
   );
@@ -288,49 +280,51 @@ const styles = StyleSheet.create({
     borderRightWidth: 1,
     borderRightColor: colors.border,
     flexDirection: "column",
+    padding: spacing.sm,
+    gap: spacing.sm,
+  },
+  section: {
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    overflow: "hidden",
+  },
+  sectionFill: {
+    flex: 1,
+    minHeight: 0,
   },
   panelHeader: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    minHeight: 52,
+    minHeight: 44,
     gap: spacing.sm,
   },
   panelHeading: {
-    gap: 2,
     flex: 1,
   },
   panelSectionLabel: {
-    ...typography.caption,
+    fontSize: 11,
     color: colors.textSecondary,
     textTransform: "uppercase",
-    letterSpacing: 0.7,
-    opacity: 0.78,
-  },
-  panelTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  panelTitle: {
-    ...typography.small,
-    color: colors.textPrimary,
+    letterSpacing: 0.8,
     fontWeight: "700",
-  },
-  panelSubtitle: {
-    fontSize: 10,
-    color: colors.textSecondary,
-    lineHeight: 14,
-    maxWidth: 112,
-    textAlign: "right",
     opacity: 0.72,
   },
+  panelSubtitle: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    maxWidth: 128,
+    textAlign: "right",
+    opacity: 0.78,
+  },
   tabWrap: {
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -338,7 +332,7 @@ const styles = StyleSheet.create({
   tabBar: {
     flexDirection: "row",
     gap: spacing.xs,
-    padding: 3,
+    padding: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
@@ -368,11 +362,7 @@ const styles = StyleSheet.create({
   },
   libraryPanel: {
     height: 260,
-    borderBottomWidth: 0,
-  },
-  divider: {
-    height: 1,
-    backgroundColor: colors.border,
+    minHeight: 0,
   },
   propertiesPanel: {
     flex: 1,

@@ -336,13 +336,6 @@ export function WidgetLibraryPanel({
                   <AppIcon name={WIDGET_ICON[widgetKey]} size="sm" color="textSecondary" />
                   <View style={styles.widgetTextBlock}>
                     <Text style={styles.widgetName}>{manifest.name}</Text>
-                    <View style={styles.widgetMetaRow}>
-                      <Text style={styles.widgetCategory}>{manifest.category}</Text>
-                      <Text style={styles.widgetMetaDot}>·</Text>
-                      <Text style={styles.widgetMetaSize}>
-                        {manifest.defaultLayout.w}x{manifest.defaultLayout.h}
-                      </Text>
-                    </View>
                   </View>
                 </View>
                 <View style={styles.widgetActions}>
@@ -386,14 +379,14 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xs,
-    paddingBottom: spacing.xs,
+    paddingBottom: spacing.sm,
     opacity: 0.7,
   },
   list: {
     flex: 1,
   },
   listContent: {
-    gap: 2,
+    gap: spacing.xs,
     paddingVertical: spacing.sm,
   },
   emptyText: {
@@ -436,34 +429,11 @@ const styles = StyleSheet.create({
   },
   widgetTextBlock: {
     flex: 1,
-    gap: 1,
-  },
-  widgetMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
   },
   widgetName: {
     ...typography.small,
     color: colors.textPrimary,
     fontWeight: "600",
-  },
-  widgetCategory: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    textTransform: "capitalize",
-    opacity: 0.7,
-  },
-  widgetMetaDot: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    opacity: 0.55,
-  },
-  widgetMetaSize: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    opacity: 0.72,
-    fontFamily: "monospace",
   },
   widgetActions: {
     alignItems: "flex-end",

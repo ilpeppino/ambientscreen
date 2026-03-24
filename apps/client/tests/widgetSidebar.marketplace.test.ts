@@ -173,4 +173,30 @@ describe("WidgetSidebar marketplace", () => {
 
     expect(mockUninstall).toHaveBeenCalledWith("plugin-calendar");
   });
+
+  test("uses renamed section headers and inspector subtitle without Type prefix", () => {
+    const tree = TestRenderer.create(
+      React.createElement(WidgetSidebar, {
+        ...baseProps,
+        inspectorMode: "canvas",
+        selectedWidget: {
+          widgetInstanceId: "widget-weather-1",
+          widgetKey: "weather",
+          layout: { x: 0, y: 0, w: 4, h: 3 },
+          state: "ready",
+          config: {},
+          configSchema: {},
+          data: null,
+          meta: { resolvedAt: "2026-01-01T00:00:00Z" },
+        },
+      }),
+    );
+
+    const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => String(n.props.children));
+    expect(texts).toContain("Library");
+    expect(texts).toContain("Inspector");
+    expect(texts).not.toContain("Widget System");
+    expect(texts).not.toContain("Properties");
+    expect(texts.some((label) => label.startsWith("Type: "))).toBe(false);
+  });
 });
