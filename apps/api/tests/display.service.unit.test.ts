@@ -220,3 +220,53 @@ test("displayService returns unsupported envelope for unknown widget type", asyn
   expect(result.widgets[0].state).toBe("error");
   expect(result.widgets[0].meta.errorCode).toBe("UNSUPPORTED_WIDGET_TYPE");
 });
+
+test("displayService keeps persisted widget identity when resolver returns mismatched identity", async () => {
+  vi.spyOn(widgetPluginRegistry, "getWidgetPlugin").mockImplementation((widgetKey) => {
+    if (widgetKey === "clockDate") {
+      return {
+        manifest: {
+          key: "clockDate",
+          version: "1.0.0",
+          name: "Clock & Date",
+          description: "",
+          category: "time",
+          defaultLayout: { w: 4, h: 2 },
+          refreshPolicy: { intervalMs: 1000 },
+        },
+        configSchema: {},
+        defaultConfig: {},
+        api: {
+          resolveData: async () => ({
+            widgetInstanceId: "resolver-widget-id",
+            widgetKey: "weather",
+            state: "ready",
+            data: null,
+            meta: {
+              source: "test",
+            },
+          }),
+        },
+      } as never;
+    }
+
+    return null;
+  });
+
+  vi.spyOn(widgetsRepository, "findAll").mockResolvedValueOnce([
+    {
+      id: "widget-1",
+      profileId: "user-1",
+      type: "clockDate",
+      config: {},
+      layout: { x: 0, y: 0, w: 2, h: 1 },
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ] as never);
+
+  const result = await displayService.getDisplayLayout("user-1");
+  expect(result.widgets).toHaveLength(1);
+  expect(result.widgets[0].widgetInstanceId).toBe("widget-1");
+  expect(result.widgets[0].widgetKey).toBe("clockDate");
+});

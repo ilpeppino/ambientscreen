@@ -108,4 +108,33 @@ describe("LayoutGrid selection", () => {
     clearLayer?.props.onPress?.();
     expect(onClearWidgetSelection).toHaveBeenCalled();
   });
+
+  test("selection changes keep all widget containers rendered with stable widget ids", () => {
+    const renderer = TestRenderer.create(
+      React.createElement(LayoutGrid, {
+        widgets,
+        editMode: true,
+        selectedWidgetId: "w1",
+      }),
+    );
+
+    const readWidgetIds = () => renderer.root
+      .findAllByType("mock-widget-container" as any)
+      .map((node: { props: { widget?: { widgetInstanceId?: string } } }) => node.props.widget?.widgetInstanceId)
+      .sort();
+
+    expect(readWidgetIds()).toEqual(["w1", "w2"]);
+
+    TestRenderer.act(() => {
+      renderer.update(
+        React.createElement(LayoutGrid, {
+          widgets,
+          editMode: true,
+          selectedWidgetId: "w2",
+        }),
+      );
+    });
+
+    expect(readWidgetIds()).toEqual(["w1", "w2"]);
+  });
 });

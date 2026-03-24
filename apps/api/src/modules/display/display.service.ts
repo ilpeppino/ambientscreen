@@ -99,8 +99,9 @@ export const displayService = {
         });
 
         return {
-          widgetInstanceId: resolvedWidgetData.widgetInstanceId,
-          widgetKey: resolvedWidgetData.widgetKey,
+          // Use persisted widget identity to keep selection/render keys stable.
+          widgetInstanceId: widget.id,
+          widgetKey: widgetType,
           layout: widget.layout,
           state: normalizeState(resolvedWidgetData.state),
           config: normalizedConfig,

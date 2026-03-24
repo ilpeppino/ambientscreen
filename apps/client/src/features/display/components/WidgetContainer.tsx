@@ -139,7 +139,8 @@ function WidgetContainerBase({
     return {
       width: previewWidth,
       height: previewHeight,
-      opacity: mountOpacity.value,
+      // Edit mode must keep widgets fully visible even if animated phase changes.
+      opacity: editMode ? 1 : mountOpacity.value,
       transform: [
         { translateX: dragTranslateX.value },
         { translateY: dragTranslateY.value },
@@ -309,6 +310,7 @@ function WidgetContainerBase({
           frameStyle,
           animatedContainerStyle,
           editMode ? styles.editModeContainer : null,
+          isSelected ? styles.selectedLayer : styles.unselectedLayer,
           canEditSelectedWidget ? styles.selectedContainer : null,
           editMode && hasSelectedWidget && isSelected === false ? styles.secondaryInEditMode : null,
         ] as any}
@@ -414,6 +416,12 @@ const styles = StyleSheet.create({
     borderColor: `${colors.accentBlue}EE`,
     backgroundColor: `${colors.statusInfoBg}55`,
     ...shadows.selected,
+  },
+  selectedLayer: {
+    zIndex: 3,
+  },
+  unselectedLayer: {
+    zIndex: 2,
   },
   secondaryInEditMode: {
     opacity: 0.72,
