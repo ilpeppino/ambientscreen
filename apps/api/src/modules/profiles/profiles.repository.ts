@@ -40,7 +40,15 @@ export const profilesRepository = {
 
   create(input: { userId: string; name: string; isDefault: boolean }) {
     return prisma.profile.create({
-      data: input,
+      data: {
+        ...input,
+        slides: {
+          create: {
+            name: "Default",
+            order: 0,
+          },
+        },
+      },
     });
   },
 
