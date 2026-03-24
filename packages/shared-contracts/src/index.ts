@@ -151,6 +151,22 @@ export interface Profile {
   createdAt: string;
 }
 
+export interface Slide {
+  id: string;
+  profileId: string;
+  name: string;
+  order: number;
+  durationSeconds: number | null;
+  isEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  itemCount: number;
+}
+
+export interface SlidesListResponse {
+  slides: Slide[];
+}
+
 export interface ProfilesListResponse {
   profiles: Profile[];
   activeProfileId: string | null;

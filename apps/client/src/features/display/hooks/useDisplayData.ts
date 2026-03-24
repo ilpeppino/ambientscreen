@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getDisplayLayout,
+  type DisplayLayoutResponse,
+  type DisplaySlideEnvelope,
   type DisplayLayoutWidgetEnvelope,
   updateWidgetsLayout,
 } from "../../../services/api/displayLayoutApi";
@@ -24,6 +26,7 @@ interface UseDisplayDataOptions {
 }
 
 interface UseDisplayDataReturn {
+  activeSlide: DisplaySlideEnvelope | null;
   widgets: DisplayLayoutWidgetEnvelope[];
   setWidgets: React.Dispatch<React.SetStateAction<DisplayLayoutWidgetEnvelope[]>>;
   loadingLayout: boolean;
@@ -43,9 +46,26 @@ export function useDisplayData({
   isAppActive,
   realtimeConnectionState,
 }: UseDisplayDataOptions): UseDisplayDataReturn {
-  const [widgets, setWidgets] = useState<DisplayLayoutWidgetEnvelope[]>([]);
+  const [activeSlide, setActiveSlide] = useState<DisplaySlideEnvelope | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const widgets = activeSlide?.widgets ?? [];
+
+  const setWidgets = useCallback<React.Dispatch<React.SetStateAction<DisplayLayoutWidgetEnvelope[]>>>((value) => {
+    setActiveSlide((current) => {
+      const previousWidgets = current?.widgets ?? [];
+      const nextWidgets = typeof value === "function" ? value(previousWidgets) : value;
+
+      if (!current) {
+        return createDefaultSlide(nextWidgets);
+      }
+
+      return {
+        ...current,
+        widgets: nextWidgets,
+      };
+    });
+  }, []);
 
   const refreshIntervalMs = useMemo(() => {
     const intervals = widgets
@@ -66,7 +86,7 @@ export function useDisplayData({
 
   const loadDisplayLayout = useCallback(async (showInitialLoading: boolean) => {
     if (!effectiveActiveProfileId) {
-      setWidgets([]);
+      setActiveSlide(null);
       setLoadingLayout(false);
       return;
     }
@@ -77,13 +97,13 @@ export function useDisplayData({
       }
 
       const response = await getDisplayLayout(effectiveActiveProfileId);
-      setWidgets(withNormalizedLayouts(response.widgets));
+      setActiveSlide(resolveSlideComposition(response));
       setError(null);
     } catch (err) {
       console.error(err);
       setError(toErrorMessage(err, "Failed to load display layout"));
       if (showInitialLoading) {
-        setWidgets([]);
+        setActiveSlide(null);
       }
     } finally {
       if (showInitialLoading) {
@@ -137,6 +157,7 @@ export function useDisplayData({
   }, []);
 
   return {
+    activeSlide,
     widgets,
     setWidgets,
     loadingLayout,
@@ -170,6 +191,28 @@ export function withNormalizedLayouts(
     ...widget,
     layout: normalizedLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
   }));
+}
+
+export function resolveSlideComposition(response: DisplayLayoutResponse): DisplaySlideEnvelope {
+  if (response.slide) {
+    return {
+      ...response.slide,
+      widgets: withNormalizedLayouts(response.slide.widgets),
+    };
+  }
+
+  return createDefaultSlide(withNormalizedLayouts(response.widgets));
+}
+
+function createDefaultSlide(widgets: DisplayLayoutWidgetEnvelope[]): DisplaySlideEnvelope {
+  return {
+    id: "default-slide-v0",
+    name: "Default",
+    order: 0,
+    durationSeconds: null,
+    isEnabled: true,
+    widgets,
+  };
 }
 
 function toErrorMessage(error: unknown, fallback: string): string {

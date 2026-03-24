@@ -113,6 +113,36 @@ export const widgetsRepository = {
     return widget ? mapWidgetRecord(widget) : null;
   },
 
+  async findAllBySlide(input: { profileId: string; slideId: string }): Promise<WidgetRecord[]> {
+    const slideItems = await prisma.slideItem.findMany({
+      where: {
+        slideId: input.slideId,
+        slide: {
+          profileId: input.profileId,
+        },
+      },
+      include: {
+        widgetInstance: true,
+      },
+      orderBy: [{ zIndex: "asc" }, { layoutY: "asc" }, { layoutX: "asc" }, { createdAt: "asc" }],
+    });
+
+    return slideItems.map((slideItem) => ({
+      id: slideItem.widgetInstance.id,
+      profileId: slideItem.widgetInstance.profileId,
+      type: slideItem.widgetInstance.type,
+      config: slideItem.widgetInstance.config,
+      layout: {
+        x: slideItem.layoutX,
+        y: slideItem.layoutY,
+        w: slideItem.layoutW,
+        h: slideItem.layoutH,
+      },
+      createdAt: slideItem.widgetInstance.createdAt,
+      updatedAt: slideItem.widgetInstance.updatedAt,
+    }));
+  },
+
   async create(input: CreateWidgetInput): Promise<WidgetRecord> {
     const widget = await prisma.$transaction(async (tx) => {
       const created = await tx.widgetInstance.create({
