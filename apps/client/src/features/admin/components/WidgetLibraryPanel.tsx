@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import type { FeatureFlagKey, WidgetKey } from "@ambient/shared-contracts";
@@ -6,6 +6,11 @@ import { AppIcon } from "../../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { CreatableWidgetType } from "../adminHome.logic";
 import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
+import {
+  MANUAL_WIDGET_DRAG_END_EVENT,
+  MANUAL_WIDGET_DRAG_MOVE_EVENT,
+  type ManualWidgetDragDetail,
+} from "./widgetManualDrag.events";
 
 const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
 const DRAG_WIDGET_PAYLOAD_MIME = "application/x-ambient-widget-payload";
@@ -33,12 +38,25 @@ export function WidgetLibraryPanel({
   const [search, setSearch] = useState("");
   const [armedWidgetType, setArmedWidgetType] = useState<CreatableWidgetType | null>(null);
   const [draggingWidgetType, setDraggingWidgetType] = useState<CreatableWidgetType | null>(null);
+  const draggingWidgetTypeRef = useRef<CreatableWidgetType | null>(null);
+  const manualDragRef = useRef<{
+    active: boolean;
+    widgetType: CreatableWidgetType | null;
+    defaultLayout?: { w: number; h: number };
+  }>({
+    active: false,
+    widgetType: null,
+  });
   const pressStateRef = useRef<{
     widgetType: CreatableWidgetType;
     startedAt: number;
     timer: ReturnType<typeof setTimeout> | null;
     longPressArmed: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    draggingWidgetTypeRef.current = draggingWidgetType;
+  }, [draggingWidgetType]);
 
   const filtered = CREATABLE_WIDGET_TYPES.filter((key) => {
     const name = widgetBuiltinDefinitions[key].manifest.name.toLowerCase();
@@ -49,6 +67,16 @@ export function WidgetLibraryPanel({
     if (pressStateRef.current?.timer) {
       clearTimeout(pressStateRef.current.timer);
     }
+  }
+
+  function dispatchManualMove(detail: ManualWidgetDragDetail) {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent<ManualWidgetDragDetail>(MANUAL_WIDGET_DRAG_MOVE_EVENT, { detail }));
+  }
+
+  function dispatchManualEnd(detail: ManualWidgetDragDetail) {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent<ManualWidgetDragDetail>(MANUAL_WIDGET_DRAG_END_EVENT, { detail }));
   }
 
   function beginPress(widgetType: CreatableWidgetType) {
@@ -76,6 +104,44 @@ export function WidgetLibraryPanel({
     }
     pressStateRef.current = null;
   }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    function clearPendingPress() {
+      if (draggingWidgetTypeRef.current || manualDragRef.current.active) {
+        return;
+      }
+      clearPressTimer();
+      pressStateRef.current = null;
+      setArmedWidgetType(null);
+    }
+
+    function handleWindowMouseUp(event: MouseEvent) {
+      if (manualDragRef.current.active && manualDragRef.current.widgetType) {
+        const detail: ManualWidgetDragDetail = {
+          widgetType: manualDragRef.current.widgetType,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          defaultLayout: manualDragRef.current.defaultLayout,
+        };
+        dispatchManualEnd(detail);
+      }
+      manualDragRef.current = { active: false, widgetType: null };
+      setDraggingWidgetType(null);
+      clearPendingPress();
+    }
+
+    window.addEventListener("mouseup", handleWindowMouseUp);
+    window.addEventListener("touchend", clearPendingPress);
+    window.addEventListener("touchcancel", clearPendingPress);
+
+    return () => {
+      window.removeEventListener("mouseup", handleWindowMouseUp);
+      window.removeEventListener("touchend", clearPendingPress);
+      window.removeEventListener("touchcancel", clearPendingPress);
+    };
+  }, []);
 
   return (
     <View style={styles.panel}>
@@ -107,6 +173,7 @@ export function WidgetLibraryPanel({
             const isSelected = selectedLibraryWidgetType === widgetKey;
             const isArmed = armedWidgetType === widgetKey;
             const isDragging = draggingWidgetType === widgetKey;
+            const isDraggableNow = draggable && (isArmed || isDragging);
 
             return (
               <Pressable
@@ -136,19 +203,57 @@ export function WidgetLibraryPanel({
                     if (locked) return;
                     beginPress(widgetKey);
                   },
-                  onMouseUp: () => endPress(widgetKey),
-                  onMouseLeave: () => endPress(widgetKey),
+                  onMouseUp: () => {
+                    endPress(widgetKey);
+                  },
+                  onMouseMove: (event: MouseEvent) => {
+                    const pressState = pressStateRef.current;
+                    if (
+                      locked
+                      || !pressState
+                      || pressState.widgetType !== widgetKey
+                      || !pressState.longPressArmed
+                      || event.buttons !== 1
+                    ) {
+                      return;
+                    }
+
+                    if (!manualDragRef.current.active) {
+                      const defaultLayout = manifest.defaultLayout;
+                      manualDragRef.current = {
+                        active: true,
+                        widgetType: widgetKey,
+                        defaultLayout: {
+                          w: defaultLayout.w,
+                          h: defaultLayout.h,
+                        },
+                      };
+                      setDraggingWidgetType(widgetKey);
+                      setArmedWidgetType(null);
+                    }
+
+                    dispatchManualMove({
+                      widgetType: widgetKey,
+                      clientX: event.clientX,
+                      clientY: event.clientY,
+                      defaultLayout: manualDragRef.current.defaultLayout,
+                    });
+                  },
                   onTouchStart: () => {
                     if (locked) return;
                     beginPress(widgetKey);
                   },
-                  onTouchEnd: () => endPress(widgetKey),
-                  onTouchCancel: () => endPress(widgetKey),
+                  onTouchEnd: () => {
+                    endPress(widgetKey);
+                  },
+                  onTouchCancel: () => {
+                    endPress(widgetKey);
+                  },
                 } as object)}
                 // HTML5 Drag-and-Drop — web only, passed through by React Native Web
                 {...(draggable
                   ? ({
-                      draggable: true,
+                      draggable: isDraggableNow,
                       onDragStart: (event: DragEvent) => {
                         const pressState = pressStateRef.current;
                         const longPressReached = Boolean(
@@ -180,6 +285,7 @@ export function WidgetLibraryPanel({
                         setArmedWidgetType(null);
                       },
                       onDragEnd: () => {
+                        manualDragRef.current = { active: false, widgetType: null };
                         setDraggingWidgetType(null);
                         setArmedWidgetType(null);
                         pressStateRef.current = null;

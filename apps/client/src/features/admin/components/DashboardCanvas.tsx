@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ErrorState } from "../../../shared/ui/ErrorState";
 import { EmptyPanel } from "../../../shared/ui/management";
@@ -14,6 +14,11 @@ import { computeDropLayout } from "./dropPosition.logic";
 import type { CreatableWidgetType } from "../adminHome.logic";
 import { CREATABLE_WIDGET_TYPES } from "../adminHome.logic";
 import { getWidgetDefaultSize } from "../widgetPlacement.logic";
+import {
+  MANUAL_WIDGET_DRAG_END_EVENT,
+  MANUAL_WIDGET_DRAG_MOVE_EVENT,
+  type ManualWidgetDragDetail,
+} from "./widgetManualDrag.events";
 
 const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
 const DRAG_WIDGET_PAYLOAD_MIME = "application/x-ambient-widget-payload";
@@ -52,6 +57,21 @@ function getDraggedWidgetType(dataTransfer: DataTransfer | null | undefined): Cr
     return null;
   }
   return widgetType as CreatableWidgetType;
+}
+
+function canAcceptWidgetDrag(dataTransfer: DataTransfer | null | undefined): boolean {
+  if (!dataTransfer) return false;
+
+  const dragTypes = Array.from(dataTransfer.types ?? []);
+  if (
+    dragTypes.includes(DRAG_WIDGET_PAYLOAD_MIME)
+    || dragTypes.includes(DRAG_WIDGET_TYPE_MIME)
+  ) {
+    return true;
+  }
+
+  // Fallback for browsers that omit custom MIME types in `types`.
+  return getDraggedWidgetType(dataTransfer) !== null;
 }
 
 interface DashboardCanvasProps {
@@ -94,10 +114,15 @@ export function DashboardCanvas({
 }: DashboardCanvasProps) {
   const hasWidgets = widgets.length > 0;
   const [isDragOver, setIsDragOver] = useState(false);
+  const canvasBodyRef = useRef<HTMLElement | null>(null);
 
   function handleDrop(event: DragEvent) {
     event.preventDefault();
     setIsDragOver(false);
+
+    if (!canAcceptWidgetDrag(event.dataTransfer)) {
+      return;
+    }
 
     const widgetType = getDraggedWidgetType(event.dataTransfer);
     if (!widgetType) {
@@ -134,12 +159,94 @@ export function DashboardCanvas({
     onWidgetDropped?.(widgetType, layout);
   }
 
+  function handleManualDrop(detail: ManualWidgetDragDetail) {
+    const target = canvasBodyRef.current;
+    if (!target) return;
+
+    const rect = target.getBoundingClientRect();
+    const isInside = (
+      detail.clientX >= rect.left
+      && detail.clientX <= rect.right
+      && detail.clientY >= rect.top
+      && detail.clientY <= rect.bottom
+    );
+    if (!isInside) {
+      return;
+    }
+
+    const existingLayoutsById = Object.fromEntries(
+      widgets.map((w) => [w.widgetInstanceId, w.layout]),
+    );
+    const defaultSize = detail.defaultLayout
+      ? {
+          w: detail.defaultLayout.w,
+          h: detail.defaultLayout.h,
+        }
+      : getWidgetDefaultSize(detail.widgetType);
+
+    const dropX = detail.clientX - rect.left;
+    const dropY = detail.clientY - rect.top;
+    const layout = computeDropLayout({
+      dropX,
+      dropY,
+      containerWidth: rect.width,
+      containerHeight: rect.height,
+      existingLayoutsById,
+      widgetW: defaultSize.w,
+      widgetH: defaultSize.h,
+    });
+    onWidgetDropped?.(detail.widgetType, layout);
+  }
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    function onManualMove(event: Event) {
+      const customEvent = event as CustomEvent<ManualWidgetDragDetail>;
+      const detail = customEvent.detail;
+      const target = canvasBodyRef.current;
+      if (!target) return;
+
+      const rect = target.getBoundingClientRect();
+      const isInside = (
+        detail.clientX >= rect.left
+        && detail.clientX <= rect.right
+        && detail.clientY >= rect.top
+        && detail.clientY <= rect.bottom
+      );
+      setIsDragOver(isInside);
+    }
+
+    function onManualEnd(event: Event) {
+      const customEvent = event as CustomEvent<ManualWidgetDragDetail>;
+      const detail = customEvent.detail;
+      handleManualDrop(detail);
+      setIsDragOver(false);
+    }
+
+    window.addEventListener(MANUAL_WIDGET_DRAG_MOVE_EVENT, onManualMove as EventListener);
+    window.addEventListener(MANUAL_WIDGET_DRAG_END_EVENT, onManualEnd as EventListener);
+
+    return () => {
+      window.removeEventListener(MANUAL_WIDGET_DRAG_MOVE_EVENT, onManualMove as EventListener);
+      window.removeEventListener(MANUAL_WIDGET_DRAG_END_EVENT, onManualEnd as EventListener);
+    };
+  }, [onWidgetDropped, widgets]);
+
   // Web-only DnD event handlers spread onto the canvas body View
   const dropZoneProps = {
+    onDragEnter: (event: DragEvent) => {
+      event.preventDefault();
+      const acceptsDrag = canAcceptWidgetDrag(event.dataTransfer);
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = acceptsDrag ? "copy" : "none";
+      }
+      setIsDragOver(acceptsDrag);
+    },
     onDragOver: (event: DragEvent) => {
       event.preventDefault();
-      const widgetType = getDraggedWidgetType(event.dataTransfer);
-      if (!widgetType) {
+      const acceptsDrag = canAcceptWidgetDrag(event.dataTransfer);
+      if (!acceptsDrag) {
         if (event.dataTransfer) {
           event.dataTransfer.dropEffect = "none";
         }
@@ -201,6 +308,9 @@ export function DashboardCanvas({
 
       {/* Drop zone — covers both empty canvas and populated grid */}
       <View
+        ref={(node) => {
+          canvasBodyRef.current = node as unknown as HTMLElement | null;
+        }}
         style={[styles.canvasBody, isDragOver ? styles.canvasBodyDragOver : null]}
         {...dropZoneProps}
       >
