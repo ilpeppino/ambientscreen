@@ -138,63 +138,60 @@ export function AdminTopBar({
       </View>
 
       <View style={styles.right}>
-        <View style={styles.modeSwitchWrap}>
-          <Text style={styles.modeLabel}>Mode</Text>
-          <View style={styles.modeSwitch}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Display Mode"
+        <View style={styles.modeSwitch}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Display Mode"
+            style={[
+              styles.modeButton,
+              activeMode === "display" ? styles.modeButtonActive : null,
+            ]}
+            onPress={() => {
+              setActiveMode("display");
+              onEnterDisplayMode();
+            }}
+          >
+            <AppIcon
+              name="grid"
+              size="sm"
+              color={activeMode === "display" ? "statusInfoText" : "textSecondary"}
+            />
+            <Text
               style={[
-                styles.modeButton,
-                activeMode === "display" ? styles.modeButtonActive : null,
+                styles.modeButtonLabel,
+                activeMode === "display" ? styles.modeButtonLabelActive : null,
               ]}
-              onPress={() => {
-                setActiveMode("display");
-                onEnterDisplayMode();
-              }}
             >
-              <AppIcon
-                name="grid"
-                size="sm"
-                color={activeMode === "display" ? "statusInfoText" : "textSecondary"}
-              />
-              <Text
-                style={[
-                  styles.modeButtonLabel,
-                  activeMode === "display" ? styles.modeButtonLabelActive : null,
-                ]}
-              >
-                Display
-              </Text>
-            </Pressable>
+              Display
+            </Text>
+          </Pressable>
 
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Remote Control"
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Remote Control"
+            style={[
+              styles.modeButton,
+              activeMode === "remote" ? styles.modeButtonActive : null,
+            ]}
+            onPress={() => {
+              setActiveMode("remote");
+              onEnterRemoteControlMode();
+            }}
+          >
+            <AppIcon
+              name="refresh"
+              size="sm"
+              color={activeMode === "remote" ? "statusInfoText" : "textSecondary"}
+            />
+            <Text
               style={[
-                styles.modeButton,
-                activeMode === "remote" ? styles.modeButtonActive : null,
+                styles.modeButtonLabel,
+                activeMode === "remote" ? styles.modeButtonLabelActive : null,
               ]}
-              onPress={() => {
-                setActiveMode("remote");
-                onEnterRemoteControlMode();
-              }}
             >
-              <AppIcon
-                name="refresh"
-                size="sm"
-                color={activeMode === "remote" ? "statusInfoText" : "textSecondary"}
-              />
-              <Text
-                style={[
-                  styles.modeButtonLabel,
-                  activeMode === "remote" ? styles.modeButtonLabelActive : null,
-                ]}
-              >
-                Remote
-              </Text>
-            </Pressable>
-          </View>
+              Remote
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.dropdownAnchor}>
@@ -272,7 +269,7 @@ export function AdminTopBar({
 
 const styles = StyleSheet.create({
   bar: {
-    height: 52,
+    height: 60,
     backgroundColor: colors.surfaceCard,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
@@ -280,7 +277,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: spacing.lg,
-    gap: spacing.md,
+    gap: spacing.lg,
     zIndex: 100,
   },
   dismissOverlay: {
@@ -294,7 +291,7 @@ const styles = StyleSheet.create({
   left: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
+    gap: spacing.lg,
     zIndex: 20,
   },
   right: {
@@ -316,8 +313,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
+    minHeight: 36,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.sm,
@@ -393,22 +391,12 @@ const styles = StyleSheet.create({
     marginVertical: spacing.xs,
     marginHorizontal: spacing.md,
   },
-  modeSwitchWrap: {
-    alignItems: "flex-end",
-    gap: 4,
-  },
-  modeLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    textTransform: "uppercase",
-    letterSpacing: 0.7,
-    fontWeight: "600",
-  },
   modeSwitch: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.xs,
-    padding: 3,
+    minHeight: 36,
+    padding: spacing.xs,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
@@ -419,7 +407,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
+    paddingVertical: spacing.sm,
     minWidth: 86,
     justifyContent: "center",
     borderWidth: 1,
@@ -442,8 +430,8 @@ const styles = StyleSheet.create({
   userButton: {
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 34,
-    height: 34,
+    minWidth: 36,
+    height: 36,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border,

@@ -175,7 +175,7 @@ describe("WidgetLibraryPanel", () => {
     expect(findSelectedRow()?.props.accessibilityLabel).toMatch(/weather/i);
   });
 
-  test("removes + Add label and duplicate widget key text", () => {
+  test("shows only widget names in library rows without duplicate metadata labels", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetLibraryPanel, defaultProps),
     );
@@ -183,6 +183,9 @@ describe("WidgetLibraryPanel", () => {
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
     expect(texts.some((t) => String(t).includes("+ Add"))).toBe(false);
     expect(texts.some((t) => String(t) === "clockDate")).toBe(false);
+    expect(texts.some((t) => String(t).toLowerCase() === "time")).toBe(false);
+    expect(texts.some((t) => String(t).toLowerCase() === "environment")).toBe(false);
+    expect(texts.some((t) => String(t).toLowerCase() === "productivity")).toBe(false);
   });
 
   test("search input filters widget list", async () => {
