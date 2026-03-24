@@ -4,7 +4,6 @@ import { z } from "zod";
 import { apiErrors } from "../../core/http/api-error";
 import { pluginInstallationRepository } from "./pluginInstallation.repository";
 import { pluginRegistryRepository } from "../plugin-registry/pluginRegistry.repository";
-import type { WidgetKey } from "@ambient/shared-contracts";
 import { widgetConfigRegistry } from "@ambient/shared-contracts";
 import { getWidgetPlugin } from "../widgets/widgetPluginRegistry";
 
