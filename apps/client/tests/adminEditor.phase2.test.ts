@@ -588,6 +588,57 @@ describe("DashboardCanvas", () => {
     expect(grid.props.editMode).toBe(true);
   });
 
+  test("selection changes do not change canvas render list", () => {
+    const widgets = [
+      {
+        widgetInstanceId: "w1",
+        widgetKey: "clockDate" as const,
+        layout: { x: 0, y: 0, w: 4, h: 2 },
+        state: "ready" as const,
+        config: {},
+        configSchema: {},
+        data: null,
+        meta: { resolvedAt: "2026-01-01T00:00:00Z" },
+      },
+      {
+        widgetInstanceId: "w2",
+        widgetKey: "weather" as const,
+        layout: { x: 4, y: 0, w: 4, h: 2 },
+        state: "ready" as const,
+        config: {},
+        configSchema: {},
+        data: null,
+        meta: { resolvedAt: "2026-01-01T00:00:00Z" },
+      },
+    ];
+
+    const renderer = TestRenderer.create(
+      React.createElement(DashboardCanvas, {
+        ...baseProps,
+        widgets,
+        selectedWidgetId: "w1",
+      }),
+    );
+
+    const firstRenderGrid = renderer.root.findByType("mock-layout-grid" as any);
+    expect(firstRenderGrid.props.widgets.map((widget: { widgetInstanceId: string }) => widget.widgetInstanceId))
+      .toEqual(["w1", "w2"]);
+
+    TestRenderer.act(() => {
+      renderer.update(
+        React.createElement(DashboardCanvas, {
+          ...baseProps,
+          widgets,
+          selectedWidgetId: "w2",
+        }),
+      );
+    });
+
+    const secondRenderGrid = renderer.root.findByType("mock-layout-grid" as any);
+    expect(secondRenderGrid.props.widgets.map((widget: { widgetInstanceId: string }) => widget.widgetInstanceId))
+      .toEqual(["w1", "w2"]);
+  });
+
   test("shows Save Layout button when there are layout changes", () => {
     const tree = TestRenderer.create(
       React.createElement(DashboardCanvas, { ...baseProps, hasLayoutChanges: true }),
