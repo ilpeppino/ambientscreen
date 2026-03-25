@@ -18,6 +18,7 @@ import { pluginInstallationRouter, mePluginsRouter } from "./modules/plugin-inst
 import { pluginPublishingRouter } from "./modules/plugin-publishing/pluginPublishing.routes";
 import { adminPluginsRouter } from "./modules/admin-plugins/adminPlugins.routes";
 import { integrationsRouter } from "./modules/integrations/integrations.routes";
+import { googleOAuthRouter } from "./modules/integrations/providers/google/google-oauth.routes";
 import { registerBuiltinWidgetPlugins } from "./modules/widgets/registerBuiltinPlugins";
 import { prisma } from "./core/db/prisma";
 import {
@@ -75,7 +76,8 @@ export function createApp() {
   app.use("/me", requireAuth, mePluginsRouter);
   app.use("/developer/plugins", requireAuth, pluginPublishingRouter);
   app.use("/admin/plugins", requireAuth, adminPluginsRouter);
-  app.use("/integrations", integrationsRouter);
+  app.use("/integrations", googleOAuthRouter);
+  app.use("/integrations", requireAuth, integrationsRouter);
   app.use("/", requireAuth, displayRouter);
   app.use(notFoundMiddleware);
   app.use(globalErrorMiddleware);
