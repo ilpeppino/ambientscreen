@@ -6,8 +6,10 @@ import { TextInput } from "../../shared/ui/components/TextInput";
 import { colors, radius, spacing } from "../../shared/ui/theme";
 import {
   listIntegrationConnections,
+  listGoogleCalendars,
   getGoogleConnectUrl,
   type IntegrationConnection,
+  type GoogleCalendarOption,
 } from "../../services/api/integrationsApi";
 
 type CalendarProvider = "ical" | "google";
@@ -40,6 +42,10 @@ export function CalendarSettingsForm({
   const [googleConnections, setGoogleConnections] = useState<IntegrationConnection[]>([]);
   const [connectionsLoading, setConnectionsLoading] = useState(false);
 
+  // Phase 2: calendar list loaded after connection is selected
+  const [googleCalendars, setGoogleCalendars] = useState<GoogleCalendarOption[]>([]);
+  const [calendarsLoading, setCalendarsLoading] = useState(false);
+
   const loadConnections = useCallback(() => {
     if (provider !== "google") return;
     setConnectionsLoading(true);
@@ -52,6 +58,19 @@ export function CalendarSettingsForm({
   useEffect(() => {
     loadConnections();
   }, [loadConnections]);
+
+  // Load calendar list whenever a connection is selected (Phase 2)
+  useEffect(() => {
+    if (provider !== "google" || !integrationConnectionId) {
+      setGoogleCalendars([]);
+      return;
+    }
+    setCalendarsLoading(true);
+    listGoogleCalendars(integrationConnectionId)
+      .then(setGoogleCalendars)
+      .catch(() => setGoogleCalendars([]))
+      .finally(() => setCalendarsLoading(false));
+  }, [provider, integrationConnectionId]);
 
   const handleConnectGoogle = () => {
     void Linking.openURL(getGoogleConnectUrl());
@@ -99,6 +118,7 @@ export function CalendarSettingsForm({
       {/* Google Calendar-specific */}
       {provider === "google" && (
         <View>
+          {/* Phase 1: select Google connection */}
           <Pressable
             style={[styles.connectButton, disabled ? styles.connectButtonDisabled : null]}
             onPress={handleConnectGoogle}
@@ -124,7 +144,7 @@ export function CalendarSettingsForm({
                     style={[styles.connectionRow, selected ? styles.connectionRowSelected : null]}
                     onPress={() =>
                       !disabled &&
-                      onChange({ ...config, integrationConnectionId: conn.id })
+                      onChange({ ...config, integrationConnectionId: conn.id, calendarId: undefined })
                     }
                     disabled={disabled}
                   >
@@ -148,16 +168,48 @@ export function CalendarSettingsForm({
             </Text>
           )}
 
-          <View style={styles.fieldGap} />
-          <TextInput
-            label="Calendar ID (optional, defaults to primary)"
-            value={calendarId}
-            onChangeText={(value) => onChange({ ...config, calendarId: value || undefined })}
-            placeholder="primary"
-            editable={!disabled}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
+          {/* Phase 2: select calendar — only shown after a connection is chosen */}
+          {integrationConnectionId ? (
+            <View style={styles.calendarPhase}>
+              <Text variant="caption" color="textSecondary" style={styles.sectionLabel}>
+                Calendar
+              </Text>
+              {/* V1: single-calendar select. Multi-select can be added in a future iteration. */}
+              {calendarsLoading ? (
+                <Text color="textSecondary" variant="caption" style={styles.hint}>
+                  Loading calendars…
+                </Text>
+              ) : googleCalendars.length > 0 ? (
+                <View style={styles.connectionList}>
+                  {googleCalendars.map((cal) => {
+                    const selected = calendarId ? calendarId === cal.id : cal.primary;
+                    return (
+                      <Pressable
+                        key={cal.id}
+                        style={[styles.connectionRow, selected ? styles.connectionRowSelected : null]}
+                        onPress={() =>
+                          !disabled && onChange({ ...config, calendarId: cal.id })
+                        }
+                        disabled={disabled}
+                      >
+                        <Text style={styles.connectionLabel}>
+                          {cal.summary}
+                          {cal.primary ? " (primary)" : ""}
+                        </Text>
+                        {selected ? (
+                          <Text style={styles.connectionSelectedBadge}>Selected</Text>
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text color="textSecondary" variant="caption" style={styles.hint}>
+                  No calendars found. The connection may need to be reconnected.
+                </Text>
+              )}
+            </View>
+          ) : null}
         </View>
       )}
 
@@ -325,5 +377,8 @@ const styles = StyleSheet.create({
   },
   hint: {
     marginTop: spacing.sm,
+  },
+  calendarPhase: {
+    marginTop: spacing.md,
   },
 });

@@ -30,5 +30,24 @@ export async function deleteIntegrationConnection(connectionId: string): Promise
 }
 
 export function getGoogleConnectUrl(): string {
-  return `${API_BASE_URL}/integrations/google/connect`;
+  return `${API_BASE_URL}/integrations/google/start`;
+}
+
+export interface GoogleCalendarOption {
+  id: string;
+  summary: string;
+  primary: boolean;
+  accessRole: string | null;
+}
+
+export async function listGoogleCalendars(integrationConnectionId: string): Promise<GoogleCalendarOption[]> {
+  const params = new URLSearchParams({ integrationConnectionId });
+  const response = await apiFetchWithTimeout(
+    `${API_BASE_URL}/integrations/google/calendars?${params.toString()}`,
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const data = (await response.json()) as { items: GoogleCalendarOption[] };
+  return data.items;
 }

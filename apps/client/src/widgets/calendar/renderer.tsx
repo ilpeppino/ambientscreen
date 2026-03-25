@@ -21,7 +21,8 @@ export function CalendarRenderer({ state, data }: WidgetRendererProps<"calendar"
       icon="calendar"
       state={state}
       hasData={hasData}
-      emptyMessage="No upcoming events."
+      emptyMessage="No events scheduled."
+      errorMessage="Unable to load data."
       contentStyle={styles.content}
     >
       <Text
