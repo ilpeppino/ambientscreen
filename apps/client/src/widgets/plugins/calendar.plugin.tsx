@@ -2,6 +2,7 @@ import React from "react";
 import type { WidgetClientPluginModule } from "@ambient/shared-contracts";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import { CalendarRenderer } from "../calendar/renderer";
+import { CalendarSettingsForm } from "../calendar/settings-form";
 
 const definition = widgetBuiltinDefinitions.calendar;
 
@@ -11,5 +12,6 @@ export const calendarWidgetPlugin: WidgetClientPluginModule<"calendar", React.Re
   defaultConfig: definition.defaultConfig,
   client: {
     Renderer: (props) => <CalendarRenderer {...props} />,
+    SettingsForm: (props) => <CalendarSettingsForm {...props} />,
   },
 };

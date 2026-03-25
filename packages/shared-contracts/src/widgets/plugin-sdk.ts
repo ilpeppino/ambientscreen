@@ -56,6 +56,7 @@ export interface WidgetApiResolverInput<TKey extends WidgetKey = WidgetKey> {
   widgetInstanceId: string;
   widgetConfig: unknown;
   widgetKey: TKey;
+  userId?: string;
 }
 
 export type WidgetApiResolveData<TKey extends WidgetKey = WidgetKey> = (
@@ -171,7 +172,7 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       key: "calendar",
       version: manifestVersion,
       name: "Calendar",
-      description: "Lists upcoming events from an iCal feed.",
+      description: "Lists upcoming events from Google Calendar or an iCal feed.",
       category: "productivity",
       defaultLayout: {
         w: 6,
@@ -189,8 +190,10 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       includeAllDay: true,
     },
     configSchema: {
-      provider: ["ical"],
+      provider: ["ical", "google"],
       account: "string",
+      integrationConnectionId: "string",
+      calendarId: "string",
       timeWindow: ["today", "next24h", "next7d"],
       maxEvents: "number",
       includeAllDay: "boolean",

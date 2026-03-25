@@ -16,7 +16,7 @@ test("WEATHER_UNITS exposes weather unit options for admin config", () => {
 });
 
 test("calendar admin config options expose providers and time windows", () => {
-  expect(CALENDAR_PROVIDERS).toEqual(["ical"]);
+  expect(CALENDAR_PROVIDERS).toEqual(["ical", "google"]);
   expect(CALENDAR_TIME_WINDOWS).toEqual(["today", "next24h", "next7d"]);
 });
 

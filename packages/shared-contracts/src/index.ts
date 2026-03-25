@@ -41,8 +41,10 @@ export interface WeatherWidgetConfig {
 }
 
 export interface CalendarWidgetConfig {
-  provider?: "ical";
+  provider?: "ical" | "google";
   account?: string;
+  integrationConnectionId?: string;
+  calendarId?: string;
   timeWindow?: "today" | "next24h" | "next7d";
   includeAllDay?: boolean;
   maxEvents?: number;
@@ -112,8 +114,10 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
       includeAllDay: true,
     },
     configSchema: {
-      provider: ["ical"],
+      provider: ["ical", "google"],
       account: "string",
+      integrationConnectionId: "string",
+      calendarId: "string",
       timeWindow: ["today", "next24h", "next7d"],
       maxEvents: "number",
       includeAllDay: "boolean",
