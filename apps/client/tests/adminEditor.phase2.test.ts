@@ -16,6 +16,7 @@ vi.mock("react-native", () => {
     Pressable: (props: Record<string, unknown>) => ReactRuntime.createElement("pressable", props, props.children),
     ScrollView: (props: Record<string, unknown>) => ReactRuntime.createElement("scroll-view", props, props.children),
     TextInput: (props: Record<string, unknown>) => ReactRuntime.createElement("text-input", props),
+    Switch: (props: Record<string, unknown>) => ReactRuntime.createElement("switch", props),
     ActivityIndicator: (props: Record<string, unknown>) => ReactRuntime.createElement("activity-indicator", props),
     StyleSheet: {
       create: <T extends Record<string, unknown>>(styles: T) => styles,
@@ -373,8 +374,8 @@ describe("WidgetPropertiesPanel", () => {
     );
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
-    // Config value should be formatted to human-readable form
-    expect(texts.some((t) => String(t).includes("24-hour"))).toBe(true);
+    // New inspector shows Time and Format sections with human-readable labels
+    expect(texts.some((t) => String(t).includes("Time zone"))).toBe(true);
     expect(texts.some((t) => String(t).includes("Format"))).toBe(true);
   });
 
@@ -386,10 +387,10 @@ describe("WidgetPropertiesPanel", () => {
     );
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
-    // Should show the widget name and humanized config
+    // Should show the widget name and inspector sections with human-readable labels
     expect(texts.some((t) => String(t).includes("Clock"))).toBe(true);
     expect(texts.some((t) => String(t).includes("Format"))).toBe(true);
-    expect(texts.some((t) => String(t).includes("24-hour"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("Time zone"))).toBe(true);
   });
 
   test("renders read-only configuration without editable inputs by default", () => {
@@ -449,18 +450,20 @@ describe("WidgetPropertiesPanel", () => {
 
   test("shows editable text input controls only in edit mode", async () => {
     const onSaveConfig = vi.fn().mockResolvedValue(undefined);
+    // Weather uses InlineFieldEditor — a string schema field renders a TextInput
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
         selectedWidget: {
-          ...clockWidget,
-          config: { refreshMinutes: 15 },
+          widgetInstanceId: "abc-123",
+          widgetKey: "weather" as const,
+          layout: { x: 0, y: 0, w: 4, h: 2 },
+          state: "ready" as const,
+          config: { city: "Berlin" },
           configSchema: {
-            refreshMinutes: {
-              type: "number",
-              min: 1,
-              max: 120,
-            } as unknown as import("@ambient/shared-contracts").WidgetConfigFieldSchema,
+            city: "string" as import("@ambient/shared-contracts").WidgetConfigFieldSchema,
           },
+          data: null,
+          meta: { resolvedAt: "2026-01-01T00:00:00Z" },
         },
         onSaveConfig,
       }),

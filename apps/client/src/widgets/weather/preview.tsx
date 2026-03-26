@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: colors.textSecondary,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   location: {
     marginTop: spacing.sm,

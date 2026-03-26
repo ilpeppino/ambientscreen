@@ -15,6 +15,7 @@ import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayL
 import { InspectorReadOnlyField, InspectorReadOnlySection } from "./InspectorReadOnlyField";
 import { buildWidgetReadOnlyFields } from "../widgetInspectorSummary";
 import { CalendarInspectorContent } from "../../../widgets/calendar/CalendarInspectorContent";
+import { ClockDateInspectorContent } from "../../../widgets/clockDate/ClockDateInspectorContent";
 
 const WIDGET_ICON = {
   clockDate: "clock",
@@ -239,6 +240,14 @@ export function WidgetPropertiesPanel({
       {selectedWidget.widgetKey === "calendar" ? (
         // Calendar uses the shared inspector system for both read-only and edit modes.
         <CalendarInspectorContent
+          config={selectedWidget.config}
+          draft={draft}
+          mode={isEditing ? "edit" : "readOnly"}
+          onChange={(patch) => setDraft((prev) => ({ ...prev, ...patch }))}
+        />
+      ) : selectedWidget.widgetKey === "clockDate" ? (
+        // ClockDate uses the shared inspector system for both read-only and edit modes.
+        <ClockDateInspectorContent
           config={selectedWidget.config}
           draft={draft}
           mode={isEditing ? "edit" : "readOnly"}
