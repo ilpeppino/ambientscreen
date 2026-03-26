@@ -1,11 +1,12 @@
 import type { Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { getRequestUserId } from "../../../auth/auth.middleware";
 import { googleOAuthService } from "./google-oauth.service";
 import { googleCalendarAdapter } from "./google-calendar.adapter";
 import { integrationsRepository } from "../../integrations.repository";
 import { apiErrors } from "../../../../core/http/api-error";
 import { googleCalendarsQuerySchema } from "../../integrations.schemas";
-import { getAppBaseUrl } from "../../../../core/config/env";
+import { getAppBaseUrl, getAuthJwtSecret } from "../../../../core/config/env";
 
 /**
  * Whitelist check for the returnTo parameter.
@@ -25,7 +26,27 @@ function isAllowedReturnTo(returnTo: string, appBaseUrl: string): boolean {
 
 export const googleOAuthController = {
   async start(req: Request, res: Response): Promise<void> {
-    const userId = getRequestUserId(req);
+    // Extract userId from either Authorization header (normal) or token query param (OAuth start from browser)
+    let userId: string;
+
+    try {
+      // Try getting from request (set by requireAuth middleware)
+      userId = getRequestUserId(req);
+    } catch {
+      // Fall back to token query param for browser OAuth flows
+      const tokenParam = typeof req.query.token === "string" ? req.query.token : undefined;
+      if (!tokenParam) {
+        throw apiErrors.unauthorized("Missing or invalid Authorization header");
+      }
+
+      try {
+        const decoded = jwt.verify(tokenParam, getAuthJwtSecret()) as { userId: string };
+        userId = decoded.userId;
+      } catch {
+        throw apiErrors.unauthorized("Invalid token");
+      }
+    }
+
     let returnTo = typeof req.query.returnTo === "string" ? req.query.returnTo : undefined;
 
     // Discard returnTo values that are not in the allowlist to prevent open redirects

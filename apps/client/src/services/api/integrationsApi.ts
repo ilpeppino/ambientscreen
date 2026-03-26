@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../../core/config/api";
-import { apiFetchWithTimeout, toApiError } from "./apiClient";
+import { apiFetchWithTimeout, toApiError, getApiAuthToken } from "./apiClient";
 
 export type IntegrationStatus = "connected" | "needs_reauth" | "revoked" | "error";
 
@@ -73,8 +73,11 @@ export async function refreshIntegrationConnection(connectionId: string): Promis
 /**
  * Build the URL to start Google OAuth.
  *
- * Pass a `returnTo` value to tell the backend where to redirect after the
- * OAuth flow completes. Allowed values:
+ * Includes the auth token as a query parameter so Linking.openURL() can
+ * authenticate the request to the backend. Pass a `returnTo` value to tell
+ * the backend where to redirect after the OAuth flow completes.
+ *
+ * Allowed returnTo values:
  *   - ambientscreen://integrations  (native deep link)
  *   - same-origin web URL           (validated server-side)
  *
@@ -83,8 +86,14 @@ export async function refreshIntegrationConnection(connectionId: string): Promis
  */
 export function getGoogleConnectUrl(returnTo?: string): string {
   const base = `${API_BASE_URL}/integrations/google/start`;
-  if (!returnTo) return base;
-  return `${base}?${new URLSearchParams({ returnTo }).toString()}`;
+  const token = getApiAuthToken();
+
+  const params = new URLSearchParams();
+  if (token) params.set("token", token);
+  if (returnTo) params.set("returnTo", returnTo);
+
+  const query = params.toString();
+  return query ? `${base}?${query}` : base;
 }
 
 export interface GoogleCalendarOption {
