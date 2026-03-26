@@ -1,1232 +1,901 @@
+# Google OAuth + IntegrationConnection API Contract
 
-Google OAuth + IntegrationConnection API Contract
-
-Status: Canonical implementation contract
-Audience: backend and frontend implementers
-Last updated: 2026-03-25
-
+**Status:** Canonical implementation contract
+**Audience:** backend and frontend implementers
+**Last updated:** 2026-03-25
 
 ---
 
-1. Purpose
+## 1. Purpose
 
 Define the backend API contract for Google OAuth and IntegrationConnection management used by authenticated plugins, starting with the Google Calendar widget.
 
-This contract exists to ensure that:
+This contract ensures:
+- third-party OAuth lives in the integration layer, not in plugin code
+- widget config references a connection instead of storing secrets
+- the backend owns token validation, refresh, provider requests, and normalization
+- the client only consumes safe, normalized responses
 
-third-party OAuth lives in the integration layer, not in plugin code
-
-widget config references a connection instead of storing secrets
-
-the backend owns token validation, refresh, provider requests, and normalization
-
-the client only consumes safe, normalized responses
-
-
-This follows the authenticated integration pattern and the current backend route/module architecture.  
-
+This follows the authenticated integration pattern and the current backend route/module architecture.
 
 ---
 
-2. Architectural Position
+## 2. Architectural Position
 
-2.1 Route group
+### 2.1 Route group
 
 All endpoints in this contract live under:
 
+```
 /integrations
+```
 
-This fits the existing REST route-module approach in the API, where route groups are organized by domain and implemented with routes -> service -> repository. 
+This fits the existing REST route-module approach in the API, where route groups are organized by domain and implemented with routes → service → repository.
 
+### 2.2 Responsibility boundaries
 
----
+**The integration layer is responsible for:**
+- creating and storing provider connections
+- exchanging OAuth codes for tokens
+- refreshing tokens
+- validating provider access
+- exposing safe connection summaries
+- exposing provider resource pickers such as Google calendars
 
-2.2 Responsibility boundaries
+**Plugins are responsible for:**
+- storing provider and integrationConnectionId in widget config
+- validating plugin-specific config
+- asking the API resolver for normalized widget data
 
-The integration layer is responsible for:
-
-creating and storing provider connections
-
-exchanging OAuth codes for tokens
-
-refreshing tokens
-
-validating provider access
-
-exposing safe connection summaries
-
-exposing provider resource pickers such as Google calendars
-
-
-Plugins are responsible for:
-
-storing provider and integrationConnectionId in widget config
-
-validating plugin-specific config
-
-asking the API resolver for normalized widget data
-
-
-Plugins must not own tokens or OAuth flows. 
-
+**Plugins must not own tokens or OAuth flows.**
 
 ---
 
-3. Data model contract
+## 3. Data model contract
 
-3.1 Backing table
+### 3.1 Backing table
 
-The canonical V1 blueprint defines an integration_connections table with these core fields:
+The canonical V1 blueprint defines an `integration_connections` table with these core fields:
 
-id
+| Field | Type | Notes |
+|-------|------|-------|
+| id | string | Primary key |
+| user_id | string | Foreign key to users |
+| provider | string | e.g., "google" |
+| status | string | Connection state |
+| account_label | string | User-friendly label |
+| external_account_id | string | Provider's account ID |
+| scopes_json | json | Granted OAuth scopes |
+| access_token_encrypted | string | Encrypted access token |
+| refresh_token_encrypted | string | Encrypted refresh token |
+| token_expires_at | timestamp | Token expiry time |
+| metadata_json | json | Provider-specific metadata |
+| last_synced_at | timestamp | Last successful sync |
+| created_at | timestamp | Record creation |
+| updated_at | timestamp | Last modification |
 
-user_id
+**Uniqueness constraint:** `(user_id, provider, external_account_id)`
 
-provider
-
-status
-
-account_label
-
-external_account_id
-
-scopes_json
-
-access_token_encrypted
-
-refresh_token_encrypted
-
-token_expires_at
-
-metadata_json
-
-last_synced_at
-
-created_at
-
-updated_at
-
-
-and a uniqueness constraint on (user_id, provider, external_account_id). 
-
-
----
-
-3.2 Google connection rules
+### 3.2 Google connection rules
 
 For Google Calendar V1:
+- `provider` must be `"google"`
+- one user may have multiple Google connections in the future
+- reconnecting the same Google account should update the existing `(user_id, provider, external_account_id)` record instead of creating duplicates
 
-provider must be google
+This upsert behavior is consistent with the table shape and uniqueness rule in the architecture blueprint.
 
-one user may have multiple Google connections in the future
-
-reconnecting the same Google account should update the existing (user_id, provider, external_account_id) record instead of creating duplicates
-
-
-This upsert behavior is consistent with the table shape and uniqueness rule in the architecture blueprint. 
-
-
----
-
-3.3 Recommended status values
+### 3.3 Recommended status values
 
 Use these connection statuses:
 
-connected
+| Status | Meaning |
+|--------|---------|
+| connected | Account is linked and tokens are valid |
+| needs_reauth | Token expired or scope was revoked |
+| revoked | User disconnected the account |
+| error | Provider returned a transient error |
 
-needs_reauth
-
-revoked
-
-error
-
-
-Note: the blueprint confirms the table has a status field, but does not prescribe these exact four values. These values are a design recommendation layered on top of the canonical table shape. The canonical doc currently only proves that status exists. 
-
+**Note:** The blueprint confirms the table has a status field, but does not prescribe these exact four values. These values are a design recommendation layered on top of the canonical table shape.
 
 ---
 
-4. Security contract
+## 4. Security contract
 
-4.1 Authentication
+### 4.1 Authentication
 
-All /integrations endpoints are JWT-protected except the OAuth callback, which is validated through signed OAuth state. This is consistent with the platform security model where HTTP routes are JWT-protected except explicit public auth/health routes. 
+All `/integrations` endpoints are JWT-protected except the OAuth callback, which is validated through signed OAuth state. This is consistent with the platform security model where HTTP routes are JWT-protected except explicit public auth/health routes.
 
-
----
-
-4.2 Ownership
+### 4.2 Ownership
 
 For any endpoint that reads or mutates an integration connection, the backend must enforce:
 
+```
 connection.userId === authenticatedUser.id
+```
 
-This is explicitly required by the authenticated integration pattern. 
+This is explicitly required by the authenticated integration pattern.
 
-
----
-
-4.3 Token handling
+### 4.3 Token handling
 
 The backend must enforce all of the following:
 
-tokens are stored only in the integration connection layer
+- tokens are stored only in the integration connection layer
+- tokens are never returned to the client
+- tokens are never stored in widget config
+- plugins never implement provider auth directly
 
-tokens are never returned to the client
+These rules are explicit in the authenticated integration guide.
 
-tokens are never stored in widget config
+### 4.4 Provider compatibility
 
-plugins never implement provider auth directly
-
-
-These rules are explicit in the authenticated integration guide. 
-
-
----
-
-4.4 Provider compatibility
-
-Before using a connection for Google resources, the backend must verify that the selected connection belongs to the Google provider. Provider compatibility validation is explicitly part of the documented resolver flow. 
-
+Before using a connection for Google resources, the backend must verify that the selected connection belongs to the Google provider. Provider compatibility validation is explicitly part of the documented resolver flow.
 
 ---
 
-5. OAuth scope contract
+## 5. OAuth scope contract
 
-5.1 V1 scope
+### 5.1 V1 scope
 
 Use the minimum scope required for the read-only calendar widget:
 
+```
 https://www.googleapis.com/auth/calendar.readonly
+```
 
-I cannot confirm this scope from the uploaded repo docs, so treat it as a design recommendation for V1.
-
-
----
-
-6. Endpoint overview
-
-V1 includes these endpoints:
-
-1. GET /integrations
-
-
-2. GET /integrations/:integrationConnectionId
-
-
-3. PATCH /integrations/:integrationConnectionId
-
-
-4. DELETE /integrations/:integrationConnectionId
-
-
-5. POST /integrations/:integrationConnectionId/refresh
-
-
-6. GET /integrations/google/start
-
-
-7. GET /integrations/google/callback
-
-
-8. GET /integrations/google/calendars
-
-
-
-This endpoint set supports the documented two-phase settings flow: connection selection first, then provider-specific resource selection such as calendars. 
-
+This scope allows reading calendar events without modification permissions.
 
 ---
 
-7. Shared DTOs
+## 6. Endpoint overview
 
-7.1 IntegrationConnectionSummary
+V1 includes these eight endpoints:
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | /integrations | List user's connections |
+| GET | /integrations/:integrationConnectionId | Get single connection |
+| PATCH | /integrations/:integrationConnectionId | Update connection metadata |
+| DELETE | /integrations/:integrationConnectionId | Disconnect provider account |
+| POST | /integrations/:integrationConnectionId/refresh | Validate and refresh token |
+| GET | /integrations/google/start | Initiate OAuth flow |
+| GET | /integrations/google/callback | Complete OAuth flow |
+| GET | /integrations/google/calendars | List available calendars |
+
+This endpoint set supports the documented two-phase settings flow: connection selection first, then provider-specific resource selection such as calendars.
+
+---
+
+## 7. Shared DTOs
+
+### 7.1 IntegrationConnectionSummary
 
 Response-safe DTO returned to clients.
 
-Fields:
+**Fields:**
+```ts
+{
+  id: string;
+  provider: "google";
+  status: "connected" | "needs_reauth" | "revoked" | "error";
+  accountLabel: string | null;
+  accountEmail: string | null;
+  externalAccountId: string | null;
+  scopes: string[];
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+```
 
-id: string
+**Rules:**
+- must never include access token
+- must never include refresh token
+- must never include raw provider token response
+- may include non-sensitive metadata derived from metadata_json
 
-provider: "google"
+This DTO shape is derived from the canonical `integration_connections` fields and the documented rule that clients receive safe normalized data only.
 
-status: "connected" | "needs_reauth" | "revoked" | "error"
+### 7.2 IntegrationConnectionListResponse
 
-accountLabel: string | null
+```ts
+{
+  items: IntegrationConnectionSummary[];
+}
+```
 
-accountEmail: string | null
+### 7.3 IntegrationErrorResponse
 
-externalAccountId: string | null
+```ts
+{
+  error: {
+    code: string;
+    message: string;
+  };
+}
+```
 
-scopes: string[]
+**Recommended error codes:**
 
-lastSyncedAt: string | null
+| Code | Meaning |
+|------|---------|
+| INTEGRATION_NOT_FOUND | Connection doesn't exist |
+| INTEGRATION_FORBIDDEN | User doesn't own this connection |
+| INTEGRATION_PROVIDER_MISMATCH | Connection is for wrong provider |
+| INTEGRATION_NEEDS_REAUTH | Token expired or revoked |
+| INTEGRATION_REFRESH_FAILED | Token refresh failed |
+| INTEGRATION_INVALID_STATE | OAuth state is invalid |
+| INTEGRATION_OAUTH_EXCHANGE_FAILED | Code exchange with provider failed |
+| INTEGRATION_PROVIDER_ERROR | Provider returned an error |
 
-createdAt: string
+### 7.4 GoogleCalendarOption
 
-updatedAt: string
+```ts
+{
+  id: string;
+  summary: string;
+  primary: boolean;
+  accessRole: string | null;
+}
+```
 
+This DTO exists to support the documented phase-2 resource selection flow for authenticated widget settings.
 
-Rules:
+### 7.5 GoogleCalendarListResponse
 
-must never include access token
-
-must never include refresh token
-
-must never include raw provider token response
-
-may include non-sensitive metadata derived from metadata_json
-
-
-This DTO shape is derived from the canonical integration_connections fields and the documented rule that clients receive safe normalized data only.  
-
-
----
-
-7.2 IntegrationConnectionListResponse
-
-Fields:
-
-items: IntegrationConnectionSummary[]
-
-
-
----
-
-7.3 IntegrationErrorResponse
-
-Fields:
-
-error: { code: string, message: string }
-
-
-Recommended error codes:
-
-INTEGRATION_NOT_FOUND
-
-INTEGRATION_FORBIDDEN
-
-INTEGRATION_PROVIDER_MISMATCH
-
-INTEGRATION_NEEDS_REAUTH
-
-INTEGRATION_REFRESH_FAILED
-
-INTEGRATION_INVALID_STATE
-
-INTEGRATION_OAUTH_EXCHANGE_FAILED
-
-INTEGRATION_PROVIDER_ERROR
-
-
-These codes are recommended based on the documented error classes: invalid connection, missing connection, provider failure, and access denied. 
-
-
----
-
-7.4 GoogleCalendarOption
-
-Fields:
-
-id: string
-
-summary: string
-
-primary: boolean
-
-accessRole: string | null
-
-
-This DTO exists to support the documented phase-2 resource selection flow for authenticated plugin settings. 
-
+```ts
+{
+  items: GoogleCalendarOption[];
+}
+```
 
 ---
 
-7.5 GoogleCalendarListResponse
+## 8. Endpoint contracts
 
-Fields:
+### 8.1 GET /integrations
 
-items: GoogleCalendarOption[]
+**Purpose:** List the current user's integration connections.
 
+**Auth:** JWT required.
 
+**Query params:**
+```ts
+{
+  provider?: string;
+  status?: string;
+}
+```
 
----
+**Validation:**
+- `provider`, if supplied, must be a supported provider key
+- `status`, if supplied, must be one of the supported connection states
 
-8. Endpoint contracts
-
-8.1 GET /integrations
-
-Purpose
-
-List the current user’s integration connections.
-
-Auth
-
-JWT required. 
-
-Query params
-
-provider?: string
-
-status?: string
-
-
-Validation
-
-provider, if supplied, must be a supported provider key
-
-status, if supplied, must be one of the supported connection states
-
-
-Success response
-
+**Success response:**
+```
 HTTP 200 OK
 
-Body:
+{
+  items: IntegrationConnectionSummary[];
+}
+```
 
-items: IntegrationConnectionSummary[]
-
-
-Error response
-
+**Error response:**
+```
 HTTP 401 Unauthorized
+// unauthenticated request
+```
 
-unauthenticated request
-
-
-Notes
-
-This endpoint is used by the settings UI connection picker, which the authenticated integration pattern explicitly requires as phase 1. 
-
+**Notes:** This endpoint is used by the settings UI connection picker, which the authenticated integration pattern explicitly requires as phase 1.
 
 ---
 
-8.2 GET /integrations/:integrationConnectionId
+### 8.2 GET /integrations/:integrationConnectionId
 
-Purpose
+**Purpose:** Return a single safe connection summary.
 
-Return a single safe connection summary.
+**Auth:** JWT required.
 
-Auth
+**Path params:**
+```ts
+{
+  integrationConnectionId: string; // UUID
+}
+```
 
-JWT required. 
+**Validation:**
+- must be a valid UUID
+- connection must exist
+- connection must belong to the authenticated user
 
-Path params
-
-integrationConnectionId: string
-
-
-Validation
-
-must be a valid UUID
-
-connection must exist
-
-connection must belong to the authenticated user
-
-
-Success response
-
+**Success response:**
+```
 HTTP 200 OK
 
-Body:
-
 IntegrationConnectionSummary
+```
 
-
-Error responses
-
+**Error responses:**
+```
 HTTP 404 Not Found
-
-connection does not exist
-
+// connection does not exist
 
 HTTP 403 Forbidden
-
-connection belongs to another user
-
-
+// connection belongs to another user
+```
 
 ---
 
-8.3 PATCH /integrations/:integrationConnectionId
+### 8.3 PATCH /integrations/:integrationConnectionId
 
-Purpose
+**Purpose:** Update user-editable connection metadata.
 
-Update user-editable connection metadata.
+**Auth:** JWT required.
 
-Auth
+**Path params:**
+```ts
+{
+  integrationConnectionId: string; // UUID
+}
+```
 
-JWT required. 
+**Request body:**
+```ts
+{
+  accountLabel?: string | null;
+}
+```
 
-Path params
+**Allowed fields:** `accountLabel`
 
-integrationConnectionId: string
+**Disallowed fields:**
+- `provider`
+- `userId`
+- `externalAccountId`
+- `scopes`
+- token fields
+- raw metadata replacement (unless explicitly supported later)
 
-
-Request body
-
-Allowed fields:
-
-accountLabel?: string | null
-
-
-Disallowed fields:
-
-provider
-
-userId
-
-externalAccountId
-
-scopes
-
-token fields
-
-raw metadata replacement unless explicitly supported later
-
-
-Success response
-
+**Success response:**
+```
 HTTP 200 OK
 
-Body:
-
 IntegrationConnectionSummary
+```
 
-
-Error responses
-
+**Error responses:**
+```
 HTTP 400 Bad Request
-
-invalid label
-
+// invalid label
 
 HTTP 404 Not Found
-
-connection not found
-
+// connection not found
 
 HTTP 403 Forbidden
-
-ownership violation
-
-
+// ownership violation
+```
 
 ---
 
-8.4 DELETE /integrations/:integrationConnectionId
+### 8.4 DELETE /integrations/:integrationConnectionId
 
-Purpose
+**Purpose:** Disconnect a provider account.
 
-Disconnect a provider account.
+**Auth:** JWT required.
 
-Auth
+**Path params:**
+```ts
+{
+  integrationConnectionId: string; // UUID
+}
+```
 
-JWT required. 
+**Behavior:**
+1. verify ownership
+2. mark connection unusable immediately
+3. remove or invalidate local tokens
+4. widgets referencing this connection must later resolve into a safe missing-connection or invalid-connection widget error state
 
-Path params
+The missing-connection and invalid-connection behaviors are explicitly required by the integration pattern.
 
-integrationConnectionId: string
-
-
-Behavior
-
-verify ownership
-
-mark connection unusable immediately
-
-remove or invalidate local tokens
-
-widgets referencing this connection must later resolve into a safe missing-connection or invalid-connection widget error state
-
-
-The missing-connection and invalid-connection behaviors are explicitly required by the integration pattern. 
-
-Success response
-
+**Success response:**
+```
 HTTP 204 No Content
+```
 
-Error responses
-
+**Error responses:**
+```
 HTTP 404 Not Found
-
-connection not found
-
+// connection not found
 
 HTTP 403 Forbidden
+// ownership violation
+```
 
-ownership violation
-
-
-Note
-
-Soft delete vs hard delete is not specified in the uploaded docs. I cannot confirm which one your current codebase prefers. Recommended V1 behavior is soft delete or status transition to preserve diagnostics.
-
+**Note:** Soft delete vs hard delete is not specified in the uploaded docs. Recommended V1 behavior is soft delete or status transition to preserve diagnostics.
 
 ---
 
-8.5 POST /integrations/:integrationConnectionId/refresh
+### 8.5 POST /integrations/:integrationConnectionId/refresh
 
-Purpose
+**Purpose:** Manually validate and refresh a connection.
 
-Manually validate and refresh a connection.
+**Auth:** JWT required.
 
-Auth
+**Path params:**
+```ts
+{
+  integrationConnectionId: string; // UUID
+}
+```
 
-JWT required. 
+**Behavior:**
+1. verify ownership
+2. load connection
+3. validate provider compatibility
+4. call adapter `validateConnection`
+5. call adapter `refreshConnectionIfNeeded`
+6. persist updated expiry/token metadata
+7. return updated safe summary
 
-Path params
+This behavior is directly aligned with the documented provider adapter contract.
 
-integrationConnectionId: string
-
-
-Behavior
-
-verify ownership
-
-load connection
-
-validate provider compatibility
-
-call adapter validateConnection
-
-call adapter refreshConnectionIfNeeded
-
-persist updated expiry/token metadata
-
-return updated safe summary
-
-
-This behavior is directly aligned with the documented provider adapter contract. 
-
-Success response
-
+**Success response:**
+```
 HTTP 200 OK
 
-Body:
-
 IntegrationConnectionSummary
+```
 
-
-Error responses
-
+**Error responses:**
+```
 HTTP 404 Not Found
-
-connection not found
-
+// connection not found
 
 HTTP 403 Forbidden
-
-ownership violation
-
+// ownership violation
 
 HTTP 409 Conflict
-
-connection requires re-authentication
-
+// connection requires re-authentication
 
 HTTP 502 Bad Gateway
-
-provider refresh failed
-
-
+// provider refresh failed
+```
 
 ---
 
-8.6 GET /integrations/google/start
+### 8.6 GET /integrations/google/start
 
-Purpose
+**Purpose:** Start Google OAuth for a signed-in Ambient Screen user.
 
-Start Google OAuth for a signed-in Ambient Screen user.
+**Auth:** JWT required.
 
-Auth
+**Query params:**
+```ts
+{
+  returnTo?: string;
+}
+```
 
-JWT required. 
+**Behavior:**
+1. verify authenticated user
+2. generate signed short-lived OAuth state
+3. bind state to user identity
+4. redirect user to Google consent screen
 
-Query params
-
-returnTo?: string
-
-
-Behavior
-
-verify authenticated user
-
-generate signed short-lived OAuth state
-
-bind state to user identity
-
-redirect user to Google consent screen
-
-
-Success response
-
+**Success response:**
+```
 HTTP 302 Found
+// Redirects to Google OAuth authorize URL
+```
 
-Redirects to Google OAuth authorize URL
+**Alternative (for native/mobile flows):**
+```
+HTTP 200 OK
 
-Alternative
+{
+  authorizationUrl: string;
+}
+```
 
-For native/mobile flows, an implementation may return 200 OK with:
-
-authorizationUrl: string
-
-
-I cannot confirm whether your current client prefers redirect-based web flow, deep-link flow, or a hybrid. This is a product/client implementation choice.
-
-Error responses
-
+**Error responses:**
+```
 HTTP 401 Unauthorized
-
-not signed in
-
+// not signed in
 
 HTTP 429 Too Many Requests
+// rate limited
+```
 
-rate limited
+**Security notes:** State must include at least:
+- authenticated user id
+- provider key
+- nonce
+- expiry
+- return target
 
-
-Security notes
-
-State must include at least:
-
-authenticated user id
-
-provider key
-
-nonce
-
-expiry
-
-return target
-
-
-The platform security model confirms auth and sensitive command/install paths use rate limiting; Google OAuth start should follow the same principle. 
-
+The platform security model confirms auth and sensitive command/install paths use rate limiting; Google OAuth start should follow the same principle.
 
 ---
 
-8.7 GET /integrations/google/callback
+### 8.7 GET /integrations/google/callback
 
-Purpose
+**Purpose:** Finish Google OAuth, exchange code for tokens, and create or update an IntegrationConnection.
 
-Finish Google OAuth, exchange code for tokens, and create or update an IntegrationConnection.
+**Auth:** No bearer JWT required on callback itself. Trust is established by verifying the OAuth state.
 
-Auth
+**Query params:**
+```ts
+{
+  code?: string;
+  state?: string;
+  error?: string;
+}
+```
 
-No bearer JWT required on callback itself. Trust is established by verifying the OAuth state.
+**Behavior:**
+1. verify signed state and expiry
+2. resolve Ambient Screen user identity from state
+3. if provider returned error, stop and redirect with failure
+4. exchange auth code for tokens
+5. fetch Google account identity
+6. upsert `integration_connections` row
+7. redirect user back to the app integrations screen
 
-Query params
-
-code?: string
-
-state?: string
-
-error?: string
-
-
-Behavior
-
-verify signed state and expiry
-
-resolve Ambient Screen user identity from state
-
-if provider returned error, stop and redirect with failure
-
-exchange auth code for tokens
-
-fetch Google account identity
-
-upsert integration_connections row
-
-redirect user back to the app integrations screen
-
-
-Success response
-
+**Success response:**
+```
 HTTP 302 Found
+// Redirect target example:
+// /admin/integrations?provider=google&status=success
+```
 
-Redirect target example:
-
-/admin/integrations?provider=google&status=success
-
-Failure response
-
+**Failure response:**
+```
 HTTP 302 Found
+// Redirect target example:
+// /admin/integrations?provider=google&status=error&code=oauth_failed
+```
 
-Redirect target example:
+**Persistence rules:** The created or updated connection must store:
+- `provider = "google"`
+- `external_account_id`
+- encrypted access token
+- encrypted refresh token (if provided)
+- `token_expires_at`
+- `scopes_json`
+- provider-safe metadata such as email or display label
 
-/admin/integrations?provider=google&status=error&code=oauth_failed
-
-Persistence rules
-
-The created or updated connection must store:
-
-provider = "google"
-
-external_account_id
-
-encrypted access token
-
-encrypted refresh token if provided
-
-token_expires_at
-
-scopes_json
-
-provider-safe metadata such as email or display label
-
-
-This is aligned to the canonical integration_connections schema and the integration pattern.  
-
+This is aligned to the canonical `integration_connections` schema and the integration pattern.
 
 ---
 
-8.8 GET /integrations/google/calendars
+### 8.8 GET /integrations/google/calendars
 
-Purpose
+**Purpose:** List the calendars available through a selected Google connection.
 
-List the calendars available through a selected Google connection.
+**Auth:** JWT required.
 
-Auth
+**Query params:**
+```ts
+{
+  integrationConnectionId: string; // UUID (required)
+}
+```
 
-JWT required. 
+**Validation:**
+- required UUID format
+- connection must exist
+- connection must belong to authenticated user
+- connection provider must be google
 
-Query params
+**Behavior:**
+1. load connection
+2. validate ownership and provider compatibility
+3. validate connection
+4. refresh token if needed
+5. call Google Calendar list endpoint
+6. normalize response into calendar options
 
-integrationConnectionId: string
+This endpoint directly supports the documented phase-2 resource selection flow for authenticated widget settings.
 
-
-Validation
-
-required UUID
-
-connection must exist
-
-connection must belong to authenticated user
-
-connection provider must be google
-
-
-Behavior
-
-load connection
-
-validate ownership and provider compatibility
-
-validate connection
-
-refresh token if needed
-
-call Google Calendar list endpoint
-
-normalize response into calendar options
-
-
-This endpoint directly supports the documented phase-2 resource selection flow for authenticated widget settings. 
-
-Success response
-
+**Success response:**
+```
 HTTP 200 OK
 
-Body:
+{
+  items: GoogleCalendarOption[];
+}
+```
 
-items: GoogleCalendarOption[]
-
-
-Error responses
-
+**Error responses:**
+```
 HTTP 400 Bad Request
-
-missing or invalid connection id
-
+// missing or invalid connection id
 
 HTTP 403 Forbidden
-
-ownership violation
-
+// ownership violation
 
 HTTP 404 Not Found
-
-connection not found
-
+// connection not found
 
 HTTP 409 Conflict
-
-connection needs re-auth
-
+// connection needs re-auth
 
 HTTP 502 Bad Gateway
-
-provider error
-
-
+// provider error
+```
 
 ---
 
-9. Express route signatures
+## 9. Express route signatures
 
 These are the suggested backend signatures for the current Express API structure.
 
-9.1 integrations.routes.ts
+### 9.1 integrations.routes.ts
 
+```ts
 router.get("/integrations", requireJwt, integrationsController.listConnections)
-
 router.get("/integrations/:integrationConnectionId", requireJwt, integrationsController.getConnection)
-
 router.patch("/integrations/:integrationConnectionId", requireJwt, integrationsController.updateConnection)
-
 router.delete("/integrations/:integrationConnectionId", requireJwt, integrationsController.deleteConnection)
-
 router.post("/integrations/:integrationConnectionId/refresh", requireJwt, integrationsController.refreshConnection)
+```
 
+### 9.2 google-oauth.routes.ts
 
-9.2 google-oauth.routes.ts
-
+```ts
 router.get("/integrations/google/start", requireJwt, googleOAuthController.start)
-
 router.get("/integrations/google/callback", googleOAuthController.callback)
-
 router.get("/integrations/google/calendars", requireJwt, googleIntegrationsController.listCalendars)
+```
 
-
-This route split keeps generic connection lifecycle separate from provider-specific OAuth/resource flows while still fitting the existing route-module pattern. 
-
+This route split keeps generic connection lifecycle separate from provider-specific OAuth/resource flows while still fitting the existing route-module pattern.
 
 ---
 
-10. Service contract
+## 10. Service contract
 
-10.1 IntegrationsService
+### 10.1 IntegrationsService
 
-Methods:
-
+**Methods:**
+```ts
 listConnections(userId, filters)
-
 getConnectionById(userId, connectionId)
-
 updateConnectionLabel(userId, connectionId, input)
-
 deleteConnection(userId, connectionId)
-
 refreshConnection(userId, connectionId)
+```
 
+**Responsibilities:**
+- enforce ownership
+- return safe DTOs
+- never expose token material
+- delegate provider-specific operations to provider services/adapters
 
-Responsibilities:
+These responsibilities follow from the integration security rules and the current service/repository backend structure.
 
-enforce ownership
+### 10.2 GoogleOAuthService
 
-return safe DTOs
-
-never expose token material
-
-delegate provider-specific operations to provider services/adapters
-
-
-These responsibilities follow from the integration security rules and the current service/repository backend structure.  
-
-
----
-
-10.2 GoogleOAuthService
-
-Methods:
-
+**Methods:**
+```ts
 buildAuthorizationUrl(userId, returnTo?)
-
 handleCallback(query)
-
 exchangeCodeForTokens(code)
-
 fetchGoogleIdentity(accessToken)
-
 upsertGoogleConnection(userId, identity, tokenSet)
+```
 
+**Responsibilities:**
+- own OAuth state generation and validation
+- exchange code for tokens
+- fetch account identity
+- create or update `integration_connections`
 
-Responsibilities:
+### 10.3 GoogleCalendarAdapter
 
-own OAuth state generation and validation
-
-exchange code for tokens
-
-fetch account identity
-
-create or update integration_connections
-
-
-
----
-
-10.3 GoogleCalendarAdapter
-
-Methods:
-
+**Methods:**
+```ts
 validateConnection(connection)
-
 refreshConnectionIfNeeded(connection)
-
 fetch(input)
-
 normalize(raw, input)
-
 getCacheKey(input)
-
 getTtlSeconds(input)
+```
 
-
-This matches the documented OAuth-capable provider adapter contract. 
-
+This matches the documented OAuth-capable provider adapter contract.
 
 ---
 
-11. Repository contract
+## 11. Repository contract
 
-11.1 IntegrationsRepository
+### 11.1 IntegrationsRepository
 
-Methods:
-
+**Methods:**
+```ts
 listByUser(userId, filters)
-
 findById(connectionId)
-
 findByUserAndId(userId, connectionId)
-
 findByUserProviderAndExternalAccount(userId, provider, externalAccountId)
-
 create(input)
-
 update(connectionId, patch)
-
 markDeletedOrRevoked(connectionId)
-
 touchLastSynced(connectionId, at)
+```
 
-
-11.2 Data mapping rules
+### 11.2 Data mapping rules
 
 Repository returns persistence models. Service maps them into safe DTOs. Token fields are never passed beyond the provider-aware service/adapter boundary unless strictly required for refresh or provider calls.
 
-This boundary is implied by the integration docs, which require plugin resolvers and clients to stay scoped away from direct token handling. 
-
+This boundary is implied by the integration docs, which require plugin resolvers and clients to stay scoped away from direct token handling.
 
 ---
 
-12. Request validation contract
+## 12. Request validation contract
 
-12.1 UUID validation
+### 12.1 UUID validation
 
 The following inputs must validate as UUIDs:
+- `integrationConnectionId`
 
-integrationConnectionId
+### 12.2 Patch validation
 
+`PATCH /integrations/:integrationConnectionId` accepts only:
 
-12.2 Patch validation
+**Request body:**
+```ts
+{
+  accountLabel: string | null;
+}
+```
 
-PATCH /integrations/:integrationConnectionId accepts only:
-
-accountLabel: string | null
-
-
-Constraints:
-
-max length recommended: 120
-
-trim whitespace
-
-empty string normalizes to null
-
+**Constraints:**
+- max length recommended: 120 characters
+- trim whitespace
+- empty string normalizes to null
 
 The exact length limit is a design recommendation; I cannot confirm an existing repo-wide string policy from the uploaded docs.
 
-12.3 Query validation
+### 12.3 Query validation
 
-GET /integrations/google/calendars requires:
+`GET /integrations/google/calendars` requires:
+- `integrationConnectionId`
 
-integrationConnectionId
-
-
-GET /integrations optional filters:
-
-provider
-
-status
-
-
+`GET /integrations` optional filters:
+- `provider`
+- `status`
 
 ---
 
-13. Error behavior contract
+## 13. Error behavior contract
 
-13.1 Safe error messages
+### 13.1 Safe error messages
 
 Client-visible messages must be short and non-technical.
 
-Examples:
+**Examples:**
+- `Connection not found.`
+- `This connection needs to be reconnected.`
+- `Unable to load calendars.`
+- `Access to this account was denied.`
 
-Connection not found.
+This aligns with the broader plugin/UI guidance that user-facing widget and integration messages should stay safe and plain-language.
 
-This connection needs to be reconnected.
+### 13.2 Connection state transitions
 
-Unable to load calendars.
+**Recommended transitions:**
 
-Access to this account was denied.
+| From | To | Trigger |
+|------|----|---------|
+| connected | needs_reauth | Token expired or revoked |
+| connected | error | Transient provider issue |
+| connected | revoked | User disconnected account |
+| needs_reauth | connected | Successful re-auth |
 
-
-This aligns with the broader plugin/UI guidance that user-facing widget and integration messages should stay safe and plain-language. 
-
-13.2 Connection state transitions
-
-Recommended transitions:
-
-connected -> needs_reauth when refresh fails or tokens are revoked
-
-connected -> error for transient provider issues
-
-connected -> revoked when user disconnects
-
-needs_reauth -> connected after successful re-auth
-
-
-These transitions are design recommendations built on top of the canonical status field.
-
+These transitions are design recommendations built on top of the canonical `status` field.
 
 ---
 
-14. Frontend consumption contract
+## 14. Frontend consumption contract
 
-14.1 Connection picker
+### 14.1 Connection picker
 
 The plugin settings UI must first call:
 
+```
 GET /integrations?provider=google
+```
 
 and render a connection picker.
 
-14.2 Calendar picker
+### 14.2 Calendar picker
 
 After the user selects a connection, the settings UI must call:
 
+```
 GET /integrations/google/calendars?integrationConnectionId=...
+```
 
 and render a calendar picker.
 
-This matches the documented two-phase settings UI pattern for authenticated integrations. 
-
+This matches the documented two-phase settings UI pattern for authenticated integrations.
 
 ---
 
-15. Widget resolver dependency contract
+## 15. Widget resolver dependency contract
+
+### 15.1 Config shape
 
 The Google Calendar widget resolver must receive config shaped like:
 
-provider
+```ts
+{
+  provider: "google";
+  integrationConnectionId: string;
+  calendarId?: string;           // provider-specific selection
+  maxEvents?: number;             // display parameter
+}
+```
 
-integrationConnectionId
+That pattern is explicitly documented for authenticated widgets.
 
-provider-specific selection fields such as calendarIds
-
-display-specific parameters such as maxItems
-
-
-That pattern is explicitly documented for authenticated widgets. 
+### 15.2 Resolver flow
 
 The resolver flow must remain:
 
 1. load widget instance
-
-
 2. read widget config
-
-
 3. load integration connection by id
-
-
 4. validate ownership and provider compatibility
-
-
 5. validate connection
-
-
 6. refresh token if needed
-
-
 7. fetch provider data
-
-
 8. normalize into widget envelope
 
-
-
-That flow is explicitly documented and should not be bypassed. 
-
+That flow is explicitly documented and should not be bypassed.
 
 ---
 
-16. Suggested file layout
+## 16. Suggested file layout
 
-Under apps/api/src/modules/integrations/:
+### 16.1 Core integrations module
 
-integrations.routes.ts
+```
+apps/api/src/modules/integrations/
+├── integrations.routes.ts
+├── integrations.controller.ts
+├── integrations.service.ts
+├── integrations.repository.ts
+├── integrations.types.ts
+├── integrations.schemas.ts
+└── integration-connection.mapper.ts
+```
 
-integrations.controller.ts
+### 16.2 Google-specific module
 
-integrations.service.ts
+```
+apps/api/src/modules/integrations/providers/google/
+├── google-oauth.routes.ts
+├── google-oauth.controller.ts
+├── google-oauth.service.ts
+├── google-calendar.adapter.ts
+├── google.client.ts
+└── google.schemas.ts
+```
 
-integrations.repository.ts
-
-integrations.types.ts
-
-integrations.schemas.ts
-
-integration-connection.mapper.ts
-
-
-Under apps/api/src/modules/integrations/providers/google/:
-
-google-oauth.routes.ts
-
-google-oauth.controller.ts
-
-google-oauth.service.ts
-
-google-calendar.adapter.ts
-
-google.client.ts
-
-google.schemas.ts
-
-
-This respects the current backend’s domain route groups and route/service/repository layering. 
-
+This respects the current backend's domain route groups and route/service/repository layering.
 
 ---
 
-17. Minimum V1 acceptance criteria
+## 17. Minimum V1 acceptance criteria
 
 1. A signed-in user can start Google OAuth.
-
-
-2. Callback creates or updates an integration_connections row.
-
-
+2. Callback creates or updates an `integration_connections` row.
 3. User can list their Google connections safely.
-
-
 4. User can disconnect a Google connection.
-
-
 5. User can list calendars for a selected Google connection.
-
-
 6. No token material is ever returned to the client.
-
-
 7. Widget settings can complete connection selection then calendar selection.
+8. Calendar widget resolver can use `integrationConnectionId` without owning auth state.
 
-
-8. Calendar widget resolver can use integrationConnectionId without owning auth state.
-
-
-
-These criteria are directly derived from the integration pattern and the calendar
+These criteria are directly derived from the integration pattern and the calendar widget specifications.
