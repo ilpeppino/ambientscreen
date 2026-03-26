@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import type { WidgetKey } from "@ambient/shared-contracts";
+import { CalendarSettingsForm } from "../../../widgets/calendar/settings-form";
 import type { WidgetConfigFieldDescriptor } from "../../display/components/WidgetSettingsModal.logic";
 import {
   buildConfigDraft,
@@ -241,19 +242,29 @@ export function WidgetPropertiesPanel({
         </View>
       ) : null}
 
-      {isEditing && descriptors.length > 0 ? (
+      {isEditing ? (
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Edit Configuration</Text>
-          <View style={styles.configList}>
-            {descriptors.map((descriptor) => (
-              <InlineFieldEditor
-                key={descriptor.key}
-                descriptor={descriptor}
-                value={draft[descriptor.key]}
-                onChange={setFieldValue}
-              />
-            ))}
-          </View>
+          {selectedWidget.widgetKey === "calendar" ? (
+            <CalendarSettingsForm
+              config={draft as Record<string, unknown>}
+              disabled={saving}
+              onChange={(updatedConfig) => {
+                setDraft(updatedConfig as Record<string, unknown>);
+              }}
+            />
+          ) : descriptors.length > 0 ? (
+            <View style={styles.configList}>
+              {descriptors.map((descriptor) => (
+                <InlineFieldEditor
+                  key={descriptor.key}
+                  descriptor={descriptor}
+                  value={draft[descriptor.key]}
+                  onChange={setFieldValue}
+                />
+              ))}
+            </View>
+          ) : null}
           {(validationError ?? saveError) ? (
             <Text style={styles.errorText}>{validationError ?? saveError}</Text>
           ) : null}
