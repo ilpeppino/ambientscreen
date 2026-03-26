@@ -163,10 +163,11 @@ Fields:
 - editable: boolean  
 - multiline?: boolean  
 - options?: Option[]  
-- helperText?: string  
-- onChange?: function  
-- isVisible?: boolean  
-- isDisabled?: boolean  
+- helperText?: string
+- onChange?: function
+- onConnect?: function — `connectionPicker` only; called when the user initiates a new OAuth connection. OAuth logic must live outside the widget.
+- isVisible?: boolean
+- isDisabled?: boolean
 
 ---
 
@@ -331,12 +332,14 @@ Use cases:
 
 Purpose:
 
-- select or create integration connection  
+- select or create integration connection
 
 Rules:
 
-- never expose tokens  
-- must support connect flow  
+- never expose tokens
+- must support connect flow via `onConnect` callback on the field definition
+- `onConnect` is invoked when the user taps "Connect new account"; the widget must not contain OAuth logic
+- `onChange` is invoked when the user selects an existing connection
 
 ---
 
@@ -419,12 +422,22 @@ Read-only inspector must:
 Edit mode must:
 
 - follow section grouping:
-  1. Connection  
-  2. Resource  
-  3. Display  
+  1. Connection
+  2. Resource
+  3. Display
 
-- use shared components only  
-- include helper text where needed  
+- use shared components only
+- include helper text where needed
+
+### 11.1 Section Visibility vs Disabled
+
+Prefer `isDisabled` on fields over hiding entire sections when the section represents a step the user has not yet reached:
+
+- Show the section (`isVisible: true`) as soon as the user has committed to the path (e.g. selected Google as provider).
+- Disable its fields (`isDisabled: true`) until the prerequisite step is complete (e.g. connection chosen).
+- This lets users see what configuration is available before committing to prior steps.
+
+Only use `isVisible: false` on a section when its existence is entirely irrelevant to the current state (e.g. the Google Calendar section when iCal is selected).
 
 ---
 

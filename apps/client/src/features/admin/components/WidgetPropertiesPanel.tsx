@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import type { WidgetKey } from "@ambient/shared-contracts";
-import { CalendarSettingsForm } from "../../../widgets/calendar/settings-form";
 import type { WidgetConfigFieldDescriptor } from "../../display/components/WidgetSettingsModal.logic";
 import {
   buildConfigDraft,
@@ -15,7 +14,7 @@ import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import { InspectorReadOnlyField, InspectorReadOnlySection } from "./InspectorReadOnlyField";
 import { buildWidgetReadOnlyFields } from "../widgetInspectorSummary";
-import { getIntegrationConnection, listGoogleCalendars } from "../../../services/api/integrationsApi";
+import { CalendarInspectorContent } from "../../../widgets/calendar/CalendarInspectorContent";
 
 const WIDGET_ICON = {
   clockDate: "clock",
@@ -23,86 +22,19 @@ const WIDGET_ICON = {
   calendar: "calendar",
 } as const;
 
-interface CalendarResolution {
-  accountLabel: string | null;
-  calendarLabel: string | null;
-  loading: boolean;
-}
-
-function useCalendarResolution(config: Record<string, unknown>): CalendarResolution {
-  const [accountLabel, setAccountLabel] = useState<string | null>(null);
-  const [calendarLabel, setCalendarLabel] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const integrationConnectionId = config.integrationConnectionId as string | undefined;
-  const calendarId = config.calendarId as string | undefined;
-
-  useEffect(() => {
-    if (!integrationConnectionId) {
-      setAccountLabel(null);
-      setCalendarLabel(null);
-      return;
-    }
-
-    setLoading(true);
-
-    Promise.all([
-      getIntegrationConnection(integrationConnectionId).catch(() => null),
-      calendarId ? listGoogleCalendars(integrationConnectionId).catch(() => []) : Promise.resolve([]),
-    ])
-      .then(([connection, calendars]) => {
-        const label = connection?.accountLabel ?? connection?.accountEmail ?? null;
-        setAccountLabel(label);
-
-        if (calendarId && calendars && calendars.length > 0) {
-          const calendar = calendars.find((cal) => cal.id === calendarId);
-          setCalendarLabel(calendar?.summary ?? null);
-        } else {
-          setCalendarLabel(null);
-        }
-      })
-      .finally(() => setLoading(false));
-  }, [integrationConnectionId, calendarId]);
-
-  return { accountLabel, calendarLabel, loading };
-}
-
 interface ReadOnlyConfigurationViewProps {
   selectedWidget: DisplayLayoutWidgetEnvelope;
 }
 
 function ReadOnlyConfigurationView({ selectedWidget }: ReadOnlyConfigurationViewProps) {
   const fields = buildWidgetReadOnlyFields(selectedWidget.widgetKey, selectedWidget.config);
-  const calendarResolution = useCalendarResolution(selectedWidget.config);
-  const provider = selectedWidget.config.provider as string | undefined;
-  const calendarId = selectedWidget.config.calendarId as string | undefined;
 
-  const hasFields = fields.length > 0 || (selectedWidget.widgetKey === "calendar" && provider === "google");
-
-  if (!hasFields) {
+  if (fields.length === 0) {
     return null;
   }
 
   return (
     <InspectorReadOnlySection title="Configuration">
-      {selectedWidget.widgetKey === "calendar" && provider === "google" && (
-        <>
-          <InspectorReadOnlyField
-            label="Connected account"
-            value={calendarResolution.accountLabel ?? ""}
-            emptyText={calendarResolution.loading ? "Loading…" : "—"}
-            faded={!calendarResolution.accountLabel}
-          />
-          {calendarId && (
-            <InspectorReadOnlyField
-              label="Calendar"
-              value={calendarResolution.calendarLabel ?? ""}
-              emptyText={calendarResolution.loading ? "Loading…" : "—"}
-              faded={!calendarResolution.calendarLabel}
-            />
-          )}
-        </>
-      )}
       {fields.map(({ key, label, value }) => (
         <InspectorReadOnlyField key={key} label={label} value={value} />
       ))}
@@ -304,40 +236,42 @@ export function WidgetPropertiesPanel({
         ) : null}
       </View>
 
-      {!isEditing ? (
-        <ReadOnlyConfigurationView selectedWidget={selectedWidget} />
-      ) : null}
+      {selectedWidget.widgetKey === "calendar" ? (
+        // Calendar uses the shared inspector system for both read-only and edit modes.
+        <CalendarInspectorContent
+          config={selectedWidget.config}
+          draft={draft}
+          mode={isEditing ? "edit" : "readOnly"}
+          onChange={(patch) => setDraft((prev) => ({ ...prev, ...patch }))}
+        />
+      ) : (
+        <>
+          {!isEditing ? (
+            <ReadOnlyConfigurationView selectedWidget={selectedWidget} />
+          ) : null}
 
-      {isEditing ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Edit Configuration</Text>
-          {selectedWidget.widgetKey === "calendar" ? (
-            <CalendarSettingsForm
-              widgetKey={selectedWidget.widgetKey}
-              schema={selectedWidget.configSchema ?? {}}
-              config={draft as Record<string, unknown>}
-              disabled={saving}
-              onChange={(updatedConfig) => {
-                setDraft(updatedConfig as Record<string, unknown>);
-              }}
-            />
-          ) : descriptors.length > 0 ? (
-            <View style={styles.configList}>
-              {descriptors.map((descriptor) => (
-                <InlineFieldEditor
-                  key={descriptor.key}
-                  descriptor={descriptor}
-                  value={draft[descriptor.key]}
-                  onChange={setFieldValue}
-                />
-              ))}
+          {isEditing ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Edit Configuration</Text>
+              {descriptors.length > 0 ? (
+                <View style={styles.configList}>
+                  {descriptors.map((descriptor) => (
+                    <InlineFieldEditor
+                      key={descriptor.key}
+                      descriptor={descriptor}
+                      value={draft[descriptor.key]}
+                      onChange={setFieldValue}
+                    />
+                  ))}
+                </View>
+              ) : null}
+              {(validationError ?? saveError) ? (
+                <Text style={styles.errorText}>{validationError ?? saveError}</Text>
+              ) : null}
             </View>
           ) : null}
-          {(validationError ?? saveError) ? (
-            <Text style={styles.errorText}>{validationError ?? saveError}</Text>
-          ) : null}
-        </View>
-      ) : null}
+        </>
+      )}
     </ScrollView>
   );
 }
