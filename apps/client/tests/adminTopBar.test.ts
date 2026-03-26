@@ -56,6 +56,7 @@ const baseProps = {
   onUpgradePlan: vi.fn(),
   onEnterDisplayMode: vi.fn(),
   onEnterRemoteControlMode: vi.fn(),
+  onEnterIntegrations: vi.fn(),
   onLogout: vi.fn(),
 };
 

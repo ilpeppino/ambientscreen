@@ -22,13 +22,14 @@ model User {
   createdAt    DateTime  @default(now())
   activeProfileId String?
 
-  profiles           Profile[]
-  orchestrationRules OrchestrationRule[]
-  devices            Device[]
-  sharedSessions     SharedScreenSession[]
-  activeProfile      Profile?            @relation("UserActiveProfile", fields: [activeProfileId], references: [id], onDelete: SetNull)
-  installedPlugins   InstalledPlugin[]
-  authoredPlugins    Plugin[]            @relation("AuthoredPlugins")
+  profiles               Profile[]
+  orchestrationRules     OrchestrationRule[]
+  devices                Device[]
+  sharedSessions         SharedScreenSession[]
+  activeProfile          Profile?            @relation("UserActiveProfile", fields: [activeProfileId], references: [id], onDelete: SetNull)
+  installedPlugins       InstalledPlugin[]
+  authoredPlugins        Plugin[]            @relation("AuthoredPlugins")
+  integrationConnections IntegrationConnection[]
 
   @@index([activeProfileId])
 }
@@ -251,4 +252,27 @@ model PluginVersion {
   @@unique([pluginId, version])
   @@index([pluginId])
   @@index([isActive])
+}
+
+model IntegrationConnection {
+  id                    String    @id @default(uuid())
+  userId                String
+  provider              String
+  status                String    @default("connected")
+  accountLabel          String?
+  externalAccountId     String
+  scopesJson            String    @default("[]")
+  accessTokenEncrypted  String
+  refreshTokenEncrypted String?
+  tokenExpiresAt        DateTime?
+  metadataJson          String    @default("{}")
+  lastSyncedAt          DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, externalAccountId])
+  @@index([userId])
+  @@index([userId, provider])
 }

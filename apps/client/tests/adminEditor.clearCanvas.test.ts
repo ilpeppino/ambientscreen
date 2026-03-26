@@ -267,6 +267,7 @@ function renderScreen() {
       onEnterDisplayMode: vi.fn(),
       onEnterRemoteControlMode: vi.fn(),
       onEnterMarketplace: vi.fn(),
+      onEnterIntegrations: vi.fn(),
       onLogout: vi.fn(),
     }),
   );
