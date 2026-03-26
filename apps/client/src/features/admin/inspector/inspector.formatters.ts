@@ -57,3 +57,28 @@ export function formatDisplayValue(
 
   return String(value);
 }
+
+/** Format a timezone value. "local" → "Local"; IANA zones pass through. */
+export function formatTimezoneLabel(timezone: string): string {
+  if (timezone === "local") return "Local";
+  return timezone;
+}
+
+/** Format a BCP-47 locale code into a human-readable name. */
+export function formatLocaleLabel(locale: string): string {
+  const localeNames: Record<string, string> = {
+    "en-US": "English (US)",
+    "en-GB": "English (UK)",
+    "fr-FR": "French",
+    "de-DE": "German",
+    "es-ES": "Spanish",
+    "it-IT": "Italian",
+    "ja-JP": "Japanese",
+    "zh-CN": "Chinese (Simplified)",
+    "ko-KR": "Korean",
+    "pt-BR": "Portuguese (Brazil)",
+    "ru-RU": "Russian",
+    "ar-SA": "Arabic",
+  };
+  return localeNames[locale] ?? locale;
+}
