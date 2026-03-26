@@ -34,28 +34,6 @@ model User {
   @@index([activeProfileId])
 }
 
-model IntegrationConnection {
-  id                    String    @id @default(uuid())
-  userId                String
-  provider              String
-  externalAccountId     String
-  encryptedAccessToken  String
-  encryptedRefreshToken String?
-  tokenType             String    @default("Bearer")
-  scopes                String[]  @default([])
-  expiresAt             DateTime?
-  label                 String?
-  metadata              Json?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, provider, externalAccountId])
-  @@index([userId])
-  @@index([userId, provider])
-}
-
 model Device {
   id         String   @id @default(uuid())
   userId     String
