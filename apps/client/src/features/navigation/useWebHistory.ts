@@ -1,9 +1,12 @@
 /**
  * useWebHistory — syncs AppMode state with browser history on web.
  *
- * - Pushes a history entry whenever mode changes
- * - Listens for popstate (browser back/forward) and calls onNavigate
- * - On initial mount, reads current hash to restore mode from URL
+ * - On initial mount, checks for an OAuth callback redirect URL and, if
+ *   found, navigates to the target mode with callback params and replaces
+ *   the URL with the canonical hash-based equivalent.
+ * - Falls back to reading the current hash to restore mode from URL.
+ * - Pushes a history entry whenever mode changes.
+ * - Listens for popstate (browser back/forward) and calls onNavigate.
  *
  * No-op on native platforms (Platform.OS !== 'web').
  */
@@ -11,22 +14,40 @@
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import type { AppMode } from "./appMode.logic";
-import { addPopStateListener, modeFromCurrentHash, pushHistoryEntry } from "./webHistory";
+import type { OAuthCallbackParams } from "./deepLinks";
+import {
+  addPopStateListener,
+  modeFromCurrentHash,
+  parseOAuthCallbackFromPath,
+  pushHistoryEntry,
+  replaceWithHashUrl,
+} from "./webHistory";
 
 interface UseWebHistoryOptions {
   mode: AppMode;
-  onNavigate: (mode: AppMode) => void;
+  onNavigate: (mode: AppMode, oauthCallback?: OAuthCallbackParams) => void;
 }
 
 export function useWebHistory({ mode, onNavigate }: UseWebHistoryOptions): void {
   const isWeb = Platform.OS === "web";
 
-  // Restore mode from URL on initial mount (web only)
+  // Restore mode from URL on initial mount (web only).
+  // Checks for an OAuth callback redirect first, then falls back to hash.
   useEffect(() => {
     if (!isWeb) {
       return;
     }
 
+    // Check for OAuth callback (non-hash path-based redirect from backend)
+    const callbackResult = parseOAuthCallbackFromPath(window.location);
+    if (callbackResult) {
+      // Replace the callback URL with the hash-based URL to keep history clean
+      replaceWithHashUrl(callbackResult.mode);
+      onNavigate(callbackResult.mode, callbackResult.oauthCallback);
+      return;
+    }
+
+    // Normal hash-based navigation restore
     const initialMode = modeFromCurrentHash();
     if (initialMode && initialMode !== mode) {
       onNavigate(initialMode);

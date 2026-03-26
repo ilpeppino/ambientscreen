@@ -47,6 +47,7 @@ interface AdminEditorScreenProps {
   onEnterDisplayMode: () => void;
   onEnterRemoteControlMode: () => void;
   onEnterMarketplace: () => void;
+  onEnterIntegrations: () => void;
   onLogout: () => void;
 }
 
@@ -60,6 +61,7 @@ export function AdminEditorScreen({
   onEnterDisplayMode,
   onEnterRemoteControlMode,
   onEnterMarketplace,
+  onEnterIntegrations,
   onLogout,
 }: AdminEditorScreenProps) {
   const { plan, hasFeature } = useEntitlements();

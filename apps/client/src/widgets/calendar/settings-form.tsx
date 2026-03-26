@@ -1,16 +1,14 @@
-import React, { useCallback, useEffect, useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { Pressable, StyleSheet, View } from "react-native";
 import type { WidgetSettingsFormProps } from "@ambient/shared-contracts";
 import { Text } from "../../shared/ui/components/Text";
 import { TextInput } from "../../shared/ui/components/TextInput";
 import { colors, radius, spacing } from "../../shared/ui/theme";
 import {
-  listIntegrationConnections,
   listGoogleCalendars,
-  getGoogleConnectUrl,
-  type IntegrationConnection,
   type GoogleCalendarOption,
 } from "../../services/api/integrationsApi";
+import { IntegrationConnectionPicker } from "../../features/integrations/IntegrationConnectionPicker";
 
 type CalendarProvider = "ical" | "google";
 type TimeWindow = "today" | "next24h" | "next7d";
@@ -39,25 +37,9 @@ export function CalendarSettingsForm({
   const maxEvents = config.maxEvents ?? 10;
   const includeAllDay = config.includeAllDay ?? true;
 
-  const [googleConnections, setGoogleConnections] = useState<IntegrationConnection[]>([]);
-  const [connectionsLoading, setConnectionsLoading] = useState(false);
-
   // Phase 2: calendar list loaded after connection is selected
   const [googleCalendars, setGoogleCalendars] = useState<GoogleCalendarOption[]>([]);
   const [calendarsLoading, setCalendarsLoading] = useState(false);
-
-  const loadConnections = useCallback(() => {
-    if (provider !== "google") return;
-    setConnectionsLoading(true);
-    listIntegrationConnections()
-      .then((all) => setGoogleConnections(all.filter((c) => c.provider === "google")))
-      .catch(() => setGoogleConnections([]))
-      .finally(() => setConnectionsLoading(false));
-  }, [provider]);
-
-  useEffect(() => {
-    loadConnections();
-  }, [loadConnections]);
 
   // Load calendar list whenever a connection is selected (Phase 2)
   useEffect(() => {
@@ -71,10 +53,6 @@ export function CalendarSettingsForm({
       .catch(() => setGoogleCalendars([]))
       .finally(() => setCalendarsLoading(false));
   }, [provider, integrationConnectionId]);
-
-  const handleConnectGoogle = () => {
-    void Linking.openURL(getGoogleConnectUrl());
-  };
 
   return (
     <View style={styles.container}>
@@ -119,54 +97,14 @@ export function CalendarSettingsForm({
       {provider === "google" && (
         <View>
           {/* Phase 1: select Google connection */}
-          <Pressable
-            style={[styles.connectButton, disabled ? styles.connectButtonDisabled : null]}
-            onPress={handleConnectGoogle}
+          <IntegrationConnectionPicker
+            provider="google"
+            selectedId={integrationConnectionId as string | null}
+            onChange={(id) =>
+              !disabled && onChange({ ...config, integrationConnectionId: id, calendarId: undefined })
+            }
             disabled={disabled}
-          >
-            <Text style={styles.connectButtonLabel}>Connect Google Account</Text>
-          </Pressable>
-
-          {connectionsLoading ? (
-            <Text color="textSecondary" variant="caption" style={styles.hint}>
-              Loading connections…
-            </Text>
-          ) : googleConnections.length > 0 ? (
-            <View style={styles.connectionList}>
-              <Text variant="caption" color="textSecondary" style={styles.sectionLabel}>
-                Select account
-              </Text>
-              {googleConnections.map((conn) => {
-                const selected = integrationConnectionId === conn.id;
-                return (
-                  <Pressable
-                    key={conn.id}
-                    style={[styles.connectionRow, selected ? styles.connectionRowSelected : null]}
-                    onPress={() =>
-                      !disabled &&
-                      onChange({ ...config, integrationConnectionId: conn.id, calendarId: undefined })
-                    }
-                    disabled={disabled}
-                  >
-                    <Text style={styles.connectionLabel}>
-                      {conn.label ?? conn.externalAccountId}
-                    </Text>
-                    {selected ? (
-                      <Text style={styles.connectionSelectedBadge}>Selected</Text>
-                    ) : null}
-                  </Pressable>
-                );
-              })}
-              <Pressable onPress={loadConnections} disabled={disabled} style={styles.refreshLink}>
-                <Text style={styles.refreshLinkLabel}>Refresh list</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Text color="textSecondary" variant="caption" style={styles.hint}>
-              No Google accounts connected yet. Tap "Connect Google Account" above,
-              then return here and refresh the list.
-            </Text>
-          )}
+          />
 
           {/* Phase 2: select calendar — only shown after a connection is chosen */}
           {integrationConnectionId ? (
@@ -323,21 +261,8 @@ const styles = StyleSheet.create({
   chipLabelSelected: {
     color: colors.textPrimary,
   },
-  connectButton: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.accentBlue,
-    alignItems: "center",
-  },
-  connectButtonDisabled: {
-    opacity: 0.5,
-  },
-  connectButtonLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: colors.accentBlue,
+  calendarPhase: {
+    marginTop: spacing.md,
   },
   connectionList: {
     marginTop: spacing.sm,
@@ -366,19 +291,7 @@ const styles = StyleSheet.create({
     color: colors.accentBlue,
     fontWeight: "600",
   },
-  refreshLink: {
-    marginTop: spacing.xs,
-    alignSelf: "flex-start",
-  },
-  refreshLinkLabel: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textDecorationLine: "underline",
-  },
   hint: {
     marginTop: spacing.sm,
-  },
-  calendarPhase: {
-    marginTop: spacing.md,
   },
 });
