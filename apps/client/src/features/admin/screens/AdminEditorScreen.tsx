@@ -518,6 +518,7 @@ export function AdminEditorScreen({
         onUpgradePlan={() => setUpgradeModalVisible(true)}
         onEnterDisplayMode={onEnterDisplayMode}
         onEnterRemoteControlMode={onEnterRemoteControlMode}
+        onEnterIntegrations={onEnterIntegrations}
         onLogout={onLogout}
       />
 
