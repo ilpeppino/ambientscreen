@@ -13,12 +13,102 @@ import {
 import { AppIcon } from "../../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
+import { InspectorReadOnlyField, InspectorReadOnlySection } from "./InspectorReadOnlyField";
+import { buildWidgetReadOnlyFields } from "../widgetInspectorSummary";
+import { getIntegrationConnection, listGoogleCalendars } from "../../../services/api/integrationsApi";
 
 const WIDGET_ICON = {
   clockDate: "clock",
   weather: "weather",
   calendar: "calendar",
 } as const;
+
+interface CalendarResolution {
+  accountLabel: string | null;
+  calendarLabel: string | null;
+  loading: boolean;
+}
+
+function useCalendarResolution(config: Record<string, unknown>): CalendarResolution {
+  const [accountLabel, setAccountLabel] = useState<string | null>(null);
+  const [calendarLabel, setCalendarLabel] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const integrationConnectionId = config.integrationConnectionId as string | undefined;
+  const calendarId = config.calendarId as string | undefined;
+
+  useEffect(() => {
+    if (!integrationConnectionId) {
+      setAccountLabel(null);
+      setCalendarLabel(null);
+      return;
+    }
+
+    setLoading(true);
+
+    Promise.all([
+      getIntegrationConnection(integrationConnectionId).catch(() => null),
+      calendarId ? listGoogleCalendars(integrationConnectionId).catch(() => []) : Promise.resolve([]),
+    ])
+      .then(([connection, calendars]) => {
+        const label = connection?.accountLabel ?? connection?.accountEmail ?? null;
+        setAccountLabel(label);
+
+        if (calendarId && calendars && calendars.length > 0) {
+          const calendar = calendars.find((cal) => cal.id === calendarId);
+          setCalendarLabel(calendar?.summary ?? null);
+        } else {
+          setCalendarLabel(null);
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [integrationConnectionId, calendarId]);
+
+  return { accountLabel, calendarLabel, loading };
+}
+
+interface ReadOnlyConfigurationViewProps {
+  selectedWidget: DisplayLayoutWidgetEnvelope;
+}
+
+function ReadOnlyConfigurationView({ selectedWidget }: ReadOnlyConfigurationViewProps) {
+  const fields = buildWidgetReadOnlyFields(selectedWidget.widgetKey, selectedWidget.config);
+  const calendarResolution = useCalendarResolution(selectedWidget.config);
+  const provider = selectedWidget.config.provider as string | undefined;
+  const calendarId = selectedWidget.config.calendarId as string | undefined;
+
+  const hasFields = fields.length > 0 || (selectedWidget.widgetKey === "calendar" && provider === "google");
+
+  if (!hasFields) {
+    return null;
+  }
+
+  return (
+    <InspectorReadOnlySection title="Configuration">
+      {selectedWidget.widgetKey === "calendar" && provider === "google" && (
+        <>
+          <InspectorReadOnlyField
+            label="Connected account"
+            value={calendarResolution.accountLabel ?? ""}
+            emptyText={calendarResolution.loading ? "Loading…" : "—"}
+            faded={!calendarResolution.accountLabel}
+          />
+          {calendarId && (
+            <InspectorReadOnlyField
+              label="Calendar"
+              value={calendarResolution.calendarLabel ?? ""}
+              emptyText={calendarResolution.loading ? "Loading…" : "—"}
+              faded={!calendarResolution.calendarLabel}
+            />
+          )}
+        </>
+      )}
+      {fields.map(({ key, label, value }) => (
+        <InspectorReadOnlyField key={key} label={label} value={value} />
+      ))}
+    </InspectorReadOnlySection>
+  );
+}
 
 interface WidgetPropertiesPanelProps {
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
@@ -110,9 +200,6 @@ export function WidgetPropertiesPanel({
           </View>
           <View style={styles.identityText}>
             <Text style={styles.widgetName}>{manifest.name}</Text>
-            <Text style={styles.widgetId} numberOfLines={1}>
-              {manifest.key}
-            </Text>
           </View>
         </View>
 
@@ -184,9 +271,6 @@ export function WidgetPropertiesPanel({
         </View>
         <View style={styles.identityText}>
           <Text style={styles.widgetName}>{widgetName}</Text>
-          <Text style={styles.widgetId} numberOfLines={1}>
-            {selectedWidget.widgetInstanceId.slice(0, 12)}…
-          </Text>
         </View>
         {onSaveConfig ? (
           isEditing ? (
@@ -220,26 +304,8 @@ export function WidgetPropertiesPanel({
         ) : null}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Layout</Text>
-        <KeyValueRow label="X" value={String(selectedWidget.layout.x)} monospace />
-        <KeyValueRow label="Y" value={String(selectedWidget.layout.y)} monospace />
-        <KeyValueRow
-          label="Size"
-          value={`${selectedWidget.layout.w} × ${selectedWidget.layout.h}`}
-          monospace
-        />
-      </View>
-
-      {!isEditing && configEntries && configEntries.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Configuration</Text>
-          <View style={styles.configList}>
-            {configEntries.map(([key, value]) => (
-              <KeyValueRow key={key} label={key} value={String(value)} monospace />
-            ))}
-          </View>
-        </View>
+      {!isEditing ? (
+        <ReadOnlyConfigurationView selectedWidget={selectedWidget} />
       ) : null}
 
       {isEditing ? (
@@ -247,6 +313,8 @@ export function WidgetPropertiesPanel({
           <Text style={styles.sectionLabel}>Edit Configuration</Text>
           {selectedWidget.widgetKey === "calendar" ? (
             <CalendarSettingsForm
+              widgetKey={selectedWidget.widgetKey}
+              schema={selectedWidget.configSchema ?? {}}
               config={draft as Record<string, unknown>}
               disabled={saving}
               onChange={(updatedConfig) => {
@@ -424,12 +492,6 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.textPrimary,
     fontWeight: "700",
-  },
-  widgetId: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontFamily: "monospace",
-    opacity: 0.75,
   },
   editActions: {
     flexDirection: "row",

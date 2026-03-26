@@ -22,6 +22,14 @@ vi.mock("react-native", () => {
       flatten: (style: unknown) => style,
       absoluteFillObject: { position: "absolute", left: 0, right: 0, top: 0, bottom: 0 },
     },
+    Platform: {
+      OS: "web",
+    },
+    NativeModules: {
+      SourceCode: {
+        scriptURL: "http://localhost:3000",
+      },
+    },
   };
 });
 
@@ -326,7 +334,7 @@ describe("WidgetPropertiesPanel", () => {
     expect(allText).toContain("×");
   });
 
-  test("canvas inspector shows layout as inline fields with Size label", () => {
+  test("canvas inspector does not show layout section in read-only mode", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
         selectedWidget: {
@@ -343,13 +351,12 @@ describe("WidgetPropertiesPanel", () => {
     );
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
-    expect(texts.some((t) => String(t).includes("Layout"))).toBe(true);
-    expect(texts.some((t) => String(t).includes("Size"))).toBe(true);
-    // Should show values
-    expect(texts.some((t) => String(t) === "1" || String(t).includes("1"))).toBe(true);
+    // Layout section should not be shown
+    expect(texts.some((t) => String(t).includes("Layout"))).toBe(false);
+    expect(texts.some((t) => String(t).includes("Size"))).toBe(false);
   });
 
-  test("config rows render without boxed input styling (no borderWidth in configRow)", () => {
+  test("config rows display human-readable formatted values", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
         selectedWidget: {
@@ -366,12 +373,12 @@ describe("WidgetPropertiesPanel", () => {
     );
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
-    // Config value is still displayed
-    expect(texts.some((t) => String(t).includes("24h"))).toBe(true);
-    expect(texts.some((t) => String(t).includes("format"))).toBe(true);
+    // Config value should be formatted to human-readable form
+    expect(texts.some((t) => String(t).includes("24-hour"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("Format"))).toBe(true);
   });
 
-  test("shows widget details when a widget is selected", () => {
+  test("shows widget details with human-readable labels and formatted values when a widget is selected", () => {
     const tree = TestRenderer.create(
       React.createElement(WidgetPropertiesPanel, {
         selectedWidget: clockWidget,
@@ -379,10 +386,10 @@ describe("WidgetPropertiesPanel", () => {
     );
 
     const texts = tree.root.findAllByType("text").map((n: { props: { children?: unknown } }) => n.props.children);
-    // Should show the widget name and config key
+    // Should show the widget name and humanized config
     expect(texts.some((t) => String(t).includes("Clock"))).toBe(true);
-    expect(texts.some((t) => String(t).includes("format"))).toBe(true);
-    expect(texts.some((t) => String(t).includes("24h"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("Format"))).toBe(true);
+    expect(texts.some((t) => String(t).includes("24-hour"))).toBe(true);
   });
 
   test("renders read-only configuration without editable inputs by default", () => {
