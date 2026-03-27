@@ -1,4 +1,4 @@
-import { test, expect } from "vitest";
+import { test, expect, describe } from "vitest";
 import {
   createWidgetSchema,
   normalizeWidgetConfig,
@@ -63,7 +63,7 @@ test("M2-1: createWidgetSchema allows missing layout for backward compatibility"
 test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () => {
   const normalizedClock = normalizeWidgetConfig("clockDate", { hour12: "nope" });
   expect(normalizedClock).toEqual({
-    format: "24h",
+    hour12: false,
     showSeconds: false,
     timezone: "local",
   });
@@ -99,6 +99,50 @@ test("M4-3: normalizeWidgetConfig maps legacy calendar config to V1 admin shape"
     timeWindow: "next7d",
     maxEvents: 5,
     includeAllDay: true,
+  });
+});
+
+describe("clockDate config normalization (format → hour12)", () => {
+  test("hour12 provided directly is preserved", () => {
+    const result = normalizeWidgetConfig("clockDate", { hour12: true });
+    expect(result).toEqual({ hour12: true, showSeconds: false, timezone: "local" });
+  });
+
+  test("legacy format='12h' is converted to hour12=true", () => {
+    const result = normalizeWidgetConfig("clockDate", { format: "12h" });
+    expect(result).toEqual({ hour12: true, showSeconds: false, timezone: "local" });
+  });
+
+  test("legacy format='24h' is converted to hour12=false", () => {
+    const result = normalizeWidgetConfig("clockDate", { format: "24h" });
+    expect(result).toEqual({ hour12: false, showSeconds: false, timezone: "local" });
+  });
+
+  test("format wins on the write path when both hour12 and format are provided", () => {
+    // On the write path, format always converts to hour12. This ensures legacy API callers
+    // who send format get the intended behavior even if hour12 is also present (e.g., from
+    // a previous normalization pass of the existing config during a PATCH).
+    const result = normalizeWidgetConfig("clockDate", { hour12: false, format: "12h" });
+    expect(result).toEqual({ hour12: true, showSeconds: false, timezone: "local" });
+  });
+
+  test("neither field defaults to hour12=false (24h)", () => {
+    const result = normalizeWidgetConfig("clockDate", { timezone: "Europe/London" });
+    expect(result).toEqual({ hour12: false, showSeconds: false, timezone: "Europe/London" });
+  });
+
+  test("format field is never persisted in output", () => {
+    const result = normalizeWidgetConfig("clockDate", { format: "12h" }) as Record<string, unknown>;
+    expect(result).not.toHaveProperty("format");
+  });
+
+  test("createWidgetSchema still accepts format on input for backward compatibility", () => {
+    const parsed = createWidgetSchema.safeParse({
+      type: "clockDate",
+      config: { format: "12h", showSeconds: true, timezone: "UTC" },
+      layout: { x: 0, y: 0, w: 1, h: 1 },
+    });
+    expect(parsed.success).toBe(true);
   });
 });
 

@@ -26,10 +26,12 @@ export interface WidgetManifest<TKey extends WidgetKey = WidgetKey> {
 }
 
 export interface ClockDateWidgetConfig {
+  /** @deprecated Use `hour12` instead. Kept for backward compatibility with persisted data. */
   format?: "12h" | "24h";
   showSeconds?: boolean;
   timezone?: string;
   locale?: string;
+  /** Canonical field: true = 12-hour clock, false = 24-hour clock. */
   hour12?: boolean;
 }
 
@@ -78,12 +80,12 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
     key: "clockDate",
     name: "Clock & Date",
     defaultConfig: {
-      format: "24h",
+      hour12: false,
       showSeconds: false,
       timezone: "local",
     },
     configSchema: {
-      format: ["12h", "24h"],
+      hour12: "boolean",
       showSeconds: "boolean",
       timezone: "string",
     },

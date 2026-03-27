@@ -130,12 +130,12 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       refreshPolicy: { intervalMs: 1000 },
     },
     defaultConfig: {
-      format: "24h",
+      hour12: false,
       showSeconds: false,
       timezone: "local",
     },
     configSchema: {
-      format: ["12h", "24h"],
+      hour12: "boolean",
       showSeconds: "boolean",
       timezone: "string",
     },

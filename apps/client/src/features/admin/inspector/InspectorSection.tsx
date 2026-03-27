@@ -1,13 +1,15 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../../shared/ui/components/Text";
-import { colors, spacing } from "../../../shared/ui/theme";
+import { colors, spacing, typography } from "../../../shared/ui/theme";
 import type { InspectorAction } from "./inspector.types";
 
 interface InspectorSectionProps {
   title: string;
   description?: string;
   actions?: InspectorAction[];
+  /** When true, section actions become non-interactive. */
+  disabled?: boolean;
   children: React.ReactNode;
 }
 
@@ -15,6 +17,7 @@ export function InspectorSection({
   title,
   description,
   actions,
+  disabled,
   children,
 }: InspectorSectionProps) {
   return (
@@ -26,7 +29,8 @@ export function InspectorSection({
             {actions.map((action) => (
               <Pressable
                 key={action.label}
-                onPress={action.onClick}
+                onPress={() => !disabled && action.onClick()}
+                disabled={disabled}
                 accessibilityRole="button"
               >
                 <Text
@@ -64,7 +68,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   title: {
-    fontSize: 11,
+    ...typography.captionXs,
     color: colors.textSecondary,
     fontWeight: "700",
     textTransform: "uppercase",

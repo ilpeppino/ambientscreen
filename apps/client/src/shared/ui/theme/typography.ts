@@ -11,6 +11,8 @@ const semanticTypography = {
   titleSm: { fontSize: 16, fontWeight: "600" },
   body: { fontSize: 14, fontWeight: "400", lineHeight: 20 },
   caption: { fontSize: 12, fontWeight: "400" },
+  captionXs: { fontSize: 11, fontWeight: "400" },
+  compactControl: { fontSize: 13, fontWeight: "400" },
 } as const satisfies Record<string, TypographyStyle>;
 
 export const typography = {

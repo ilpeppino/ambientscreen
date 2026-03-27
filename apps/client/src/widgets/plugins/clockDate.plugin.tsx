@@ -20,6 +20,7 @@ export const clockDateWidgetPlugin: WidgetClientPluginModule<"clockDate", React.
         onChange={(patch) =>
           props.onChange({ ...props.config, ...patch } as typeof props.config)
         }
+        disabled={props.disabled}
       />
     ),
   },

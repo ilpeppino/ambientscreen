@@ -15,6 +15,8 @@ interface WeatherInspectorContentProps {
   mode: InspectorMode;
   /** Called with a raw config patch. */
   onChange: (patch: Record<string, unknown>) => void;
+  /** When true, all interactive controls are non-interactive (e.g. save in progress). */
+  disabled?: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export function WeatherInspectorContent({
   draft,
   mode,
   onChange,
+  disabled,
 }: WeatherInspectorContentProps) {
   const activeConfig = mode === "edit" ? draft : config;
 
@@ -34,5 +37,5 @@ export function WeatherInspectorContent({
     onChange: (patch) => onChange(patch as Record<string, unknown>),
   });
 
-  return <InspectorRenderer definition={definition} mode={mode} />;
+  return <InspectorRenderer definition={definition} mode={mode} disabled={disabled} />;
 }

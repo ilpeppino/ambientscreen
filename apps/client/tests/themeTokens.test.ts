@@ -59,6 +59,11 @@ test("exports typography variants", () => {
   expect(typography.badge).toEqual({ fontSize: 12, fontWeight: "700" });
 });
 
+test("exports compact inspector typography tokens", () => {
+  expect(typography.captionXs).toEqual({ fontSize: 11, fontWeight: "400" });
+  expect(typography.compactControl).toEqual({ fontSize: 13, fontWeight: "400" });
+});
+
 test("exports motion durations", () => {
   expect(motion.fast).toBe(150);
   expect(motion.normal).toBe(250);

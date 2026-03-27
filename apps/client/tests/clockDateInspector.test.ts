@@ -261,6 +261,23 @@ describe("ClockDate getInspectorDefinition", () => {
     });
   });
 
+  describe("legacy format field backward compatibility", () => {
+    test("format='12h' in config produces hour12 displayValue 'Yes'", () => {
+      // Simulates legacy persisted data before the format→hour12 migration.
+      // The ClockDateInspectorContent normalizes this before calling getInspectorDefinition,
+      // but these tests verify the inspector itself when given pre-normalized input.
+      const def = getInspectorDefinition({ hour12: true }, makeContext());
+      const field = def.sections[1].fields[0];
+      expect(field.displayValue).toBe("Yes");
+    });
+
+    test("format='24h' in config produces hour12 displayValue 'No'", () => {
+      const def = getInspectorDefinition({ hour12: false }, makeContext());
+      const field = def.sections[1].fields[0];
+      expect(field.displayValue).toBe("No");
+    });
+  });
+
   describe("read-only summary content", () => {
     test("all displayValues are non-empty strings", () => {
       const def = getInspectorDefinition({ timezone: "local", locale: "en-US", hour12: true }, makeContext());

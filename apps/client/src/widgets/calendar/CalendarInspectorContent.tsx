@@ -15,6 +15,8 @@ interface CalendarInspectorContentProps {
   mode: InspectorMode;
   /** Called with a raw config patch (uses `account` key, not `icalUrl`). */
   onChange: (patch: Record<string, unknown>) => void;
+  /** When true, all interactive controls are non-interactive (e.g. save in progress). */
+  disabled?: boolean;
 }
 
 /**
@@ -27,6 +29,7 @@ export function CalendarInspectorContent({
   draft,
   mode,
   onChange,
+  disabled,
 }: CalendarInspectorContentProps) {
   const activeConfig = mode === "edit" ? draft : config;
 
@@ -48,6 +51,7 @@ export function CalendarInspectorContent({
       definition={definition}
       mode={mode}
       resourcesLoading={context.calendarsLoading}
+      disabled={disabled}
     />
   );
 }

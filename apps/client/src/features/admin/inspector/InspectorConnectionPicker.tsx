@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../../shared/ui/components/Text";
-import { colors, radius, spacing } from "../../../shared/ui/theme";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { InspectorOptionList } from "./InspectorOptionList";
 import type { Option } from "./inspector.types";
 
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   connectLabel: {
-    fontSize: 13,
+    ...typography.compactControl,
     fontWeight: "600",
     color: colors.accentBlue,
   },

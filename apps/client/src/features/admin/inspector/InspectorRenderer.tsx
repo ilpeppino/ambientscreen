@@ -1,6 +1,6 @@
 import React from "react";
 import { StyleSheet, TextInput } from "react-native";
-import { colors, radius, spacing } from "../../../shared/ui/theme";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import { InspectorSection } from "./InspectorSection";
 import { InspectorReadOnlyField } from "./InspectorReadOnlyField";
 import { InspectorFieldGroup } from "./InspectorFieldGroup";
@@ -20,6 +20,11 @@ interface InspectorRendererProps {
   mode: InspectorMode;
   /** Pass true while async resources (e.g. calendar list) are being fetched. */
   resourcesLoading?: boolean;
+  /**
+   * Global disabled state. When true, all interactive controls become non-interactive.
+   * Merges with field-level isDisabled — either source can disable a field.
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -31,6 +36,7 @@ export function InspectorRenderer({
   definition,
   mode,
   resourcesLoading,
+  disabled: globalDisabled,
 }: InspectorRendererProps) {
   return (
     <>
@@ -47,9 +53,10 @@ export function InspectorRenderer({
             description={section.description}
             // Section-level actions only shown in edit mode
             actions={mode === "edit" ? section.actions : undefined}
+            disabled={globalDisabled}
           >
             {visibleFields.map((field) =>
-              renderField(field, mode, resourcesLoading),
+              renderField(field, mode, globalDisabled ?? false, resourcesLoading),
             )}
           </InspectorSection>
         );
@@ -61,6 +68,7 @@ export function InspectorRenderer({
 function renderField(
   field: InspectorFieldDefinition,
   mode: InspectorMode,
+  globalDisabled: boolean,
   resourcesLoading?: boolean,
 ): React.ReactNode {
   // Read-only: always show displayValue
@@ -74,7 +82,8 @@ function renderField(
     );
   }
 
-  const disabled = field.isDisabled === true;
+  // Either global disabled or field-level isDisabled can disable a field.
+  const disabled = globalDisabled || field.isDisabled === true;
 
   switch (field.kind) {
     case "segmented":
@@ -205,7 +214,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.sm,
-    fontSize: 13,
+    ...typography.compactControl,
     color: colors.textPrimary,
   },
   textInputDisabled: {

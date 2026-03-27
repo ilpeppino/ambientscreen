@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../../shared/ui/components/Text";
-import { colors, radius, spacing } from "../../../shared/ui/theme";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 
 interface InspectorBooleanFieldProps {
   value: boolean;
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accentBlue,
   },
   label: {
-    fontSize: 13,
+    ...typography.compactControl,
     fontWeight: "500",
     color: colors.textSecondary,
   },

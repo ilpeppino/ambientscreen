@@ -21,6 +21,7 @@ export const calendarWidgetPlugin: WidgetClientPluginModule<"calendar", React.Re
         onChange={(patch) =>
           props.onChange({ ...props.config, ...patch } as typeof props.config)
         }
+        disabled={props.disabled}
       />
     ),
     Preview: (props) => <CalendarPreview {...props} />,

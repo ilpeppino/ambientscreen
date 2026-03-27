@@ -1,7 +1,8 @@
-import { test, expect, afterEach, beforeEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi, describe } from "vitest";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetDataService } from "../src/modules/widgetData/widget-data.service";
 import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/calendar.resolver";
+import { resolveClockDateWidgetData } from "../src/modules/widgetData/resolvers/clockDate.resolver";
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
 import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
@@ -67,6 +68,65 @@ test("widgetDataService returns safe error when config validation fails", async 
   const result = await widgetDataService.getWidgetDataForUser("widget-weather", "user-1");
   expect(result?.state).toBe("error");
   expect(result?.meta?.errorCode).toBe("INVALID_WIDGET_CONFIG");
+});
+
+describe("clockDate resolver config normalization", () => {
+  test("hour12=true produces 12-hour formatted time", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { hour12: true, timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    // 12h format uses AM/PM suffix
+    expect(result.data?.formattedTime).toMatch(/AM|PM/i);
+  });
+
+  test("hour12=false produces 24-hour formatted time", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { hour12: false, timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
+
+  test("legacy format='12h' produces 12-hour formatted time (backward compat)", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { format: "12h", timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).toMatch(/AM|PM/i);
+  });
+
+  test("legacy format='24h' produces 24-hour formatted time (backward compat)", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { format: "24h", timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
+
+  test("empty config defaults to 24-hour formatted time", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: {},
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
+
+  test("hour12 wins over format on the read path (resolver)", async () => {
+    // In the resolver, hour12 is checked first; format is only a fallback for legacy data.
+    // If a stale persisted record somehow has both, hour12 takes precedence.
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { hour12: false, format: "12h", timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
 });
 
 test("weather resolver returns normalized ready payload from provider data", async () => {

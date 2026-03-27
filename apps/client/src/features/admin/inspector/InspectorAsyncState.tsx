@@ -1,7 +1,7 @@
 import React from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { Text } from "../../../shared/ui/components/Text";
-import { colors, spacing } from "../../../shared/ui/theme";
+import { colors, spacing, typography } from "../../../shared/ui/theme";
 
 export type AsyncStatus = "loading" | "empty" | "error";
 
@@ -43,11 +43,11 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
   },
   text: {
-    fontSize: 13,
+    ...typography.compactControl,
     color: colors.textSecondary,
   },
   error: {
-    fontSize: 13,
+    ...typography.compactControl,
     color: colors.error,
   },
 });

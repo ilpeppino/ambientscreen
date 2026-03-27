@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   helper: {
-    fontSize: 11,
+    ...typography.captionXs,
     color: colors.textSecondary,
     lineHeight: 16,
     opacity: 0.8,

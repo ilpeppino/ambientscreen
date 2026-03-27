@@ -1,7 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../../shared/ui/components/Text";
-import { colors, radius, spacing } from "../../../shared/ui/theme";
+import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { Option } from "./inspector.types";
 
 interface InspectorOptionListProps {
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     borderColor: colors.accentBlue,
   },
   label: {
-    fontSize: 13,
+    ...typography.compactControl,
     color: colors.textPrimary,
     flex: 1,
   },
@@ -76,12 +76,12 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   checkmark: {
-    fontSize: 13,
+    ...typography.compactControl,
     color: colors.accentBlue,
     fontWeight: "700",
   },
   placeholder: {
-    fontSize: 13,
+    ...typography.compactControl,
     color: colors.textSecondary,
     fontStyle: "italic",
   },

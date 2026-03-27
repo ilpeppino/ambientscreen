@@ -140,7 +140,7 @@ export function getInspectorDefinition(
 - Provider is isolated in a dedicated adapter file
 - Resolver accepts injectable `fetchWeatherData` for unit-testability without HTTP
 - Inspector is 2 sections (location + display), no connections or OAuth
-- Has SettingsForm and Preview components
+- Has Preview component
 
 ### File map
 
@@ -152,7 +152,6 @@ export function getInspectorDefinition(
 | Resolver | `apps/api/src/modules/widgetData/resolvers/weather.resolver.ts` |
 | Client plugin | `apps/client/src/widgets/plugins/weather.plugin.tsx` |
 | Renderer | `apps/client/src/widgets/weather/renderer.tsx` |
-| Settings form | `apps/client/src/widgets/weather/settings-form.tsx` |
 | Preview | `apps/client/src/widgets/weather/preview.tsx` |
 | Inspector definition | `apps/client/src/widgets/weather/inspector.ts` |
 | Inspector tests | `apps/client/tests/weatherInspector.test.ts` |
@@ -216,7 +215,6 @@ export interface WeatherInspectorContext {
 | Resolver | `apps/api/src/modules/widgetData/resolvers/calendar.resolver.ts` |
 | Client plugin | `apps/client/src/widgets/plugins/calendar.plugin.tsx` |
 | Renderer | `apps/client/src/widgets/calendar/renderer.tsx` |
-| Settings form | `apps/client/src/widgets/calendar/settings-form.tsx` |
 | Preview | `apps/client/src/widgets/calendar/preview.tsx` |
 | Inspector definition | `apps/client/src/widgets/calendar/inspector.ts` |
 | Inspector tests | `apps/client/tests/calendarInspector.test.ts` |
@@ -313,11 +311,28 @@ Use this checklist when evaluating any new widget:
 
 ## 7. Known drift and notes
 
-### clockDate — `format` vs `hour12`
+### clockDate — `hour12` is canonical; `format` is deprecated
 
-`ClockDateWidgetConfig` in `shared-contracts` has both `format` ("12h"/"24h") and `hour12` (boolean).
-The inspector exposes `hour12` only. `format` is set through the legacy SettingsForm path if used.
-New integrations should prefer `hour12`.
+`hour12` (boolean) is the single source of truth for the 12/24-hour setting.
+
+**Normalization strategy (applied at every config boundary):**
+- `hour12` defined → use it directly
+- `hour12` absent, `format` present → derive: `"12h"` → `true`, `"24h"` → `false`
+- Neither present → default to `false` (24-hour)
+
+**Write path:** `mapLegacyConfig` in `widget-contracts.ts` converts `format → hour12` and removes
+`format` before persistence. New configs never write `format`.
+
+**Read path (inspector):** `ClockDateInspectorContent.normalizeForInspector` converts legacy
+`format` to `hour12` before passing the config to `getInspectorDefinition`.
+
+**Resolver:** `toClockDateConfig` in `clockDate.resolver.ts` applies the same normalization before
+formatting the time string.
+
+**Backward compatibility:** Old persisted configs with only `format` continue to behave correctly
+because all three read-path consumers normalize `format → hour12` on the fly. No migration is needed.
+
+`ClockDateWidgetConfig.format` is marked `@deprecated` in `shared-contracts`. Do not write it in new code.
 
 ### calendar — `icalUrl` vs `account`
 
@@ -325,13 +340,6 @@ New integrations should prefer `hour12`.
 `CalendarConfig.icalUrl` in `calendar/inspector.ts` uses the more descriptive name.
 The consumer layer is responsible for mapping `icalUrl ↔ account` when reading/writing config.
 See the file header in `apps/client/src/widgets/calendar/inspector.ts` for details.
-
-### weather — SettingsForm retained alongside inspector
-
-`WeatherSettingsForm` is the legacy settings UI (used in `weather.plugin.tsx` as `SettingsForm`).
-`weather/inspector.ts` is the new declarative inspector definition (used by the inspector renderer).
-Both coexist: the plugin module keeps `SettingsForm` for the edit modal flow; the inspector definition
-is consumed by the read-only/edit inspector panel. This matches the same dual-path as calendar.
 
 ---
 

@@ -36,16 +36,20 @@ describe("clockDate plugin manifest (docs/plugins/EXAMPLE_PLUGIN_CLOCK.md)", () 
 
   it("has the documented config schema fields", () => {
     const { configSchema } = clockDateWidgetPlugin;
-    expect(configSchema.format).toEqual(["12h", "24h"]);
+    expect(configSchema.hour12).toBe("boolean");
     expect(configSchema.showSeconds).toBe("boolean");
     expect(configSchema.timezone).toBe("string");
+    // format is deprecated and no longer in the canonical schema
+    expect(configSchema.format).toBeUndefined();
   });
 
   it("has the documented default config values", () => {
     const { defaultConfig } = clockDateWidgetPlugin;
-    expect(defaultConfig.format).toBe("24h");
+    expect(defaultConfig.hour12).toBe(false);
     expect(defaultConfig.showSeconds).toBe(false);
     expect(defaultConfig.timezone).toBe("local");
+    // format is deprecated and no longer in the canonical default config
+    expect(defaultConfig.format).toBeUndefined();
   });
 
   it("shares manifest and schema with widgetBuiltinDefinitions", () => {
