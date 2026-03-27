@@ -9,9 +9,10 @@ import {
   updateProfile as updateProfileApi,
 } from "../../services/api/profilesApi";
 import type { Profile } from "@ambient/shared-contracts";
+import { isUnauthorizedApiError } from "../../services/api/apiClient";
 
 export function useCloudProfiles() {
-  const { token } = useAuth();
+  const { token, logout } = useAuth();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState(false);
@@ -32,49 +33,88 @@ export function useCloudProfiles() {
       setActiveProfileId(result.activeProfileId);
       setProfilesError(null);
     } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        await logout();
+        return;
+      }
       setProfiles([]);
       setActiveProfileId(null);
       setProfilesError(error instanceof Error ? error.message : "Failed to load profiles");
     } finally {
       setIsLoadingProfiles(false);
     }
-  }, [token]);
+  }, [logout, token]);
 
   useEffect(() => {
     void refreshProfiles();
   }, [refreshProfiles]);
 
   const activateProfile = useCallback(async (profileId: string) => {
-    const response = await activateProfileApi(profileId);
-    setActiveProfileId(response.activeProfileId);
-    return response.activeProfileId;
-  }, []);
+    try {
+      const response = await activateProfileApi(profileId);
+      setActiveProfileId(response.activeProfileId);
+      return response.activeProfileId;
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        await logout();
+      }
+      throw error;
+    }
+  }, [logout]);
 
   const createProfile = useCallback(async (name: string) => {
-    await createProfileApi(name);
-    await refreshProfiles();
-  }, [refreshProfiles]);
+    try {
+      await createProfileApi(name);
+      await refreshProfiles();
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        await logout();
+      }
+      throw error;
+    }
+  }, [logout, refreshProfiles]);
 
   const renameProfile = useCallback(async (profileId: string, name: string) => {
-    await renameProfileApi(profileId, name);
-    await refreshProfiles();
-  }, [refreshProfiles]);
+    try {
+      await renameProfileApi(profileId, name);
+      await refreshProfiles();
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        await logout();
+      }
+      throw error;
+    }
+  }, [logout, refreshProfiles]);
 
   const updateProfile = useCallback(
     async (
       profileId: string,
       patch: { name?: string; defaultSlideDurationSeconds?: number },
     ) => {
-      await updateProfileApi(profileId, patch);
-      await refreshProfiles();
+      try {
+        await updateProfileApi(profileId, patch);
+        await refreshProfiles();
+      } catch (error) {
+        if (isUnauthorizedApiError(error)) {
+          await logout();
+        }
+        throw error;
+      }
     },
-    [refreshProfiles],
+    [logout, refreshProfiles],
   );
 
   const deleteProfile = useCallback(async (profileId: string) => {
-    await deleteProfileApi(profileId);
-    await refreshProfiles();
-  }, [refreshProfiles]);
+    try {
+      await deleteProfileApi(profileId);
+      await refreshProfiles();
+    } catch (error) {
+      if (isUnauthorizedApiError(error)) {
+        await logout();
+      }
+      throw error;
+    }
+  }, [logout, refreshProfiles]);
 
   return {
     profiles,

@@ -15,6 +15,7 @@ import {
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
 import type { RealtimeConnectionState } from "../services/realtimeClient";
+import { isUnauthorizedApiError } from "../../../services/api/apiClient";
 
 const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 const EMPTY_WIDGETS: DisplayLayoutWidgetEnvelope[] = [];
@@ -27,6 +28,7 @@ interface UseDisplayDataOptions {
   editMode: boolean;
   isAppActive: boolean;
   realtimeConnectionState: RealtimeConnectionState;
+  onUnauthorized?: () => void | Promise<void>;
 }
 
 interface UseDisplayDataReturn {
@@ -50,6 +52,7 @@ export function useDisplayData({
   editMode,
   isAppActive,
   realtimeConnectionState,
+  onUnauthorized,
 }: UseDisplayDataOptions): UseDisplayDataReturn {
   const [activeSlide, setActiveSlide] = useState<DisplaySlideEnvelope | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(true);
@@ -108,6 +111,10 @@ export function useDisplayData({
       setActiveSlide(resolveSlideComposition(response));
       setError(null);
     } catch (err) {
+      if (isUnauthorizedApiError(err)) {
+        await onUnauthorized?.();
+        return;
+      }
       console.error(err);
       setError(toErrorMessage(err, "Failed to load display layout"));
       if (showInitialLoading) {
@@ -118,7 +125,7 @@ export function useDisplayData({
         setLoadingLayout(false);
       }
     }
-  }, [effectiveActiveProfileId, slideId]);
+  }, [effectiveActiveProfileId, onUnauthorized, slideId]);
 
   const loadDisplayLayoutRef = useRef(loadDisplayLayout);
   loadDisplayLayoutRef.current = loadDisplayLayout;

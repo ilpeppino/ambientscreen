@@ -59,6 +59,7 @@ vi.mock("react-native", () => ({
   TextInput: host("text-input"),
   KeyboardAvoidingView: host("keyboard-avoiding-view"),
   ActivityIndicator: host("activity-indicator"),
+  StatusBar: host("status-bar"),
   StyleSheet: {
     create: <T extends Record<string, unknown>>(styles: T) => styles,
     flatten: (style: unknown) => style,
@@ -134,6 +135,7 @@ vi.mock("react-native-gesture-handler", () => {
   };
 
   return {
+    GestureHandlerRootView: host("gesture-handler-root-view"),
     GestureDetector: host("gesture-detector"),
     Gesture: {
       Pan: () => chain,
