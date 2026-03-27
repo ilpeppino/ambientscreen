@@ -3,6 +3,36 @@
 All notable changes are documented here, newest first.
 
 ---
+## [v0.5.0] — 2026-03-27
+
+### Features
+
+- feat(inspector): replace always-visible option lists with inline-expand dropdown
+- feat(inspector): replace always-visible option lists with inline-expand dropdown
+- feat(editor): resizable admin sidebar with dynamic canvas adaptation
+- feat(inspector): add weather inspector definition, tests, and golden widget docs
+- feat(inspector): migrate ClockDate to shared declarative inspector system (#187)
+- feat: implement shared inspector components API and integrate calendar widget
+- feat(weather): migrate to OpenWeather API with forecast support
+
+### Bug Fixes
+
+- fix(inspector): propagate disabled state and tokenize compact typography
+- fix(inspector): wire all plugin modules to shared inspector, fix token violations
+- fix(migrations): remove duplicate IntegrationConnection migrations
+- fix(calendar): use custom CalendarSettingsForm in inspector editor (#185)
+
+### Other
+
+- docs: add shared inspector components api canonical documentation
+- docs: reformat google oauth integration api doc for readability
+- docs: reformat integration platform doc for readability
+- docs: reformat plugin examples doc for readability
+- docs: reformat plugin SDK doc for readability
+- docs: reformat plugin platform architecture doc for readability
+- refactor(inspector): clean up widget inspector read-only mode
+- chore(release): update CHANGELOG for v0.4.0 [skip ci]
+
 ## [v0.4.0] — 2026-03-24
 
 ### Features
