@@ -113,6 +113,10 @@ export const integrationsRepository = {
     return prisma.integrationConnection.update({ where: { id }, data: patch });
   },
 
+  delete(id: string): Promise<IntegrationConnectionRecord> {
+    return prisma.integrationConnection.delete({ where: { id } });
+  },
+
   markRevoked(id: string): Promise<IntegrationConnectionRecord> {
     return prisma.integrationConnection.update({
       where: { id },

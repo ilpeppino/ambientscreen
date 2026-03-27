@@ -38,7 +38,7 @@ export const integrationsService = {
   async deleteConnection(userId: string, connectionId: string): Promise<void> {
     const record = await integrationsRepository.findByUserAndId(userId, connectionId);
     if (!record) throw apiErrors.integrationNotFound("Connection not found.");
-    await integrationsRepository.markRevoked(connectionId);
+    await integrationsRepository.delete(connectionId);
   },
 
   async refreshConnection(userId: string, connectionId: string): Promise<IntegrationConnectionSummary> {
