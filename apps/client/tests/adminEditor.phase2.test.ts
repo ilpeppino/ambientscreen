@@ -31,6 +31,7 @@ vi.mock("react-native", () => {
         scriptURL: "http://localhost:3000",
       },
     },
+    useWindowDimensions: () => ({ width: 1280, height: 720, scale: 1, fontScale: 1 }),
   };
 });
 

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useEntitlements } from "../../entitlements/entitlements.context";
 import { UpgradeModal } from "../../entitlements/UpgradeModal";
 import { EmptyPanel } from "../../../shared/ui/management";
@@ -38,6 +38,7 @@ import { WidgetDragPreviewOverlay } from "../components/WidgetDragPreviewOverlay
 import { SettingsScreen } from "./SettingsScreen";
 import { SlideRail } from "../components/SlideRail";
 import { useSlideManager } from "../hooks/useSlideManager";
+import { useSidebarResize } from "../hooks/useSidebarResize";
 
 // Register widget renderers once for the canvas
 registerBuiltinWidgetPlugins();
@@ -107,6 +108,9 @@ export function AdminEditorScreen({
   const [confirmClearCanvas, setConfirmClearCanvas] = useState(false);
   const [clearingCanvas, setClearingCanvas] = useState(false);
   const [createProfileModalVisible, setCreateProfileModalVisible] = useState(false);
+
+  // ---- Sidebar resize ----
+  const { sidebarWidth, startDrag, dragging } = useSidebarResize();
 
   // ---- Slide management ----
   const slideManager = useSlideManager(activeProfileId);
@@ -535,7 +539,17 @@ export function AdminEditorScreen({
           inspectorMode={inspectorMode}
           selectedWidget={selectedWidget}
           onSaveConfig={(id, config) => handleSaveWidgetConfig(id, config)}
+          width={sidebarWidth}
         />
+
+        {Platform.OS === "web" ? (
+          <View
+            // eslint-disable-next-line react-native/no-inline-styles
+            style={[styles.resizeHandle, dragging && styles.resizeHandleActive, { cursor: "col-resize" } as object]}
+            // @ts-expect-error – web-only prop not in RN types
+            onMouseDown={(e: MouseEvent) => startDrag(e.clientX)}
+          />
+        ) : null}
 
         <View style={styles.canvasArea}>
           <DashboardCanvas
@@ -671,6 +685,15 @@ const styles = StyleSheet.create({
   canvasArea: {
     flex: 1,
     flexDirection: "column",
+  },
+  resizeHandle: {
+    width: 4,
+    backgroundColor: colors.border,
+    zIndex: 10,
+    // cursor: col-resize applied inline on web via onMouseDown handler host element
+  },
+  resizeHandleActive: {
+    backgroundColor: colors.accentBlue,
   },
   dialogBody: {
     gap: spacing.sm,

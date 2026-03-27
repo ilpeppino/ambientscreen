@@ -27,6 +27,7 @@ vi.mock("react-native", () => {
     StyleSheet: {
       create: <T extends Record<string, unknown>>(styles: T) => styles,
     },
+    useWindowDimensions: () => ({ width: 1280, height: 720, scale: 1, fontScale: 1 }),
   };
 });
 

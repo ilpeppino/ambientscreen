@@ -25,6 +25,9 @@ interface WidgetSidebarProps {
   inspectorMode: "canvas" | "library" | null;
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
   onSaveConfig: (widgetId: string, config: Record<string, unknown>) => Promise<void>;
+
+  /** Override the sidebar width. Defaults to the value in the stylesheet (288px). */
+  width?: number;
 }
 
 function MarketplacePanel({
@@ -183,6 +186,7 @@ export function WidgetSidebar({
   inspectorMode,
   selectedWidget,
   onSaveConfig,
+  width,
 }: WidgetSidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("library");
 
@@ -199,7 +203,7 @@ export function WidgetSidebar({
       : null;
 
   return (
-    <View style={styles.sidebar}>
+    <View style={[styles.sidebar, width !== undefined ? { width } : null]}>
       <View style={styles.section}>
         <View style={styles.panelHeader}>
           <View style={styles.panelHeading}>
