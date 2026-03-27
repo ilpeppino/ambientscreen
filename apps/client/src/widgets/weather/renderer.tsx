@@ -1,30 +1,44 @@
 import React from "react";
-import { StyleSheet, View, type LayoutChangeEvent } from "react-native";
+import { StyleSheet, View } from "react-native";
 import type { WidgetRendererProps } from "@ambient/shared-contracts";
 import { AppIcon, Text } from "../../shared/ui/components";
 import { colors, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
+import { deriveWidgetVisualScale, scaleBy } from "../shared/widgetRenderContext";
 
-export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">) {
-  const [contentSize, setContentSize] = React.useState({ width: 260, height: 160 });
-  const scale = clamp(
-    Math.min(contentSize.width / 300, contentSize.height / 190),
-    0.5,
-    1,
-  );
-  const compact = contentSize.height < 145;
+export function WeatherRenderer({ state, data, renderContext }: WidgetRendererProps<"weather">) {
+  const visualScale = deriveWidgetVisualScale(renderContext);
+  const compact = visualScale.sizeTier === "compact";
+  const isFullscreen = visualScale.sizeTier === "fullscreen";
+  const widgetHeight = renderContext?.widgetHeight ?? 0;
 
   const hasData = data !== null
     && (data.temperatureC !== null || Boolean(data.conditionLabel) || Boolean(data.location));
 
-  function handleContentLayout(event: LayoutChangeEvent) {
-    const { width, height } = event.nativeEvent.layout;
-    if (width > 0 && height > 0) {
-      setContentSize({ width, height });
-    }
-  }
-
   const forecastSlots = data?.forecast ?? [];
+  const iconSize = visualScale.iconScale >= 1.5 ? "xl" : visualScale.iconScale >= 1.15 ? "lg" : "md";
+
+  // Hero region: temperature display.
+  // Proportional to height in fullscreen; scaled by visual-scale multiplier otherwise.
+  const tempFontSize = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.34)
+    : scaleBy(44, visualScale.typographyScale, 26);
+  const tempLineHeight = Math.round(tempFontSize * 1.06);
+  const tempUnitFontSize = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.08)
+    : scaleBy(16, visualScale.typographyScale, 12);
+
+  // Inter-region spacing: height-proportional in fullscreen so hero, support,
+  // and detail regions have clear visual separation.
+  const heroSupportGap = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.065)
+    : scaleBy(spacing.sm, visualScale.spacingScale, 4);
+  const supportIntraGap = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.025)
+    : scaleBy(spacing.xs, visualScale.spacingScale, 2);
+  const supportDetailGap = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.05)
+    : scaleBy(spacing.sm, visualScale.spacingScale, 4);
 
   return (
     <BaseWidgetFrame
@@ -35,24 +49,33 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
       emptyMessage="No weather data was returned."
       surfaceStyle={styles.surfaceFrame}
       contentStyle={styles.contentFrame}
-      onContentLayout={handleContentLayout}
+      renderContext={renderContext}
     >
-      <View style={styles.heroRow}>
-        <AppIcon name="weather" size="lg" color="textSecondary" />
+      {/* Hero region: temperature + icon */}
+      <View style={[styles.heroRow, { gap: scaleBy(spacing.sm, visualScale.spacingScale, 4) }]}>
+        <AppIcon name="weather" size={iconSize} color="textSecondary" />
         <View style={styles.temperatureGroup}>
           <Text
-            style={[styles.temperature, { fontSize: Math.round(50 * scale), lineHeight: Math.round(52 * scale) }]}
+            style={[styles.temperature, {
+              fontSize: tempFontSize,
+              lineHeight: tempLineHeight,
+            }]}
             adjustsFontSizeToFit
             numberOfLines={1}
             minimumFontScale={0.45}
           >
             {data?.temperatureC === null ? "--" : data?.temperatureC}
           </Text>
-          <Text style={[styles.temperatureUnit, { fontSize: Math.round(16 * scale) }]}>°C</Text>
+          <Text style={[styles.temperatureUnit, { fontSize: tempUnitFontSize }]}>°C</Text>
         </View>
       </View>
+
+      {/* Support region: location + condition */}
       <Text
-        style={[styles.location, { fontSize: Math.round(14 * scale) }]}
+        style={[styles.location, {
+          marginTop: heroSupportGap,
+          fontSize: scaleBy(14, visualScale.typographyScale, 11),
+        }]}
         numberOfLines={1}
         adjustsFontSizeToFit
         minimumFontScale={0.7}
@@ -61,7 +84,10 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
       </Text>
       {!compact ? (
         <Text
-          style={[styles.condition, { fontSize: Math.round(16 * scale) }]}
+          style={[styles.condition, {
+            marginTop: supportIntraGap,
+            fontSize: scaleBy(16, visualScale.typographyScale, 12),
+          }]}
           numberOfLines={1}
           adjustsFontSizeToFit
           minimumFontScale={0.65}
@@ -69,17 +95,25 @@ export function WeatherRenderer({ state, data }: WidgetRendererProps<"weather">)
           {data?.conditionLabel ?? "No condition available"}
         </Text>
       ) : null}
+
+      {/* Detail region: forecast strip */}
       {!compact && forecastSlots.length > 0 ? (
-        <View style={styles.forecastRow}>
+        <View style={[styles.forecastRow, {
+          marginTop: supportDetailGap,
+          gap: scaleBy(spacing.xs, visualScale.spacingScale, 2),
+        }]}>
           {forecastSlots.map((slot, index) => (
-            <View key={index} style={styles.forecastSlot}>
-              <Text style={[styles.forecastTime, { fontSize: Math.round(10 * scale) }]} numberOfLines={1}>
+            <View key={index} style={[styles.forecastSlot, {
+              paddingHorizontal: scaleBy(spacing.xs, visualScale.spacingScale, 2),
+              minWidth: isFullscreen ? 60 : 44,
+            }]}>
+              <Text style={[styles.forecastTime, { fontSize: scaleBy(10, visualScale.typographyScale, 9) }]} numberOfLines={1}>
                 {formatForecastTime(slot.timeIso)}
               </Text>
-              <Text style={[styles.forecastTemp, { fontSize: Math.round(13 * scale) }]} numberOfLines={1}>
+              <Text style={[styles.forecastTemp, { fontSize: scaleBy(13, visualScale.typographyScale, 11) }]} numberOfLines={1}>
                 {slot.temperatureC !== null ? `${slot.temperatureC}°` : "--"}
               </Text>
-              <Text style={[styles.forecastCondition, { fontSize: Math.round(9 * scale) }]} numberOfLines={1}>
+              <Text style={[styles.forecastCondition, { fontSize: scaleBy(9, visualScale.typographyScale, 8) }]} numberOfLines={1}>
                 {slot.conditionLabel ?? ""}
               </Text>
             </View>
@@ -97,10 +131,6 @@ function formatForecastTime(isoString: string): string {
   } catch {
     return "";
   }
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(value, max));
 }
 
 const styles = StyleSheet.create({

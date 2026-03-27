@@ -134,3 +134,88 @@ Current modes:
 - Billing integration is placeholder-only (`modules/billing/billing.hooks.ts`).
 - Realtime fan-out is not horizontally scalable yet.
 - Dynamic third-party plugin code execution is not implemented in runtime; current behavior is built-in plugin execution with DB-backed marketplace metadata/workflows.
+
+
+## Widget Rendering Architecture
+
+### Purpose
+
+Define the canonical runtime architecture for rendering widgets on slides across web and mobile, with consistent behavior for layout, scaling, readability, and fullscreen presentation.
+
+### Principles
+
+1. SlideItem is the only authoritative source of widget placement and size.
+2. WidgetInstance owns widget identity and configuration, not layout.
+3. The display runtime computes rendering context from viewport + SlideItem bounds.
+4. Widget renderers are presentation-only and must not fetch data or perform business/data transformation.
+5. Larger rendered widgets must scale typography, iconography, spacing, and content density upward.
+6. Fullscreen widgets must prioritize readability and safe-area-aware composition, especially on mobile.
+
+### Rendering Layers
+
+1. Layout authority layer
+   - Source: SlideItem.layoutX, layoutY, layoutW, layoutH, zIndex
+   - Deprecated WidgetInstance.layout* fields must never be treated as authoritative for rendering
+
+2. Render context layer
+   - Computed by the display runtime
+   - Includes:
+     - viewportWidth
+     - viewportHeight
+     - widgetWidth
+     - widgetHeight
+     - widthRatio
+     - heightRatio
+     - orientation
+     - platform
+     - safeAreaInsets
+     - isFullscreen
+     - sizeTier
+
+3. Shared scaling layer
+   - Converts render context into semantic visual tokens
+   - Includes:
+     - typography scale
+     - icon scale
+     - spacing scale
+     - density mode
+     - padding and radius tokens
+
+4. Widget presentation layer
+   - Each widget renderer maps shared visual tokens into its own composition
+   - Renderers may change hierarchy, content density, and visible secondary details based on size tier
+   - Renderers must remain pure and presentation-only
+
+5. Shared frame layer
+   - BaseWidgetFrame / display shell provides common containment, padding, safe-area treatment, and state shells
+
+### Size Tiers
+
+The display runtime must classify each rendered widget into one semantic size tier:
+
+- compact
+- regular
+- large
+- hero
+- fullscreen
+
+Tiering must be derived from actual rendered bounds and viewport occupancy, not only from manifest default layout.
+
+### Fullscreen Rule
+
+When a widget occupies the full slide or otherwise enters fullscreen presentation, the renderer must use the largest safe readable typography and icon scale that preserves layout integrity and avoids clipping of critical content.
+
+### Responsive Content Density
+
+Widgets must support responsive density rules:
+- smaller sizes may hide secondary details
+- larger sizes may reveal more detail
+- fullscreen should prefer readability over density
+
+### Testing Expectations
+
+Rendering logic must be testable for at least:
+- compact rendering
+- regular rendering
+- fullscreen rendering
+- Tests must verify that persisted SlideItem layout affects runtime size tier and visual scale.

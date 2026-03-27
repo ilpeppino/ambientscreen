@@ -5,7 +5,7 @@ import {
   resolveWidgetLayoutCollision,
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
-import { buildLayoutsByWidgetId, withNormalizedLayouts } from "./useDisplayData";
+import { buildLayoutsByWidgetId } from "./useDisplayData";
 
 interface UseEditModeOpsOptions {
   editMode: boolean;
@@ -109,7 +109,7 @@ export function useEditModeOps({
   const handleToggleEditMode = useCallback(() => {
     setLayoutError(null);
     setEditMode((current) => {
-      setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(withNormalizedLayouts(widgets)));
+      setDraftLayoutsByWidgetId(buildLayoutsByWidgetId(widgets));
       if (current) {
         setSelectedWidgetId(null);
       }

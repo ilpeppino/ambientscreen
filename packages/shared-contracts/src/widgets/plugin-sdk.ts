@@ -37,6 +37,33 @@ export interface WidgetRendererProps<TKey extends WidgetKey = WidgetKey> {
   data: WidgetDataByKey[TKey] | null;
   config: WidgetConfigByKey[TKey];
   meta?: WidgetDataMeta;
+  renderContext?: WidgetRenderContext;
+}
+
+export type WidgetRenderOrientation = "landscape" | "portrait";
+
+export type WidgetRenderPlatform = "web" | "ios" | "android" | "unknown";
+
+export type WidgetRenderSizeTier = "compact" | "regular" | "large" | "fullscreen";
+
+export interface WidgetRenderContext {
+  viewportWidth: number;
+  viewportHeight: number;
+  widgetWidth: number;
+  widgetHeight: number;
+  widthRatio: number;
+  heightRatio: number;
+  areaRatio: number;
+  orientation: WidgetRenderOrientation;
+  platform: WidgetRenderPlatform;
+  safeAreaInsets: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  isFullscreen: boolean;
+  sizeTier: WidgetRenderSizeTier;
 }
 
 export interface WidgetSettingsFormProps<TKey extends WidgetKey = WidgetKey> {

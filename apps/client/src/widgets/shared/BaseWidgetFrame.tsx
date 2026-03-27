@@ -1,9 +1,10 @@
 import React from "react";
-import type { WidgetDataState } from "@ambient/shared-contracts";
+import type { WidgetDataState, WidgetRenderContext } from "@ambient/shared-contracts";
 import type { AppIconName } from "../../shared/ui/components";
 import { WidgetHeader, WidgetState, type WidgetStateType, WidgetSurface } from "../../shared/ui/widgets";
 import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import { colors, spacing } from "../../shared/ui/theme";
+import { deriveWidgetVisualScale, scaleBy } from "./widgetRenderContext";
 
 interface BaseWidgetFrameProps {
   title: string;
@@ -19,6 +20,7 @@ interface BaseWidgetFrameProps {
   contentStyle?: StyleProp<ViewStyle>;
   stateContentStyle?: StyleProp<ViewStyle>;
   onContentLayout?: (event: LayoutChangeEvent) => void;
+  renderContext?: WidgetRenderContext;
 }
 
 const DEBUG_WIDGET_BOUNDS = process.env.EXPO_PUBLIC_DEBUG_WIDGET_BOUNDS === "1";
@@ -49,15 +51,36 @@ export function BaseWidgetFrame({
   contentStyle,
   stateContentStyle,
   onContentLayout,
+  renderContext,
 }: BaseWidgetFrameProps) {
   const stateType = resolveWidgetStateType(state, hasData);
+  const visualScale = deriveWidgetVisualScale(renderContext);
+  const isHeroLayout = renderContext?.sizeTier === "fullscreen";
+  const fullscreenInsetTop = renderContext?.isFullscreen ? Math.round((renderContext.safeAreaInsets.top ?? 0) * 0.45) : 0;
+  const fullscreenInsetBottom = renderContext?.isFullscreen ? Math.round((renderContext.safeAreaInsets.bottom ?? 0) * 0.45) : 0;
+  const surfaceMode = isHeroLayout ? ("fullscreen" as const) : mode;
 
   return (
-    <WidgetSurface mode={mode} isSelected={isSelected} style={[styles.surface, surfaceStyle]}>
-      <WidgetHeader mode={mode} icon={icon} title={title} />
+    <WidgetSurface
+      mode={surfaceMode}
+      isSelected={isSelected}
+      style={[
+        styles.surface,
+        {
+          paddingHorizontal: visualScale.framePadding,
+          paddingTop: visualScale.framePadding + fullscreenInsetTop,
+          paddingBottom: visualScale.framePadding + fullscreenInsetBottom,
+        },
+        surfaceStyle,
+      ]}
+    >
+      {isHeroLayout ? null : <WidgetHeader mode={mode} icon={icon} title={title} />}
       <View
         style={[
           styles.content,
+          {
+            paddingVertical: isHeroLayout ? 0 : scaleBy(spacing.sm, visualScale.spacingScale, 2),
+          },
           DEBUG_WIDGET_BOUNDS ? styles.debugContent : null,
           contentStyle,
         ]}

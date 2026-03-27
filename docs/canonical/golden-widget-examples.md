@@ -350,3 +350,38 @@ See the file header in `apps/client/src/widgets/calendar/inspector.ts` for detai
 - `docs/canonical/integration-platform.md` — integration connection platform
 - `docs/blueprints/plugins/CREATE_PLUGIN_GUIDE.md` — step-by-step new widget guide (non-canonical)
 - `docs/blueprints/plugins/AUTHENTICATED_INTEGRATION_PLUGIN_PATTERN.md` — integration pattern detail
+
+## Responsive Rendering Rules (Canonical)
+
+All widget renderers must support responsive presentation based on actual runtime size.
+
+### Rules
+
+1. Renderer input must support a render context produced by the display runtime.
+2. Typography, iconography, spacing, and content density must scale with rendered widget size.
+3. Fullscreen widgets must prioritize readability, especially on mobile.
+4. Manifest `defaultLayout` is only the starting layout for creation and must not be treated as the final presentation size.
+5. Renderers must avoid fixed-size assumptions that prevent proper scaling.
+
+### Required responsive behaviors
+
+- compact:
+  - prioritize essential content only
+- regular:
+  - balanced content and readability
+- large:
+  - increased hierarchy and spacing
+- fullscreen:
+  - maximum safe readable text and icon sizing
+  - safe-area-aware composition
+  - reduced clutter
+
+### Checklist additions
+
+- [ ] Renderer accepts and uses runtime render context
+- [ ] Typography scales across size tiers
+- [ ] Iconography scales across size tiers
+- [ ] Content density adapts across size tiers
+- [ ] Fullscreen mode is optimized for legibility
+- [ ] Renderer does not assume manifest default layout is the final render size
+- [ ] Tests cover at least compact and fullscreen rendering
