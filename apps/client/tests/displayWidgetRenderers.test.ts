@@ -81,6 +81,23 @@ describe("display widget renderers", () => {
     return Number(style?.fontSize ?? 0);
   }
 
+  function findTextLineHeight(tree: TestRenderer.ReactTestRenderer, label: string): number {
+    const node = tree.root.findAllByType("text").find((candidate: { props: { children?: unknown } }) => {
+      const children = candidate.props.children;
+      const value = Array.isArray(children) ? children.join("") : String(children ?? "");
+      return value === label;
+    });
+
+    const style = node?.props.style;
+    if (Array.isArray(style)) {
+      const fontStyles = style.filter((entry) => entry && typeof entry.lineHeight === "number");
+      const finalStyle = fontStyles[fontStyles.length - 1] as { lineHeight?: number } | undefined;
+      return Number(finalStyle?.lineHeight ?? 0);
+    }
+
+    return Number(style?.lineHeight ?? 0);
+  }
+
   function buildProps<TKey extends WidgetKey>(
     widgetKey: TKey,
     data: WidgetDataByKey[TKey] | null,
@@ -285,6 +302,7 @@ describe("display widget renderers", () => {
 
     // For a 720px-tall fullscreen widget (widgetHeight * 0.32 = 230px), time must be >> base 36px
     expect(findTextFontSize(tree, "10:00")).toBeGreaterThanOrEqual(100);
+    expect(findTextLineHeight(tree, "10:00")).toBeGreaterThan(findTextFontSize(tree, "10:00"));
   });
 
   test("weather fullscreen temperature is rendered at hero scale", () => {
@@ -313,6 +331,7 @@ describe("display widget renderers", () => {
       tempFontSize = Number(finalStyle?.fontSize ?? 0);
     }
     expect(tempFontSize).toBeGreaterThanOrEqual(100);
+    expect(findTextLineHeight(tree, "8.1")).toBeGreaterThan(tempFontSize);
   });
 
   test("BaseWidgetFrame uses fullscreen surface mode for fullscreen tier", () => {

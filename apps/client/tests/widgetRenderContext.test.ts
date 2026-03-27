@@ -1,5 +1,11 @@
 import { expect, test, describe } from "vitest";
-import { deriveWidgetRenderContext, deriveWidgetVisualScale, computeRenderTokens } from "../src/widgets/shared/widgetRenderContext";
+import {
+  computeRegionHeights,
+  computeRenderTokens,
+  deriveWidgetRenderContext,
+  deriveWidgetVisualScale,
+  fitTextToRegion,
+} from "../src/widgets/shared/widgetRenderContext";
 import { computeLayoutFrame, DISPLAY_GRID_COLUMNS, DISPLAY_GRID_BASE_ROWS } from "../src/features/display/components/LayoutGrid.logic";
 
 test("render context derives fullscreen tier from actual bounds occupancy", () => {
@@ -230,5 +236,38 @@ describe("computeRenderTokens", () => {
       platform: "web",
     });
     expect(computeRenderTokens(ctx).iconSize).toBe("md");
+  });
+});
+
+describe("region height allocation and text fitting", () => {
+  test("region heights match widget height budget", () => {
+    const ctx = deriveWidgetRenderContext({
+      viewportWidth: 1280,
+      viewportHeight: 720,
+      widgetWidth: 1280,
+      widgetHeight: 720,
+      platform: "web",
+    });
+    const regions = computeRegionHeights(ctx);
+
+    expect(regions.hero + regions.support + regions.detail).toBe(720);
+    expect(regions.hero).toBeGreaterThan(regions.support);
+    expect(regions.support).toBeGreaterThan(0);
+    expect(regions.detail).toBeGreaterThan(0);
+  });
+
+  test("fitTextToRegion caps font size to avoid top/bottom clipping", () => {
+    const fitted = fitTextToRegion({
+      targetFontSize: 80,
+      regionHeight: 36,
+      lines: 1,
+      minFontSize: 10,
+      lineHeightRatio: 1.12,
+      regionFillRatio: 0.8,
+    });
+
+    expect(fitted.fontSize).toBeLessThan(80);
+    expect(fitted.lineHeight).toBeGreaterThan(fitted.fontSize);
+    expect(fitted.lineHeight).toBeLessThanOrEqual(36);
   });
 });

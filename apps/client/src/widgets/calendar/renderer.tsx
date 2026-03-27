@@ -4,7 +4,13 @@ import type { WidgetRendererProps } from "@ambient/shared-contracts";
 import { AppIcon, Text } from "../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
-import { computeRenderTokens, deriveWidgetVisualScale, scaleBy } from "../shared/widgetRenderContext";
+import {
+  computeRegionHeights,
+  computeRenderTokens,
+  deriveWidgetVisualScale,
+  fitTextToRegion,
+  scaleBy,
+} from "../shared/widgetRenderContext";
 
 // Maximum events shown in non-fullscreen tiers.
 const MAX_EVENTS_COMPACT = 1;
@@ -32,6 +38,20 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
   const sizeTier = visualScale.sizeTier;
   const isFullscreen = sizeTier === "fullscreen";
   const widgetHeight = renderContext?.widgetHeight ?? 0;
+  const regions = computeRegionHeights(renderContext ?? {
+    viewportWidth: 1,
+    viewportHeight: 1,
+    widgetWidth: 1,
+    widgetHeight: 1,
+    widthRatio: 1,
+    heightRatio: 1,
+    areaRatio: 1,
+    orientation: "landscape",
+    platform: "web",
+    safeAreaInsets: { top: 0, right: 0, bottom: 0, left: 0 },
+    isFullscreen: false,
+    sizeTier: "regular",
+  });
 
   const hasData = Boolean(data && data.events.length > 0);
   const events = data?.events ?? [];
@@ -51,6 +71,33 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
     const heroTitleSize = widgetHeight > 0
       ? Math.round(widgetHeight * 0.085)
       : tokens.titleFontSize;
+    const heroTitleText = fitTextToRegion({
+      targetFontSize: heroTitleSize,
+      regionHeight: Math.max(1, Math.round(regions.hero * 0.80)),
+      lines: 2,
+      minFontSize: 14,
+      lineHeightRatio: 1.12,
+      regionFillRatio: 0.86,
+    });
+    const supportText = fitTextToRegion({
+      targetFontSize: tokens.bodyFontSize,
+      regionHeight: Math.max(1, Math.round(regions.support * 0.44)),
+      minFontSize: 10,
+      lineHeightRatio: 1.14,
+    });
+    const supportLocationText = fitTextToRegion({
+      targetFontSize: tokens.metaFontSize,
+      regionHeight: Math.max(1, Math.round(regions.support * 0.34)),
+      minFontSize: 9,
+      lineHeightRatio: 1.14,
+    });
+    const detailLineText = fitTextToRegion({
+      targetFontSize: tokens.metaFontSize,
+      regionHeight: Math.max(1, Math.round(regions.detail / Math.max(1, remainingEvents.length + (extraCount > 0 ? 1 : 0)))),
+      minFontSize: 8,
+      lineHeightRatio: 1.16,
+      regionFillRatio: 0.82,
+    });
 
     return (
       <BaseWidgetFrame
@@ -66,23 +113,25 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
         {firstEvent ? (
           <>
             {/* Hero region: first upcoming event */}
-            <View style={styles.heroEventCard}>
-              <Text
-                style={[styles.heroEventTitle, { fontSize: heroTitleSize }]}
-                adjustsFontSizeToFit
-                numberOfLines={2}
-                minimumFontScale={0.55}
-              >
-                {firstEvent.title}
-              </Text>
+            <View style={[styles.heroRegion, { flexBasis: regions.hero, minHeight: regions.hero }]}>
+              <View style={styles.heroEventCard}>
+                <Text
+                  style={[styles.heroEventTitle, { fontSize: heroTitleText.fontSize, lineHeight: heroTitleText.lineHeight }]}
+                  adjustsFontSizeToFit
+                  numberOfLines={2}
+                  minimumFontScale={0.55}
+                >
+                  {firstEvent.title}
+                </Text>
+              </View>
             </View>
 
             {/* Support region: first event metadata */}
-            <View style={[styles.supportRegion, { marginTop: tokens.heroSupportGap }]}>
+            <View style={[styles.supportRegion, { marginTop: tokens.heroSupportGap, flexBasis: regions.support, minHeight: regions.support }]}>
               <View style={styles.metaRow}>
                 <AppIcon name="clock" size={tokens.iconSize} color="textSecondary" />
                 <Text
-                  style={[styles.supportText, { fontSize: tokens.bodyFontSize }]}
+                  style={[styles.supportText, { fontSize: supportText.fontSize, lineHeight: supportText.lineHeight }]}
                   numberOfLines={1}
                 >
                   {formatEventTime(firstEvent.startIso, firstEvent.allDay)}
@@ -90,7 +139,11 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
               </View>
               {firstEvent.location ? (
                 <Text
-                  style={[styles.supportLocation, { fontSize: tokens.metaFontSize, marginTop: tokens.itemGap }]}
+                  style={[styles.supportLocation, {
+                    fontSize: supportLocationText.fontSize,
+                    lineHeight: supportLocationText.lineHeight,
+                    marginTop: tokens.itemGap,
+                  }]}
                   numberOfLines={1}
                 >
                   {firstEvent.location}
@@ -100,14 +153,18 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
 
             {/* Detail region: remaining events */}
             {remainingEvents.length > 0 ? (
-              <View style={[styles.detailRegion, { marginTop: tokens.supportDetailGap }]}>
+              <View style={[styles.detailRegion, {
+                marginTop: tokens.supportDetailGap,
+                flexBasis: regions.detail,
+                minHeight: regions.detail,
+              }]}>
                 {remainingEvents.map((event) => (
                   <View
                     key={event.id}
                     style={[styles.detailEventRow, { gap: tokens.itemGap, marginTop: tokens.itemGap }]}
                   >
                     <Text
-                      style={[styles.detailEventTitle, { fontSize: tokens.metaFontSize }]}
+                      style={[styles.detailEventTitle, { fontSize: detailLineText.fontSize, lineHeight: detailLineText.lineHeight }]}
                       numberOfLines={1}
                       adjustsFontSizeToFit
                       minimumFontScale={0.75}
@@ -115,7 +172,7 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
                       {event.title}
                     </Text>
                     <Text
-                      style={[styles.detailEventTime, { fontSize: tokens.metaFontSize }]}
+                      style={[styles.detailEventTime, { fontSize: detailLineText.fontSize, lineHeight: detailLineText.lineHeight }]}
                       numberOfLines={1}
                     >
                       {formatEventTime(event.startIso, event.allDay)}
@@ -123,12 +180,20 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
                   </View>
                 ))}
                 {extraCount > 0 ? (
-                  <Text style={[styles.moreLabel, { fontSize: tokens.metaFontSize, marginTop: tokens.itemGap }]}>
+                  <Text
+                    style={[styles.moreLabel, {
+                      fontSize: detailLineText.fontSize,
+                      lineHeight: detailLineText.lineHeight,
+                      marginTop: tokens.itemGap,
+                    }]}
+                  >
                     +{extraCount} more events
                   </Text>
                 ) : null}
               </View>
-            ) : null}
+            ) : (
+              <View style={[styles.detailRegion, { flexBasis: regions.detail, minHeight: regions.detail }]} />
+            )}
           </>
         ) : null}
       </BaseWidgetFrame>
@@ -145,9 +210,25 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
   const visibleEvents = events.slice(0, maxVisible);
   const remainingCount = Math.max(0, events.length - visibleEvents.length);
 
-  const eventTitleFontSize = scaleBy(17, visualScale.typographyScale, 12);
-  const eventMetaFontSize = scaleBy(14, visualScale.typographyScale, 11);
-  const moreLabelFontSize = scaleBy(13, visualScale.typographyScale, 11);
+  const listRowHeight = Math.max(1, Math.round((regions.hero + regions.support) / Math.max(1, visibleEvents.length + (remainingCount > 0 ? 1 : 0))));
+  const eventTitleText = fitTextToRegion({
+    targetFontSize: scaleBy(17, visualScale.typographyScale, 12),
+    regionHeight: Math.max(1, Math.round(listRowHeight * 0.46)),
+    minFontSize: 10,
+    lineHeightRatio: 1.14,
+  });
+  const eventMetaText = fitTextToRegion({
+    targetFontSize: scaleBy(14, visualScale.typographyScale, 11),
+    regionHeight: Math.max(1, Math.round(listRowHeight * 0.32)),
+    minFontSize: 9,
+    lineHeightRatio: 1.14,
+  });
+  const moreLabelText = fitTextToRegion({
+    targetFontSize: scaleBy(13, visualScale.typographyScale, 11),
+    regionHeight: Math.max(1, Math.round(regions.detail * 0.7)),
+    minFontSize: 9,
+    lineHeightRatio: 1.14,
+  });
 
   return (
     <BaseWidgetFrame
@@ -160,14 +241,18 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
       contentStyle={styles.content}
       renderContext={renderContext}
     >
-      <View style={[styles.eventsList, { gap: scaleBy(spacing.sm, visualScale.spacingScale, 4) }]}>
+      <View style={[styles.eventsList, {
+        gap: scaleBy(spacing.sm, visualScale.spacingScale, 4),
+        minHeight: regions.hero + regions.support,
+      }]}>
         {visibleEvents.map((event) => (
           <View key={event.id} style={[styles.eventRow, {
             paddingHorizontal: scaleBy(spacing.lg, visualScale.spacingScale, 8),
             paddingVertical: scaleBy(spacing.md, visualScale.spacingScale, 6),
+            minHeight: listRowHeight,
           }]}>
             <Text
-              style={[styles.eventTitle, { fontSize: eventTitleFontSize }]}
+              style={[styles.eventTitle, { fontSize: eventTitleText.fontSize, lineHeight: eventTitleText.lineHeight }]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.7}
@@ -176,19 +261,19 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
             </Text>
             <View style={[styles.metaRow, { marginTop: scaleBy(spacing.xs, visualScale.spacingScale, 2) }]}>
               <AppIcon name="clock" size={visualScale.iconScale > 1.3 ? "md" : "sm"} color="textSecondary" />
-              <Text style={[styles.eventMeta, { fontSize: eventMetaFontSize }]} numberOfLines={1}>
+              <Text style={[styles.eventMeta, { fontSize: eventMetaText.fontSize, lineHeight: eventMetaText.lineHeight }]} numberOfLines={1}>
                 {formatEventTime(event.startIso, event.allDay)}
               </Text>
             </View>
             {event.location && sizeTier !== "compact" ? (
-              <Text style={[styles.eventMeta, { fontSize: eventMetaFontSize }]} numberOfLines={1}>
+              <Text style={[styles.eventMeta, { fontSize: eventMetaText.fontSize, lineHeight: eventMetaText.lineHeight }]} numberOfLines={1}>
                 {event.location}
               </Text>
             ) : null}
           </View>
         ))}
         {remainingCount > 0 ? (
-          <Text style={[styles.moreLabel, { fontSize: moreLabelFontSize }]}>+{remainingCount} more events</Text>
+          <Text style={[styles.moreLabel, { fontSize: moreLabelText.fontSize, lineHeight: moreLabelText.lineHeight }]}>+{remainingCount} more events</Text>
         ) : null}
       </View>
     </BaseWidgetFrame>
@@ -199,6 +284,14 @@ const styles = StyleSheet.create({
   // ── Fullscreen layout ──────────────────────────────────────────────────────
   fullscreenContent: {
     flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+    minHeight: 0,
+  },
+  heroRegion: {
+    width: "100%",
+    minHeight: 0,
     alignItems: "center",
     justifyContent: "center",
   },

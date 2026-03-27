@@ -56,7 +56,37 @@ export interface WidgetRenderTokens {
   iconSize: "sm" | "md" | "lg" | "xl";
 }
 
+export interface WidgetRegionHeights {
+  hero: number;
+  support: number;
+  detail: number;
+}
+
+interface FitTextToRegionInput {
+  targetFontSize: number;
+  regionHeight: number;
+  lines?: number;
+  minFontSize?: number;
+  maxFontSize?: number;
+  lineHeightRatio?: number;
+  regionFillRatio?: number;
+}
+
+interface RegionSplit {
+  hero: number;
+  support: number;
+  detail: number;
+}
+
 const MIN_DIMENSION = 1;
+const MIN_REGION_HEIGHT = 1;
+
+const REGION_SPLIT_BY_TIER: Record<WidgetRenderSizeTier, RegionSplit> = {
+  compact: { hero: 0.64, support: 0.24, detail: 0.12 },
+  regular: { hero: 0.56, support: 0.24, detail: 0.20 },
+  large: { hero: 0.54, support: 0.24, detail: 0.22 },
+  fullscreen: { hero: 0.56, support: 0.22, detail: 0.22 },
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -262,4 +292,36 @@ export function computeRenderTokens(context: WidgetRenderContext): WidgetRenderT
 
 export function scaleBy(base: number, multiplier: number, min = 1): number {
   return Math.max(min, Math.round(base * multiplier));
+}
+
+export function computeRegionHeights(context: WidgetRenderContext): WidgetRegionHeights {
+  const widgetHeight = Math.max(MIN_REGION_HEIGHT, context.widgetHeight);
+  const split = REGION_SPLIT_BY_TIER[context.sizeTier];
+
+  const hero = Math.max(MIN_REGION_HEIGHT, Math.round(widgetHeight * split.hero));
+  const support = Math.max(MIN_REGION_HEIGHT, Math.round(widgetHeight * split.support));
+  const detail = Math.max(MIN_REGION_HEIGHT, widgetHeight - hero - support);
+
+  return { hero, support, detail };
+}
+
+export function fitTextToRegion(input: FitTextToRegionInput): { fontSize: number; lineHeight: number } {
+  const lines = Math.max(1, Math.round(input.lines ?? 1));
+  const regionHeight = Math.max(MIN_REGION_HEIGHT, input.regionHeight);
+  const minFontSize = Math.max(1, Math.round(input.minFontSize ?? 1));
+  const lineHeightRatio = clamp(input.lineHeightRatio ?? 1.12, 1.05, 1.6);
+  const regionFillRatio = clamp(input.regionFillRatio ?? 0.84, 0.5, 0.95);
+  const maxFontSizeFromRegion = Math.max(
+    minFontSize,
+    Math.floor((regionHeight * regionFillRatio) / (lines * lineHeightRatio)),
+  );
+  const requestedMax = input.maxFontSize !== undefined
+    ? Math.max(minFontSize, Math.round(input.maxFontSize))
+    : Number.MAX_SAFE_INTEGER;
+  const cappedMax = Math.min(requestedMax, maxFontSizeFromRegion);
+  const targetFontSize = Math.round(input.targetFontSize);
+  const fontSize = clamp(targetFontSize, minFontSize, cappedMax);
+  const lineHeight = Math.max(fontSize + 2, Math.round(fontSize * lineHeightRatio));
+
+  return { fontSize, lineHeight };
 }
