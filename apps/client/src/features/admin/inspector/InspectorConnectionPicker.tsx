@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../../shared/ui/components/Text";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
-import { InspectorOptionList } from "./InspectorOptionList";
+import { InspectorDropdown } from "./InspectorDropdown";
 import type { Option } from "./inspector.types";
 
 interface InspectorConnectionPickerProps {
@@ -35,11 +35,12 @@ export function InspectorConnectionPicker({
       </Pressable>
 
       {options.length > 0 ? (
-        <InspectorOptionList
+        <InspectorDropdown
           options={options}
           value={value ?? null}
           onChange={(v) => onChange(String(v))}
           disabled={disabled}
+          placeholder="Select account\u2026"
         />
       ) : (
         <Text style={styles.helper}>

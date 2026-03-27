@@ -1,5 +1,5 @@
 import React from "react";
-import { InspectorOptionList } from "./InspectorOptionList";
+import { InspectorDropdown } from "./InspectorDropdown";
 import { InspectorAsyncState } from "./InspectorAsyncState";
 import type { Option } from "./inspector.types";
 
@@ -40,7 +40,7 @@ export function InspectorResourcePicker({
   }
 
   return (
-    <InspectorOptionList
+    <InspectorDropdown
       options={options}
       value={value ?? null}
       onChange={(v) => onChange(String(v))}

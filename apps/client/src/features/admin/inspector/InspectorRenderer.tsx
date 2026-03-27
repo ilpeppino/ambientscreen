@@ -7,6 +7,7 @@ import { InspectorFieldGroup } from "./InspectorFieldGroup";
 import { InspectorSegmentedControl } from "./InspectorSegmentedControl";
 import { InspectorBooleanField } from "./InspectorBooleanField";
 import { InspectorSelectField } from "./InspectorSelectField";
+import { InspectorOptionList } from "./InspectorOptionList";
 import { InspectorConnectionPicker } from "./InspectorConnectionPicker";
 import { InspectorResourcePicker } from "./InspectorResourcePicker";
 import type {
@@ -165,6 +166,25 @@ function renderField(
           disabled={disabled}
         >
           <InspectorSelectField
+            options={field.options ?? []}
+            value={field.value as string | number}
+            onChange={(v) => field.onChange?.(v as never)}
+            disabled={disabled}
+          />
+        </InspectorFieldGroup>
+      );
+
+    case "optionList":
+      // Explicit always-visible list. Use this only when all options must remain
+      // visible simultaneously. Prefer `select` for standard single-choice fields.
+      return (
+        <InspectorFieldGroup
+          key={field.id}
+          label={field.label}
+          helperText={field.helperText}
+          disabled={disabled}
+        >
+          <InspectorOptionList
             options={field.options ?? []}
             value={field.value as string | number}
             onChange={(v) => field.onChange?.(v as never)}

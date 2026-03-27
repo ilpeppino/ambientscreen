@@ -1,5 +1,5 @@
 import React from "react";
-import { InspectorOptionList } from "./InspectorOptionList";
+import { InspectorDropdown } from "./InspectorDropdown";
 import type { Option } from "./inspector.types";
 
 interface InspectorSelectFieldProps {
@@ -12,8 +12,8 @@ interface InspectorSelectFieldProps {
 
 /**
  * Dropdown-style selection field.
- * In React Native, rendered as an InspectorOptionList.
- * Can be swapped for a native picker if needed.
+ * Renders as an inline-expand InspectorDropdown.
+ * Use `optionList` field kind when an always-visible list is explicitly needed.
  */
 export function InspectorSelectField({
   options,
@@ -23,7 +23,7 @@ export function InspectorSelectField({
   placeholder,
 }: InspectorSelectFieldProps) {
   return (
-    <InspectorOptionList
+    <InspectorDropdown
       options={options}
       value={value}
       onChange={onChange}

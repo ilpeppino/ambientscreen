@@ -2,8 +2,8 @@
 
 ## Shared Inspector Components API (Canonical)
 
-Status: Source of truth  
-Last updated: 2026-03-26  
+Status: Source of truth
+Last updated: 2026-03-27
 
 ---
 
@@ -175,14 +175,29 @@ Fields:
 
 Allowed values:
 
-- text  
-- boolean  
-- segmented  
-- select  
-- optionList  
-- connectionPicker  
-- resourcePicker  
-- custom  
+- text
+- boolean
+- segmented
+- select
+- optionList
+- connectionPicker
+- resourcePicker
+- custom
+
+#### Field kind selection guide
+
+| Kind | Interaction | Use when |
+|------|-------------|----------|
+| `segmented` | Horizontal segment row | 2–5 short options that fit side-by-side; quick toggling (e.g. provider, time window) |
+| `boolean` | Yes / No segments | True/false toggle |
+| `select` | Inline-expand dropdown | Many options (typically 6+) or options are too long for segments (e.g. timezone, locale) |
+| `optionList` | Always-visible radio list | Explicit opt-in only — all options must be visible simultaneously |
+| `connectionPicker` | Dropdown for accounts + "Connect" button | OAuth connection selection |
+| `resourcePicker` | Dropdown with async state | Resource selection from provider (calendar, report, etc.) |
+| `text` | Text input | Free-form string entry |
+| `custom` | Read-only fallback | Plugin-provided or unsupported kinds |
+
+**Rule:** when a field represents a single value chosen from multiple available options, it defaults to dropdown-style interaction (`select`, `connectionPicker`, `resourcePicker`). Use `optionList` only when always-visible selection is intentionally required.
 
 ---
 
@@ -307,61 +322,104 @@ Implementation:
 
 ---
 
-### 7.8 InspectorSelectField
+### 7.8 InspectorDropdown
 
 Purpose:
 
-- dropdown selection  
+- inline-expand dropdown for single-choice selection from multiple options
 
----
+Behavior:
 
-### 7.9 InspectorOptionList
-
-Purpose:
-
-- selectable list for resources  
+- collapsed: single trigger row showing current selection or placeholder + chevron
+- expanded: trigger row + options panel rendered inline below
+- selecting an option closes the panel
+- disabled: trigger is non-interactive, panel never opens
+- empty (no options): shows placeholder text; no interactive trigger
 
 Use cases:
 
-- calendars  
-- accounts  
+- all `select` fields (via InspectorSelectField)
+- account selection inside `connectionPicker`
+- resource selection inside `resourcePicker`
+
+Rules:
+
+- long labels truncate on trigger (numberOfLines=1); full label shown in open panel
+- placeholder text shown in secondary color when no value is selected
+- trigger border highlights to accentBlue when panel is open
 
 ---
 
-### 7.10 InspectorConnectionPicker
+### 7.9 InspectorSelectField
+
+Purpose:
+
+- dropdown selection for static option lists
+
+Implementation:
+
+- delegates to InspectorDropdown
+- use for any single-choice field with a static options array
+
+---
+
+### 7.10 InspectorOptionList
+
+Purpose:
+
+- always-visible radio-style selectable list
+
+Rules:
+
+- use only when all options must be visible simultaneously
+- do NOT use as default for single-choice fields — use `select` (dropdown) instead
+- the `optionList` field kind renders this component
+
+---
+
+### 7.11 InspectorConnectionPicker
 
 Purpose:
 
 - select or create integration connection
 
+Layout:
+
+- "Connect new account" button always shown at top
+- account selection below: InspectorDropdown when accounts exist, helper text when none
+
 Rules:
 
 - never expose tokens
-- must support connect flow via `onConnect` callback on the field definition
 - `onConnect` is invoked when the user taps "Connect new account"; the widget must not contain OAuth logic
-- `onChange` is invoked when the user selects an existing connection
+- `onChange` is invoked when the user selects an existing connection via the dropdown
 
 ---
 
-### 7.11 InspectorResourcePicker
+### 7.12 InspectorResourcePicker
 
 Purpose:
 
-- select resource from provider  
+- select resource from provider
+
+Implementation:
+
+- loading/error/empty states via InspectorAsyncState
+- when resources available: InspectorDropdown
 
 Examples:
 
-- calendar  
-- dashboard  
-- report  
+- calendar
+- dashboard
+- report
 
 ---
 
-### 7.12 InspectorAsyncState
+### 7.13 InspectorAsyncState
 
 Purpose:
 
-- handle loading, empty, error states  
+- handle loading, empty, error states
 
 ---
 
@@ -458,20 +516,21 @@ apps/client/src/features/admin/inspector/
 
 Files:
 
-- InspectorPanel.tsx  
-- InspectorHeader.tsx  
-- InspectorSection.tsx  
-- InspectorReadOnlyField.tsx  
-- InspectorFieldGroup.tsx  
-- InspectorSegmentedControl.tsx  
-- InspectorBooleanField.tsx  
-- InspectorSelectField.tsx  
-- InspectorOptionList.tsx  
-- InspectorConnectionPicker.tsx  
-- InspectorResourcePicker.tsx  
-- InspectorAsyncState.tsx  
-- inspector.types.ts  
-- inspector.formatters.ts  
+- InspectorPanel.tsx
+- InspectorHeader.tsx
+- InspectorSection.tsx
+- InspectorReadOnlyField.tsx
+- InspectorFieldGroup.tsx
+- InspectorSegmentedControl.tsx
+- InspectorBooleanField.tsx
+- InspectorDropdown.tsx
+- InspectorSelectField.tsx
+- InspectorOptionList.tsx
+- InspectorConnectionPicker.tsx
+- InspectorResourcePicker.tsx
+- InspectorAsyncState.tsx
+- inspector.types.ts
+- inspector.formatters.ts
 
 ---
 
