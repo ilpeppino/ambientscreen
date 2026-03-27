@@ -1,8 +1,25 @@
 export type IntegrationProvider = "google";
 export type IntegrationStatus = "connected" | "needs_reauth" | "revoked" | "error";
 
+export type IntegrationProviderAuthType = "oauth";
+
+export interface IntegrationProviderDescriptor {
+  key: IntegrationProvider;
+  label: string;
+  description: string;
+  authType: IntegrationProviderAuthType;
+}
+
 export const SUPPORTED_PROVIDERS: IntegrationProvider[] = ["google"];
 export const SUPPORTED_STATUSES: IntegrationStatus[] = ["connected", "needs_reauth", "revoked", "error"];
+export const SUPPORTED_PROVIDER_DESCRIPTORS: IntegrationProviderDescriptor[] = [
+  {
+    key: "google",
+    label: "Google",
+    description: "Connect a Google account to access calendar resources.",
+    authType: "oauth",
+  },
+];
 
 export interface IntegrationConnectionRecord {
   id: string;

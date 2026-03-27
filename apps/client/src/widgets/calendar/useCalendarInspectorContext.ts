@@ -3,7 +3,7 @@ import { Linking, Platform } from "react-native";
 import {
   listIntegrationConnections,
   listGoogleCalendars,
-  getGoogleConnectUrl,
+  getIntegrationProviderAuthorizationUrl,
 } from "../../services/api/integrationsApi";
 import { DEEP_LINK_SCHEME } from "../../features/navigation/deepLinks";
 import type { CalendarConfig, CalendarInspectorContext } from "./inspector";
@@ -85,7 +85,14 @@ export function useCalendarInspectorContext({
       Platform.OS !== "web"
         ? `${DEEP_LINK_SCHEME}://integrations`
         : undefined;
-    void Linking.openURL(getGoogleConnectUrl(returnTo));
+    void (async () => {
+      try {
+        const authorizationUrl = await getIntegrationProviderAuthorizationUrl("google", returnTo);
+        await Linking.openURL(authorizationUrl);
+      } catch {
+        // Keep the inspector responsive if OAuth start fails.
+      }
+    })();
   }, []);
 
   const onSelectConnection = useCallback(

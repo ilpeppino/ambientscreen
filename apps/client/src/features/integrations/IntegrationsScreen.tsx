@@ -12,10 +12,15 @@ import { ErrorState } from "../../shared/ui/ErrorState";
 import { Text } from "../../shared/ui/components/Text";
 import { colors, spacing } from "../../shared/ui/theme";
 import { DEEP_LINK_SCHEME, type OAuthCallbackParams } from "../navigation/deepLinks";
-import { getAvailableProviders } from "./integrations.providers";
+import {
+  getIntegrationProviderAuthorizationUrl,
+  listIntegrationProviders,
+  type IntegrationProviderDescriptor,
+} from "../../services/api/integrationsApi";
 import { useIntegrations } from "./integrations.hooks";
 import { IntegrationConnectionTile } from "./IntegrationConnectionTile";
 import { filterConnections } from "./integrations.utils";
+import { IntegrationProviderPicker } from "./IntegrationProviderPicker";
 
 interface IntegrationsScreenProps {
   onBack: () => void;
@@ -31,6 +36,11 @@ const CALLBACK_MESSAGES: Record<string, string> = {
 export function IntegrationsScreen({ onBack, oauthCallback }: IntegrationsScreenProps) {
   const { connections, loading, error, reload, rename, refresh, disconnect } = useIntegrations();
   const [searchQuery, setSearchQuery] = useState("");
+  const [providerPickerOpen, setProviderPickerOpen] = useState(false);
+  const [providers, setProviders] = useState<IntegrationProviderDescriptor[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(false);
+  const [providersError, setProvidersError] = useState<string | null>(null);
+  const [connectingProvider, setConnectingProvider] = useState<string | null>(null);
   const { width } = useWindowDimensions();
 
   // Responsive column count based on available window width
@@ -47,14 +57,40 @@ export function IntegrationsScreen({ onBack, oauthCallback }: IntegrationsScreen
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [oauthCallback]);
 
+  async function loadProviders() {
+    setProvidersLoading(true);
+    setProvidersError(null);
+
+    try {
+      const items = await listIntegrationProviders();
+      setProviders(items);
+    } catch (err) {
+      setProvidersError(err instanceof Error ? err.message : "Failed to load providers");
+    } finally {
+      setProvidersLoading(false);
+    }
+  }
+
   function handleConnect() {
-    const providers = getAvailableProviders();
-    if (providers.length === 0) return;
-    // Single provider: connect directly.
-    // Future: when multiple providers exist, show a provider picker here.
-    const provider = providers[0];
+    setProvidersError(null);
+    setProviderPickerOpen(true);
+    if (providers.length === 0 && !providersLoading) {
+      void loadProviders();
+    }
+  }
+
+  async function handleSelectProvider(provider: IntegrationProviderDescriptor) {
     const returnTo = Platform.OS !== "web" ? `${DEEP_LINK_SCHEME}://integrations` : undefined;
-    void Linking.openURL(provider.getConnectUrl(returnTo));
+    setConnectingProvider(provider.key);
+    setProvidersError(null);
+    try {
+      const authorizationUrl = await getIntegrationProviderAuthorizationUrl(provider.key, returnTo);
+      await Linking.openURL(authorizationUrl);
+    } catch (err) {
+      setProvidersError(err instanceof Error ? err.message : "Unable to start connection.");
+    } finally {
+      setConnectingProvider(null);
+    }
   }
 
   const callbackMessage = oauthCallback
@@ -76,6 +112,22 @@ export function IntegrationsScreen({ onBack, oauthCallback }: IntegrationsScreen
           >
             <Text style={styles.bannerText}>{callbackMessage}</Text>
           </View>
+        ) : null}
+
+        {providerPickerOpen ? (
+          <IntegrationProviderPicker
+            providers={providers}
+            loading={providersLoading}
+            error={providersError}
+            connectingProvider={connectingProvider}
+            tileWidth={tileWidth}
+            onSelect={handleSelectProvider}
+            onRetry={loadProviders}
+            onClose={() => {
+              setProviderPickerOpen(false);
+              setProvidersError(null);
+            }}
+          />
         ) : null}
 
         <SectionHeader

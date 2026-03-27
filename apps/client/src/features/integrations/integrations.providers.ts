@@ -22,10 +22,11 @@ export interface IntegrationProviderPresentation {
   initial: string;
   /**
    * Returns the URL to start an OAuth connection flow for this provider.
-   * Used by the screen's Add Connection handler so it is not hardcoded to any
-   * specific provider. Returns an empty string for unknown provider fallbacks.
+   * This is retained for legacy presentation helpers, but the Add Connection
+   * flow now loads providers from the backend and resolves the URL through the
+   * authenticated API layer.
    */
-  getConnectUrl: (returnTo?: string) => string;
+  getConnectUrl: (returnTo?: string) => Promise<string>;
 }
 
 const PROVIDERS: Record<string, IntegrationProviderPresentation> = {
@@ -59,5 +60,5 @@ export function getProviderPresentation(provider: string): IntegrationProviderPr
     provider.length > 0 ? provider.charAt(0).toUpperCase() + provider.slice(1) : provider;
   const initial = provider.length > 0 ? provider.charAt(0).toUpperCase() : "?";
 
-  return { key: provider, label, initial, getConnectUrl: () => "" };
+  return { key: provider, label, initial, getConnectUrl: async () => "" };
 }

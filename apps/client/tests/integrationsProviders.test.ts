@@ -4,6 +4,10 @@ vi.mock("../src/core/config/api", () => ({
   API_BASE_URL: "http://localhost:3000",
 }));
 
+vi.mock("../src/services/api/integrationsApi", () => ({
+  getGoogleConnectUrl: vi.fn(async () => "mock-authorization-url"),
+}));
+
 import {
   getProviderPresentation,
   getAvailableProviders,
@@ -23,16 +27,16 @@ describe("getProviderPresentation", () => {
       expect(typeof p.getConnectUrl).toBe("function");
     });
 
-    test("google getConnectUrl returns a URL string containing the expected path", () => {
+    test("google getConnectUrl resolves an authorization URL through the shared API layer", async () => {
       const p = getProviderPresentation("google");
-      const url = p.getConnectUrl();
-      expect(url).toContain("/integrations/google/start");
+      const url = await p.getConnectUrl();
+      expect(url).toBe("mock-authorization-url");
     });
 
-    test("google getConnectUrl includes returnTo when provided", () => {
+    test("google getConnectUrl accepts returnTo", async () => {
       const p = getProviderPresentation("google");
-      const url = p.getConnectUrl("ambientscreen://integrations");
-      expect(url).toContain("returnTo=");
+      const url = await p.getConnectUrl("ambientscreen://integrations");
+      expect(url).toBe("mock-authorization-url");
     });
   });
 
@@ -66,9 +70,9 @@ describe("getProviderPresentation", () => {
       expect(p.key).toBe("some-future-provider");
     });
 
-    test("unknown provider getConnectUrl returns empty string (no connect flow defined)", () => {
+    test("unknown provider getConnectUrl returns empty string (no connect flow defined)", async () => {
       const p = getProviderPresentation("unknown-provider");
-      expect(p.getConnectUrl()).toBe("");
+      expect(await p.getConnectUrl()).toBe("");
     });
   });
 

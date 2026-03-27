@@ -2,8 +2,14 @@ import { apiErrors } from "../../core/http/api-error";
 import { integrationsRepository } from "./integrations.repository";
 import { toSummary } from "./integration-connection.mapper";
 import { googleCalendarAdapter } from "./providers/google/google-calendar.adapter";
+import { googleOAuthService } from "./providers/google/google-oauth.service";
 import { decryptToken } from "../../core/crypto/encryption";
-import type { IntegrationConnectionSummary } from "./integrations.types";
+import {
+  SUPPORTED_PROVIDER_DESCRIPTORS,
+  type IntegrationConnectionSummary,
+  type IntegrationProviderDescriptor,
+  type IntegrationProvider,
+} from "./integrations.types";
 
 interface ListConnectionsFilter {
   provider?: string;
@@ -11,9 +17,25 @@ interface ListConnectionsFilter {
 }
 
 export const integrationsService = {
+  listProviders(): IntegrationProviderDescriptor[] {
+    return SUPPORTED_PROVIDER_DESCRIPTORS;
+  },
+
   async listConnections(userId: string, filters: ListConnectionsFilter = {}): Promise<IntegrationConnectionSummary[]> {
     const records = await integrationsRepository.listByUser(userId, filters);
     return records.map(toSummary);
+  },
+
+  async getProviderConnectAuthorizationUrl(
+    userId: string,
+    provider: IntegrationProvider,
+    returnTo?: string,
+  ): Promise<string> {
+    if (provider === "google") {
+      return googleOAuthService.buildAuthorizationUrl(userId, returnTo);
+    }
+
+    throw apiErrors.integrationProviderMismatch("Unsupported provider.");
   },
 
   async getConnectionById(userId: string, connectionId: string): Promise<IntegrationConnectionSummary> {

@@ -29,6 +29,14 @@ const baseSummary = {
 };
 
 beforeEach(() => {
+  vi.spyOn(integrationsService, "listProviders").mockReturnValue([
+    {
+      key: "google",
+      label: "Google",
+      description: "Connect a Google account to access calendar resources.",
+      authType: "oauth",
+    },
+  ]);
   vi.spyOn(integrationsService, "listConnections").mockResolvedValue([baseSummary]);
   vi.spyOn(integrationsService, "getConnectionById").mockResolvedValue(baseSummary);
   vi.spyOn(integrationsService, "updateConnectionLabel").mockResolvedValue({
@@ -37,6 +45,9 @@ beforeEach(() => {
   });
   vi.spyOn(integrationsService, "deleteConnection").mockResolvedValue(undefined);
   vi.spyOn(integrationsService, "refreshConnection").mockResolvedValue(baseSummary);
+  vi.spyOn(integrationsService, "getProviderConnectAuthorizationUrl").mockResolvedValue(
+    "https://accounts.google.com/auth?state=xyz",
+  );
 });
 
 afterEach(() => {
@@ -110,6 +121,48 @@ test("GET / lists integration connections for authenticated user", async () => {
   expect(response.statusCode).toBe(200);
   expect(response.body).toEqual({ items: [baseSummary] });
   expect(integrationsService.listConnections).toHaveBeenCalledWith("user-1", {});
+});
+
+test("GET /providers lists supported integration providers", async () => {
+  const response = await invokeRoute(integrationsRouter, "get", "/providers");
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body).toEqual({
+    items: [
+      {
+        key: "google",
+        label: "Google",
+        description: "Connect a Google account to access calendar resources.",
+        authType: "oauth",
+      },
+    ],
+  });
+  expect(integrationsService.listProviders).toHaveBeenCalledTimes(1);
+});
+
+test("GET /providers/:provider/start returns authorizationUrl for supported provider", async () => {
+  const response = await invokeRoute(integrationsRouter, "get", "/providers/:provider/start", {
+    params: { provider: "google" },
+    query: { returnTo: "ambientscreen://integrations" },
+  });
+
+  expect(response.statusCode).toBe(200);
+  expect(response.body).toEqual({
+    authorizationUrl: "https://accounts.google.com/auth?state=xyz",
+  });
+  expect(integrationsService.getProviderConnectAuthorizationUrl).toHaveBeenCalledWith(
+    "user-1",
+    "google",
+    "ambientscreen://integrations",
+  );
+});
+
+test("GET /providers/:provider/start returns 400 for unsupported provider", async () => {
+  const response = await invokeRoute(integrationsRouter, "get", "/providers/:provider/start", {
+    params: { provider: "github" },
+  });
+
+  expect(response.statusCode).toBe(400);
 });
 
 test("GET / passes provider filter from query string", async () => {

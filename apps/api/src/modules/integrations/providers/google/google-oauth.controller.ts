@@ -7,22 +7,7 @@ import { integrationsRepository } from "../../integrations.repository";
 import { apiErrors } from "../../../../core/http/api-error";
 import { googleCalendarsQuerySchema } from "../../integrations.schemas";
 import { getAppBaseUrl, getAuthJwtSecret } from "../../../../core/config/env";
-
-/**
- * Whitelist check for the returnTo parameter.
- * Only allow the native app scheme and same-origin web URLs to prevent
- * open redirect attacks.
- */
-function isAllowedReturnTo(returnTo: string, appBaseUrl: string): boolean {
-  if (returnTo.startsWith("ambientscreen://")) return true;
-  try {
-    const returnUrl = new URL(returnTo);
-    const baseUrl = new URL(appBaseUrl);
-    return returnUrl.origin === baseUrl.origin;
-  } catch {
-    return false;
-  }
-}
+import { isAllowedReturnTo } from "./google-oauth.utils";
 
 export const googleOAuthController = {
   async start(req: Request, res: Response): Promise<void> {
