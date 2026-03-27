@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    ...typography.small,
+    ...typography.caption,
     color: colors.textPrimary,
     fontWeight: "700",
   },
