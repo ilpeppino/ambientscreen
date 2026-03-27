@@ -1,7 +1,8 @@
-import { test, expect, afterEach, beforeEach, vi } from "vitest";
+import { test, expect, afterEach, beforeEach, vi, describe } from "vitest";
 import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetDataService } from "../src/modules/widgetData/widget-data.service";
 import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/calendar.resolver";
+import { resolveClockDateWidgetData } from "../src/modules/widgetData/resolvers/clockDate.resolver";
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
 import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
@@ -69,19 +70,80 @@ test("widgetDataService returns safe error when config validation fails", async 
   expect(result?.meta?.errorCode).toBe("INVALID_WIDGET_CONFIG");
 });
 
+describe("clockDate resolver config normalization", () => {
+  test("hour12=true produces 12-hour formatted time", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { hour12: true, timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    // 12h format uses AM/PM suffix
+    expect(result.data?.formattedTime).toMatch(/AM|PM/i);
+  });
+
+  test("hour12=false produces 24-hour formatted time", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { hour12: false, timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
+
+  test("legacy format='12h' produces 12-hour formatted time (backward compat)", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { format: "12h", timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).toMatch(/AM|PM/i);
+  });
+
+  test("legacy format='24h' produces 24-hour formatted time (backward compat)", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { format: "24h", timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
+
+  test("empty config defaults to 24-hour formatted time", async () => {
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: {},
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
+
+  test("hour12 wins over format on the read path (resolver)", async () => {
+    // In the resolver, hour12 is checked first; format is only a fallback for legacy data.
+    // If a stale persisted record somehow has both, hour12 takes precedence.
+    const result = await resolveClockDateWidgetData({
+      widgetInstanceId: "w1",
+      widgetConfig: { hour12: false, format: "12h", timezone: "local" },
+    });
+    expect(result.state).toBe("ready");
+    expect(result.data?.formattedTime).not.toMatch(/AM|PM/i);
+  });
+});
+
 test("weather resolver returns normalized ready payload from provider data", async () => {
   const result = await resolveWeatherWidgetData({
     widgetInstanceId: "widget-weather",
     widgetConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
     },
     fetchWeatherData: async () => {
       return {
-        locationLabel: "Amsterdam, North Holland, Netherlands",
-        temperature: 12.24,
-        temperatureUnit: "celsius",
+        locationLabel: "Amsterdam, NL",
+        temperatureC: 12.2,
         conditionLabel: "Rain",
+        forecast: [
+          { timeIso: "2026-03-20T12:00:00.000Z", temperatureC: 11.0, conditionLabel: "Rain" },
+        ],
         fetchedAtIso: "2026-03-20T12:34:56.000Z",
       };
     },
@@ -90,11 +152,14 @@ test("weather resolver returns normalized ready payload from provider data", asy
   expect(result.widgetKey).toBe("weather");
   expect(result.state).toBe("ready");
   expect(result.data).toEqual({
-    location: "Amsterdam, North Holland, Netherlands",
+    location: "Amsterdam, NL",
     temperatureC: 12.2,
     conditionLabel: "Rain",
+    forecast: [
+      { timeIso: "2026-03-20T12:00:00.000Z", temperatureC: 11.0, conditionLabel: "Rain" },
+    ],
   });
-  expect(result.meta?.source).toBe("open-meteo");
+  expect(result.meta?.source).toBe("openweather");
   expect(result.meta?.fetchedAt).toBe("2026-03-20T12:34:56.000Z");
 });
 
@@ -102,7 +167,7 @@ test("weather resolver returns empty payload when location cannot be resolved", 
   const result = await resolveWeatherWidgetData({
     widgetInstanceId: "widget-weather",
     widgetConfig: {
-      location: "Unknown City",
+      city: "Unknown City",
       units: "metric",
     },
     fetchWeatherData: async () => null,
@@ -113,6 +178,7 @@ test("weather resolver returns empty payload when location cannot be resolved", 
     location: "Unknown City",
     temperatureC: null,
     conditionLabel: null,
+    forecast: [],
   });
   expect(result.meta?.errorCode).toBe("WEATHER_LOCATION_NOT_FOUND");
 });
@@ -121,7 +187,7 @@ test("weather resolver returns stale payload when provider call fails", async ()
   const result = await resolveWeatherWidgetData({
     widgetInstanceId: "widget-weather",
     widgetConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
     },
     fetchWeatherData: async () => {
@@ -134,6 +200,7 @@ test("weather resolver returns stale payload when provider call fails", async ()
     location: "Amsterdam",
     temperatureC: null,
     conditionLabel: null,
+    forecast: [],
   });
   expect(result.meta?.errorCode).toBe("WEATHER_PROVIDER_UNAVAILABLE");
 });

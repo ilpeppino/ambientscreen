@@ -26,21 +26,27 @@ export interface WidgetManifest<TKey extends WidgetKey = WidgetKey> {
 }
 
 export interface ClockDateWidgetConfig {
+  /** @deprecated Use `hour12` instead. Kept for backward compatibility with persisted data. */
   format?: "12h" | "24h";
   showSeconds?: boolean;
   timezone?: string;
   locale?: string;
+  /** Canonical field: true = 12-hour clock, false = 24-hour clock. */
   hour12?: boolean;
 }
 
 export interface WeatherWidgetConfig {
-  location?: string;
-  units?: "metric" | "imperial";
+  city?: string;
+  countryCode?: string;
+  units?: "metric" | "imperial" | "standard";
+  forecastSlots?: number;
 }
 
 export interface CalendarWidgetConfig {
-  provider?: "ical";
+  provider?: "ical" | "google";
   account?: string;
+  integrationConnectionId?: string;
+  calendarId?: string;
   timeWindow?: "today" | "next24h" | "next7d";
   includeAllDay?: boolean;
   maxEvents?: number;
@@ -74,12 +80,12 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
     key: "clockDate",
     name: "Clock & Date",
     defaultConfig: {
-      format: "24h",
+      hour12: false,
       showSeconds: false,
       timezone: "local",
     },
     configSchema: {
-      format: ["12h", "24h"],
+      hour12: "boolean",
       showSeconds: "boolean",
       timezone: "string",
     },
@@ -88,12 +94,15 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
     key: "weather",
     name: "Weather",
     defaultConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
+      forecastSlots: 3,
     },
     configSchema: {
-      location: "string",
-      units: ["metric", "imperial"],
+      city: "string",
+      countryCode: "string",
+      units: ["metric", "imperial", "standard"],
+      forecastSlots: "number",
     },
   },
   calendar: {
@@ -107,8 +116,10 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
       includeAllDay: true,
     },
     configSchema: {
-      provider: ["ical"],
+      provider: ["ical", "google"],
       account: "string",
+      integrationConnectionId: "string",
+      calendarId: "string",
       timeWindow: ["today", "next24h", "next7d"],
       maxEvents: "number",
       includeAllDay: "boolean",
@@ -261,10 +272,17 @@ export interface ClockDateWidgetData {
   weekdayLabel: string | null;
 }
 
+export interface WeatherForecastSlot {
+  timeIso: string;
+  temperatureC: number | null;
+  conditionLabel: string | null;
+}
+
 export interface WeatherWidgetData {
   location: string | null;
   temperatureC: number | null;
   conditionLabel: string | null;
+  forecast: WeatherForecastSlot[];
 }
 
 export interface CalendarWidgetData {

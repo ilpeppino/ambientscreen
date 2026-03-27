@@ -52,6 +52,7 @@ interface AdminHomeScreenProps {
   onEnterDisplayMode: () => void;
   onEnterRemoteControlMode: () => void;
   onEnterMarketplace: () => void;
+  onEnterIntegrations: () => void;
   onLogout: () => void;
 }
 
@@ -60,6 +61,7 @@ export function AdminHomeScreen({
   onEnterDisplayMode,
   onEnterRemoteControlMode,
   onEnterMarketplace,
+  onEnterIntegrations,
   onLogout,
 }: AdminHomeScreenProps) {
   const { plan, hasFeature } = useEntitlements();
@@ -201,7 +203,7 @@ export function AdminHomeScreen({
           profileId: activeProfileId ?? undefined,
           widgetType: selectedWidgetType,
           weatherConfig: {
-            location: weatherLocation,
+            city: weatherLocation,
             units: weatherUnits,
           },
           calendarConfig: {
@@ -584,6 +586,7 @@ export function AdminHomeScreen({
         <ManagementCard title="Navigation" subtitle="Switch product modes." icon="chevronRight">
           <ActionRow>
             <ManagementActionButton label="Plugin Marketplace" tone="primary" icon="star" onPress={onEnterMarketplace} />
+            <ManagementActionButton label="Connected Accounts" tone="secondary" icon="settings" onPress={onEnterIntegrations} />
             <ManagementActionButton label="Display Mode" tone="secondary" icon="grid" onPress={onEnterDisplayMode} />
             <ManagementActionButton label="Remote Control" tone="secondary" icon="refresh" onPress={onEnterRemoteControlMode} />
             <ManagementActionButton label="Logout" tone="destructive" icon="close" onPress={onLogout} />

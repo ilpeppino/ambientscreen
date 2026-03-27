@@ -213,7 +213,7 @@ test("M1-2: unsupported widget type is rejected", async () => {
   expect(createResponse.statusCode).toBe(400);
 });
 
-test("M3-3: weather widget can be created with location and units config", async () => {
+test("M3-3: weather widget can be created with city and units config", async () => {
   await invokeRoute(usersRouter, "post", "/", {
     body: { email: "owner@ambient.dev", password: "password123" }
   });
@@ -222,7 +222,7 @@ test("M3-3: weather widget can be created with location and units config", async
     body: {
       type: "weather",
       config: {
-        location: "Rotterdam",
+        city: "Rotterdam",
         units: "imperial"
       }
     }
@@ -232,12 +232,12 @@ test("M3-3: weather widget can be created with location and units config", async
   const createdWidget = createResponse.body as {
     type: string;
     config: {
-      location?: string;
+      city?: string;
       units?: string;
     };
   };
   expect(createdWidget.type).toBe("weather");
-  expect(createdWidget.config.location).toBe("Rotterdam");
+  expect(createdWidget.config.city).toBe("Rotterdam");
   expect(createdWidget.config.units).toBe("imperial");
 });
 

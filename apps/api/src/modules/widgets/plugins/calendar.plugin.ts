@@ -13,6 +13,7 @@ export const calendarWidgetPlugin: WidgetApiPluginModule<"calendar"> = {
       return resolveCalendarWidgetData({
         widgetInstanceId: input.widgetInstanceId,
         widgetConfig: input.widgetConfig,
+        userId: input.userId,
       });
     },
   },

@@ -12,11 +12,11 @@ test("CREATABLE_WIDGET_TYPES exposes the initial M1-2 widget set", () => {
 });
 
 test("WEATHER_UNITS exposes weather unit options for admin config", () => {
-  expect(WEATHER_UNITS).toEqual(["metric", "imperial"]);
+  expect(WEATHER_UNITS).toEqual(["metric", "imperial", "standard"]);
 });
 
 test("calendar admin config options expose providers and time windows", () => {
-  expect(CALENDAR_PROVIDERS).toEqual(["ical"]);
+  expect(CALENDAR_PROVIDERS).toEqual(["ical", "google"]);
   expect(CALENDAR_TIME_WINDOWS).toEqual(["today", "next24h", "next7d"]);
 });
 
@@ -24,7 +24,7 @@ test("buildCreateWidgetInput omits config for non-weather widgets", () => {
   const payload = buildCreateWidgetInput({
     widgetType: "clockDate",
     weatherConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric"
     },
     calendarConfig: {
@@ -41,7 +41,7 @@ test("buildCreateWidgetInput includes weather config for weather widgets", () =>
   const payload = buildCreateWidgetInput({
     widgetType: "weather",
     weatherConfig: {
-      location: "Berlin",
+      city: "Berlin",
       units: "imperial"
     },
     calendarConfig: {
@@ -54,7 +54,7 @@ test("buildCreateWidgetInput includes weather config for weather widgets", () =>
   expect(payload).toEqual({
     type: "weather",
     config: {
-      location: "Berlin",
+      city: "Berlin",
       units: "imperial"
     }
   });
@@ -64,7 +64,7 @@ test("buildCreateWidgetInput includes calendar config for calendar widgets", () 
   const payload = buildCreateWidgetInput({
     widgetType: "calendar",
     weatherConfig: {
-      location: "Berlin",
+      city: "Berlin",
       units: "metric",
     },
     calendarConfig: {

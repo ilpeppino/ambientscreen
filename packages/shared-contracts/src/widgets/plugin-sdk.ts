@@ -56,6 +56,7 @@ export interface WidgetApiResolverInput<TKey extends WidgetKey = WidgetKey> {
   widgetInstanceId: string;
   widgetConfig: unknown;
   widgetKey: TKey;
+  userId?: string;
 }
 
 export type WidgetApiResolveData<TKey extends WidgetKey = WidgetKey> = (
@@ -129,12 +130,12 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       refreshPolicy: { intervalMs: 1000 },
     },
     defaultConfig: {
-      format: "24h",
+      hour12: false,
       showSeconds: false,
       timezone: "local",
     },
     configSchema: {
-      format: ["12h", "24h"],
+      hour12: "boolean",
       showSeconds: "boolean",
       timezone: "string",
     },
@@ -144,7 +145,7 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       key: "weather",
       version: manifestVersion,
       name: "Weather",
-      description: "Shows current weather conditions for a location.",
+      description: "Shows current weather conditions and short forecast for a location.",
       category: "environment",
       defaultLayout: {
         w: 4,
@@ -155,12 +156,15 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       refreshPolicy: { intervalMs: 300000 },
     },
     defaultConfig: {
-      location: "Amsterdam",
+      city: "Amsterdam",
       units: "metric",
+      forecastSlots: 3,
     },
     configSchema: {
-      location: "string",
-      units: ["metric", "imperial"],
+      city: "string",
+      countryCode: "string",
+      units: ["metric", "imperial", "standard"],
+      forecastSlots: "number",
     },
   },
   calendar: {
@@ -168,7 +172,7 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       key: "calendar",
       version: manifestVersion,
       name: "Calendar",
-      description: "Lists upcoming events from an iCal feed.",
+      description: "Lists upcoming events from Google Calendar or an iCal feed.",
       category: "productivity",
       defaultLayout: {
         w: 6,
@@ -186,8 +190,10 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       includeAllDay: true,
     },
     configSchema: {
-      provider: ["ical"],
+      provider: ["ical", "google"],
       account: "string",
+      integrationConnectionId: "string",
+      calendarId: "string",
       timeWindow: ["today", "next24h", "next7d"],
       maxEvents: "number",
       includeAllDay: "boolean",

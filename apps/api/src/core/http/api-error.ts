@@ -6,7 +6,15 @@ export type ApiErrorCode =
   | "FORBIDDEN"
   | "DUPLICATE_RESOURCE"
   | "RATE_LIMIT_EXCEEDED"
-  | "INTERNAL_ERROR";
+  | "INTERNAL_ERROR"
+  | "INTEGRATION_NOT_FOUND"
+  | "INTEGRATION_FORBIDDEN"
+  | "INTEGRATION_PROVIDER_MISMATCH"
+  | "INTEGRATION_NEEDS_REAUTH"
+  | "INTEGRATION_REFRESH_FAILED"
+  | "INTEGRATION_INVALID_STATE"
+  | "INTEGRATION_OAUTH_EXCHANGE_FAILED"
+  | "INTEGRATION_PROVIDER_ERROR";
 
 interface ApiErrorOptions {
   code: ApiErrorCode;
@@ -82,5 +90,37 @@ export const apiErrors = {
       message,
       details
     });
-  }
+  },
+
+  integrationNotFound(message: string) {
+    return new ApiError({ code: "INTEGRATION_NOT_FOUND", status: 404, message });
+  },
+
+  integrationForbidden(message: string) {
+    return new ApiError({ code: "INTEGRATION_FORBIDDEN", status: 403, message });
+  },
+
+  integrationProviderMismatch(message: string) {
+    return new ApiError({ code: "INTEGRATION_PROVIDER_MISMATCH", status: 400, message });
+  },
+
+  integrationNeedsReauth(message: string) {
+    return new ApiError({ code: "INTEGRATION_NEEDS_REAUTH", status: 409, message });
+  },
+
+  integrationRefreshFailed(message: string) {
+    return new ApiError({ code: "INTEGRATION_REFRESH_FAILED", status: 502, message });
+  },
+
+  integrationInvalidState(message: string) {
+    return new ApiError({ code: "INTEGRATION_INVALID_STATE", status: 400, message });
+  },
+
+  integrationOAuthExchangeFailed(message: string) {
+    return new ApiError({ code: "INTEGRATION_OAUTH_EXCHANGE_FAILED", status: 502, message });
+  },
+
+  integrationProviderError(message: string) {
+    return new ApiError({ code: "INTEGRATION_PROVIDER_ERROR", status: 502, message });
+  },
 };

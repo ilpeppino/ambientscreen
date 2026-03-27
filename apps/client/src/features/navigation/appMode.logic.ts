@@ -1,4 +1,4 @@
-export type AppMode = "admin" | "display" | "remoteControl" | "marketplace";
+export type AppMode = "admin" | "display" | "remoteControl" | "marketplace" | "integrations";
 
 export function getInitialAppMode(): AppMode {
   return "admin";
@@ -25,5 +25,13 @@ export function enterMarketplaceMode(): AppMode {
 }
 
 export function exitMarketplaceMode(): AppMode {
+  return "admin";
+}
+
+export function enterIntegrationsMode(): AppMode {
+  return "integrations";
+}
+
+export function exitIntegrationsMode(): AppMode {
   return "admin";
 }

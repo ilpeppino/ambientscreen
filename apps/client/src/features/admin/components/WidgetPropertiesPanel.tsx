@@ -12,12 +12,36 @@ import {
 import { AppIcon } from "../../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../../shared/ui/theme";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
+import { InspectorReadOnlyField, InspectorReadOnlySection } from "./InspectorReadOnlyField";
+import { buildWidgetReadOnlyFields } from "../widgetInspectorSummary";
+import { CalendarInspectorContent } from "../../../widgets/calendar/CalendarInspectorContent";
+import { ClockDateInspectorContent } from "../../../widgets/clockDate/ClockDateInspectorContent";
 
 const WIDGET_ICON = {
   clockDate: "clock",
   weather: "weather",
   calendar: "calendar",
 } as const;
+
+interface ReadOnlyConfigurationViewProps {
+  selectedWidget: DisplayLayoutWidgetEnvelope;
+}
+
+function ReadOnlyConfigurationView({ selectedWidget }: ReadOnlyConfigurationViewProps) {
+  const fields = buildWidgetReadOnlyFields(selectedWidget.widgetKey, selectedWidget.config);
+
+  if (fields.length === 0) {
+    return null;
+  }
+
+  return (
+    <InspectorReadOnlySection title="Configuration">
+      {fields.map(({ key, label, value }) => (
+        <InspectorReadOnlyField key={key} label={label} value={value} />
+      ))}
+    </InspectorReadOnlySection>
+  );
+}
 
 interface WidgetPropertiesPanelProps {
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
@@ -109,9 +133,6 @@ export function WidgetPropertiesPanel({
           </View>
           <View style={styles.identityText}>
             <Text style={styles.widgetName}>{manifest.name}</Text>
-            <Text style={styles.widgetId} numberOfLines={1}>
-              {manifest.key}
-            </Text>
           </View>
         </View>
 
@@ -183,9 +204,6 @@ export function WidgetPropertiesPanel({
         </View>
         <View style={styles.identityText}>
           <Text style={styles.widgetName}>{widgetName}</Text>
-          <Text style={styles.widgetId} numberOfLines={1}>
-            {selectedWidget.widgetInstanceId.slice(0, 12)}…
-          </Text>
         </View>
         {onSaveConfig ? (
           isEditing ? (
@@ -219,46 +237,50 @@ export function WidgetPropertiesPanel({
         ) : null}
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Layout</Text>
-        <KeyValueRow label="X" value={String(selectedWidget.layout.x)} monospace />
-        <KeyValueRow label="Y" value={String(selectedWidget.layout.y)} monospace />
-        <KeyValueRow
-          label="Size"
-          value={`${selectedWidget.layout.w} × ${selectedWidget.layout.h}`}
-          monospace
+      {selectedWidget.widgetKey === "calendar" ? (
+        // Calendar uses the shared inspector system for both read-only and edit modes.
+        <CalendarInspectorContent
+          config={selectedWidget.config}
+          draft={draft}
+          mode={isEditing ? "edit" : "readOnly"}
+          onChange={(patch) => setDraft((prev) => ({ ...prev, ...patch }))}
         />
-      </View>
-
-      {!isEditing && configEntries && configEntries.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Configuration</Text>
-          <View style={styles.configList}>
-            {configEntries.map(([key, value]) => (
-              <KeyValueRow key={key} label={key} value={String(value)} monospace />
-            ))}
-          </View>
-        </View>
-      ) : null}
-
-      {isEditing && descriptors.length > 0 ? (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Edit Configuration</Text>
-          <View style={styles.configList}>
-            {descriptors.map((descriptor) => (
-              <InlineFieldEditor
-                key={descriptor.key}
-                descriptor={descriptor}
-                value={draft[descriptor.key]}
-                onChange={setFieldValue}
-              />
-            ))}
-          </View>
-          {(validationError ?? saveError) ? (
-            <Text style={styles.errorText}>{validationError ?? saveError}</Text>
+      ) : selectedWidget.widgetKey === "clockDate" ? (
+        // ClockDate uses the shared inspector system for both read-only and edit modes.
+        <ClockDateInspectorContent
+          config={selectedWidget.config}
+          draft={draft}
+          mode={isEditing ? "edit" : "readOnly"}
+          onChange={(patch) => setDraft((prev) => ({ ...prev, ...patch }))}
+        />
+      ) : (
+        <>
+          {!isEditing ? (
+            <ReadOnlyConfigurationView selectedWidget={selectedWidget} />
           ) : null}
-        </View>
-      ) : null}
+
+          {isEditing ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Edit Configuration</Text>
+              {descriptors.length > 0 ? (
+                <View style={styles.configList}>
+                  {descriptors.map((descriptor) => (
+                    <InlineFieldEditor
+                      key={descriptor.key}
+                      descriptor={descriptor}
+                      value={draft[descriptor.key]}
+                      onChange={setFieldValue}
+                    />
+                  ))}
+                </View>
+              ) : null}
+              {(validationError ?? saveError) ? (
+                <Text style={styles.errorText}>{validationError ?? saveError}</Text>
+              ) : null}
+            </View>
+          ) : null}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -413,12 +435,6 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.textPrimary,
     fontWeight: "700",
-  },
-  widgetId: {
-    fontSize: 11,
-    color: colors.textSecondary,
-    fontFamily: "monospace",
-    opacity: 0.75,
   },
   editActions: {
     flexDirection: "row",

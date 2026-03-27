@@ -18,9 +18,11 @@ import {
 import { heartbeatDevice, registerDevice } from "./src/services/api/devicesApi";
 import {
   enterDisplayMode,
+  enterIntegrationsMode,
   enterMarketplaceMode,
   enterRemoteControlMode,
   exitDisplayMode,
+  exitIntegrationsMode,
   exitMarketplaceMode,
   exitRemoteControlMode,
   getInitialAppMode,
@@ -28,22 +30,30 @@ import {
 } from "./src/features/navigation/appMode.logic";
 import { useDeepLinks } from "./src/features/navigation/useDeepLinks";
 import { useWebHistory } from "./src/features/navigation/useWebHistory";
+import type { OAuthCallbackParams } from "./src/features/navigation/deepLinks";
 import { MarketplaceScreen } from "./src/features/marketplace/screens/MarketplaceScreen";
+import { IntegrationsScreen } from "./src/features/integrations/IntegrationsScreen";
 import { API_BASE_URL } from "./src/core/config/api";
 import { EntitlementsProvider } from "./src/features/entitlements/entitlements.context";
 
 function AuthenticatedApp() {
   const { isLoading, token, logout } = useAuth();
   const [mode, setMode] = useState<AppMode>(getInitialAppMode);
+  const [oauthCallback, setOauthCallback] = useState<OAuthCallbackParams | null>(null);
 
-  const applyModeChange = React.useCallback((nextMode: AppMode) => {
-    setMode((currentMode) => {
-      if (currentMode !== nextMode) {
-        console.info(`[nav] ${currentMode} → ${nextMode}`);
-      }
-      return nextMode;
-    });
-  }, []);
+  const applyModeChange = React.useCallback(
+    (nextMode: AppMode, oauthCallbackParam?: OAuthCallbackParams) => {
+      setMode((currentMode) => {
+        if (currentMode !== nextMode) {
+          console.info(`[nav] ${currentMode} → ${nextMode}`);
+        }
+        return nextMode;
+      });
+      // Always replace the pending callback so stale messages don't persist
+      setOauthCallback(oauthCallbackParam ?? null);
+    },
+    [],
+  );
 
   useDeepLinks({
     onNavigate: applyModeChange,
@@ -143,12 +153,22 @@ function AuthenticatedApp() {
     return <MarketplaceScreen onBack={() => applyModeChange(exitMarketplaceMode())} />;
   }
 
+  if (mode === "integrations") {
+    return (
+      <IntegrationsScreen
+        onBack={() => applyModeChange(exitIntegrationsMode())}
+        oauthCallback={oauthCallback}
+      />
+    );
+  }
+
   if (mode === "admin") {
     const adminProps = {
       currentDeviceId: deviceId,
       onEnterDisplayMode: () => applyModeChange(enterDisplayMode()),
       onEnterRemoteControlMode: () => applyModeChange(enterRemoteControlMode()),
       onEnterMarketplace: () => applyModeChange(enterMarketplaceMode()),
+      onEnterIntegrations: () => applyModeChange(enterIntegrationsMode()),
       onLogout: () => { void logout(); },
     };
 

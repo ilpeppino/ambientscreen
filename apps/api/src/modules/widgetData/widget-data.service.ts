@@ -56,6 +56,7 @@ export const widgetDataService = {
         widgetInstanceId: widget.id,
         widgetKey: widgetType,
         widgetConfig: normalizeWidgetConfig(widgetType, widget.config),
+        userId,
       });
     } catch {
       return {

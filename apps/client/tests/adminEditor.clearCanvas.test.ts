@@ -27,6 +27,7 @@ vi.mock("react-native", () => {
     StyleSheet: {
       create: <T extends Record<string, unknown>>(styles: T) => styles,
     },
+    useWindowDimensions: () => ({ width: 1280, height: 720, scale: 1, fontScale: 1 }),
   };
 });
 
@@ -267,6 +268,7 @@ function renderScreen() {
       onEnterDisplayMode: vi.fn(),
       onEnterRemoteControlMode: vi.fn(),
       onEnterMarketplace: vi.fn(),
+      onEnterIntegrations: vi.fn(),
       onLogout: vi.fn(),
     }),
   );

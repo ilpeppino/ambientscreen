@@ -26,3 +26,31 @@ export function getAuthJwtSecret(env: NodeJS.ProcessEnv = process.env): string {
 
   return secret;
 }
+
+export function getGoogleClientId(env: NodeJS.ProcessEnv = process.env): string {
+  const val = env.GOOGLE_CLIENT_ID?.trim();
+  if (!val) throw new Error("Missing required env var GOOGLE_CLIENT_ID");
+  return val;
+}
+
+export function getGoogleClientSecret(env: NodeJS.ProcessEnv = process.env): string {
+  const val = env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!val) throw new Error("Missing required env var GOOGLE_CLIENT_SECRET");
+  return val;
+}
+
+export function getGoogleRedirectUri(env: NodeJS.ProcessEnv = process.env): string {
+  const val = env.GOOGLE_REDIRECT_URI?.trim();
+  if (!val) throw new Error("Missing required env var GOOGLE_REDIRECT_URI");
+  return val;
+}
+
+export function getIntegrationEncryptionKey(env: NodeJS.ProcessEnv = process.env): string {
+  const val = env.INTEGRATION_ENCRYPTION_KEY?.trim();
+  if (!val) throw new Error("Missing required env var INTEGRATION_ENCRYPTION_KEY");
+  return val;
+}
+
+export function getAppBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  return env.APP_BASE_URL?.trim() ?? "http://localhost:19006";
+}

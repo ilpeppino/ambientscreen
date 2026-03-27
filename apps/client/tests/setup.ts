@@ -75,7 +75,11 @@ vi.mock("react-native", () => ({
     select: <T>(value: { ios?: T; android?: T; web?: T; default?: T }) =>
       value.web ?? value.default,
   },
-  NativeModules: {},
+  NativeModules: {
+    SourceCode: {
+      scriptURL: "http://localhost:3000",
+    },
+  },
   AppState: {
     currentState: "active",
     addEventListener: () => ({ remove: () => undefined }),

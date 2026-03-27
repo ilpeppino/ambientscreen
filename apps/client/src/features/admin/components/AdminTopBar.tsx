@@ -15,6 +15,7 @@ interface AdminTopBarProps {
   onUpgradePlan?: () => void;
   onEnterDisplayMode: () => void;
   onEnterRemoteControlMode: () => void;
+  onEnterIntegrations: () => void;
   onLogout: () => void;
 }
 
@@ -29,6 +30,7 @@ export function AdminTopBar({
   onUpgradePlan = () => undefined,
   onEnterDisplayMode,
   onEnterRemoteControlMode,
+  onEnterIntegrations,
   onLogout,
 }: AdminTopBarProps) {
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
@@ -193,6 +195,19 @@ export function AdminTopBar({
             </Text>
           </Pressable>
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Integrations"
+          style={styles.actionButton}
+          onPress={() => {
+            closeAll();
+            onEnterIntegrations();
+          }}
+        >
+          <AppIcon name="settings" size="sm" color="textSecondary" />
+          <Text style={styles.actionButtonLabel}>Integrations</Text>
+        </Pressable>
 
         <View style={styles.dropdownAnchor}>
           <Pressable
@@ -436,5 +451,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.buttonPassiveBg,
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    backgroundColor: colors.buttonPassiveBg,
+  },
+  actionButtonLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: "600",
   },
 });

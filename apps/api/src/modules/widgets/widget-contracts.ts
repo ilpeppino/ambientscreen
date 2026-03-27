@@ -119,8 +119,15 @@ const createWidgetConfigSchemaByType: Record<SupportedWidgetType, z.ZodTypeAny> 
   ...configSchemasByWidget,
   clockDate: (configSchemasByWidget.clockDate as z.ZodObject<Record<string, z.ZodTypeAny>>)
     .extend({
-      hour12: z.boolean().optional(),
+      // `format` is deprecated but still accepted on input for backward compatibility.
+      // `mapLegacyConfig` normalizes it to `hour12` before persistence.
+      format: z.enum(["12h", "24h"]).optional(),
       locale: z.string().optional(),
+    })
+    .strict(),
+  weather: (configSchemasByWidget.weather as z.ZodObject<Record<string, z.ZodTypeAny>>)
+    .extend({
+      location: z.string().optional(),
     })
     .strict(),
   calendar: (configSchemasByWidget.calendar as z.ZodObject<Record<string, z.ZodTypeAny>>)
@@ -173,11 +180,25 @@ function mapLegacyConfig(
 ): Record<string, unknown> {
   if (widgetType === "clockDate") {
     const mapped = { ...config };
-    if (typeof mapped.hour12 === "boolean" && typeof mapped.format !== "string") {
-      mapped.format = mapped.hour12 ? "12h" : "24h";
+    // Normalize deprecated `format` → canonical `hour12`.
+    // On the write path, `format` always converts to `hour12` (so that legacy API callers
+    // who send `format` get the intended behavior even if `hour12` is already in the config
+    // from a previous normalization pass).
+    if (typeof mapped.format === "string") {
+      mapped.hour12 = mapped.format === "12h";
     }
-    delete mapped.hour12;
+    // format is deprecated; remove it so it is never persisted going forward.
+    delete mapped.format;
     delete mapped.locale;
+    return mapped;
+  }
+
+  if (widgetType === "weather") {
+    const mapped = { ...config };
+    if (typeof mapped.location === "string" && typeof mapped.city !== "string") {
+      mapped.city = mapped.location;
+    }
+    delete mapped.location;
     return mapped;
   }
 

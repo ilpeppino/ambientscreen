@@ -172,7 +172,7 @@ test("PATCH /widgets/:id/config updates widget config and GET /widgets returns l
     params: { id: "widget-1" },
     body: {
       config: {
-        format: "12h",
+        hour12: true,
         showSeconds: true,
         timezone: "UTC",
       },
@@ -186,19 +186,44 @@ test("PATCH /widgets/:id/config updates widget config and GET /widgets returns l
 
   const widgets = listResponse.body as TestWidget[];
   expect(widgets.length).toBe(1);
+  // hour12 is the canonical field; format is never persisted
   expect(widgets[0].config).toEqual({
-    format: "12h",
+    hour12: true,
     showSeconds: true,
     timezone: "UTC",
   });
 });
 
-test("PATCH /widgets/:id/config rejects invalid config payload", async () => {
+test("PATCH /widgets/:id/config accepts legacy format field and normalizes to hour12", async () => {
   const patchResponse = await invokeRoute(widgetsRouter, "patch", "/:id/config", {
     params: { id: "widget-1" },
     body: {
       config: {
-        format: "30h",
+        format: "12h",
+        showSeconds: true,
+        timezone: "UTC",
+      },
+    },
+  });
+
+  expect(patchResponse.statusCode).toBe(200);
+
+  const listResponse = await invokeRoute(widgetsRouter, "get", "/");
+  const widgets = listResponse.body as TestWidget[];
+  // format="12h" is normalized to hour12=true; format is not persisted
+  expect(widgets[0].config).toEqual({
+    hour12: true,
+    showSeconds: true,
+    timezone: "UTC",
+  });
+});
+
+test("PATCH /widgets/:id/config rejects unknown field values", async () => {
+  const patchResponse = await invokeRoute(widgetsRouter, "patch", "/:id/config", {
+    params: { id: "widget-1" },
+    body: {
+      config: {
+        hour12: "yes-please",
       },
     },
   });
