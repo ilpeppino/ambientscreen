@@ -137,6 +137,7 @@ const createWidgetConfigSchemaByType: Record<SupportedWidgetType, z.ZodTypeAny> 
       lookAheadDays: z.number().int().min(1).max(31).optional(),
     })
     .strict(),
+  rssNews: configSchemasByWidget.rssNews,
 };
 
 export function getDefaultWidgetConfig(

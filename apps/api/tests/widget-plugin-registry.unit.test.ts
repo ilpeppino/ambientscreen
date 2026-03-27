@@ -10,7 +10,7 @@ afterEach(() => {
   resetWidgetPluginRegistryForTests();
 });
 
-function createTestPlugin(key: "clockDate" | "weather"): WidgetApiPluginModule<typeof key> {
+function createTestPlugin(key: "clockDate" | "weather" | "rssNews"): WidgetApiPluginModule<typeof key> {
   return {
     manifest: {
       key,

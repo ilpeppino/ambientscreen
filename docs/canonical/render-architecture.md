@@ -62,11 +62,8 @@ interface WidgetRenderContext {
   viewportWidth: number
   viewportHeight: number
 
-  widgetGridW: number
-  widgetGridH: number
-
-  widgetPixelW: number
-  widgetPixelH: number
+  widgetWidth: number
+  widgetHeight: number
 
   widthRatio: number
   heightRatio: number
@@ -74,8 +71,14 @@ interface WidgetRenderContext {
 
   isFullscreen: boolean
 
-  orientation: "landscape"
-  platform: "web" | "ios" | "android"
+  orientation: "landscape" | "portrait"
+  platform: "web" | "ios" | "android" | "unknown"
+  safeAreaInsets: {
+    top: number
+    right: number
+    bottom: number
+    left: number
+  }
 
   sizeTier: "compact" | "regular" | "large" | "fullscreen"
 }
@@ -112,6 +115,12 @@ fullscreen → explicit rule
 
 Thresholds must be centralized and consistent.
 
+Current canonical tier derivation (runtime):
+- fullscreen: widthRatio >= 0.98 AND heightRatio >= 0.98
+- large: areaRatio >= 0.24 OR (widthRatio >= 0.65 AND heightRatio >= 0.35)
+- regular: areaRatio >= 0.11 OR (widthRatio >= 0.45 AND heightRatio >= 0.26)
+- compact: otherwise
+
 ---
 
 ## 5. Composition Model
@@ -137,9 +146,18 @@ Hero: 50–60%
 Support: 20–25%  
 Detail: 20–25%  
 
+### 5.3 Vertical Allocation by Tier (Canonical Runtime)
+
+All tiers use explicit Hero/Support/Detail region budgets.
+
+- compact: Hero 64%, Support 24%, Detail 12%
+- regular: Hero 56%, Support 24%, Detail 20%
+- large: Hero 54%, Support 24%, Detail 22%
+- fullscreen: Hero 56%, Support 22%, Detail 22%
+
 ---
 
-### 5.3 Behavior Across Sizes
+### 5.4 Behavior Across Sizes
 
 compact:
 - hero + minimal support
@@ -178,9 +196,19 @@ Use the largest token size that preserves:
 - spacing integrity
 - zero overlap
 
+### 6.3 Region-Fitted Typography Rule (All Tiers)
+
+For every text element in Hero, Support, and Detail:
+- compute text target size from tier/scaling tokens
+- cap by region-height budget (per region)
+- derive lineHeight from final font size (lineHeight must exceed font size)
+- if insufficient space remains, reduce lower-priority content first (detail -> support -> hero)
+
+This rule applies to compact, regular, large, and fullscreen.
+
 ---
 
-### 6.3 Hierarchy
+### 6.4 Hierarchy
 
 hero → primary value  
 title → secondary emphasis  

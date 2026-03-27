@@ -18,10 +18,11 @@ const DRAG_WIDGET_TYPE_MIME = "application/x-ambient-widget";
 const DRAG_WIDGET_PAYLOAD_MIME = "application/x-ambient-widget-payload";
 const LONG_PRESS_MS = 320;
 
-const WIDGET_ICON: Record<WidgetKey, "clock" | "weather" | "calendar"> = {
+const WIDGET_ICON: Record<WidgetKey, "clock" | "weather" | "calendar" | "alert"> = {
   clockDate: "clock",
   weather: "weather",
   calendar: "calendar",
+  rssNews: "alert",
 };
 
 interface WidgetLibraryPanelProps {

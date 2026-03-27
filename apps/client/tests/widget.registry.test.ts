@@ -13,7 +13,7 @@ beforeEach(() => {
   resetWidgetPluginRegistryForTests();
 });
 
-function createTestPlugin(key: "clockDate" | "weather"): WidgetClientPluginModule<typeof key, ReactNode> {
+function createTestPlugin(key: "clockDate" | "weather" | "rssNews"): WidgetClientPluginModule<typeof key, ReactNode> {
   return {
     manifest: {
       key,

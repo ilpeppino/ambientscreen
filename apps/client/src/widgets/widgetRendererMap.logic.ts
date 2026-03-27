@@ -1,7 +1,7 @@
 import type { WidgetKey } from "@ambient/shared-contracts";
 import { getWidgetPlugin } from "./pluginRegistry";
 
-export type WidgetRendererKind = "clockDate" | "weather" | "calendar";
+export type WidgetRendererKind = "clockDate" | "weather" | "calendar" | "rssNews";
 
 export function resolveWidgetRendererKind(widgetKey: WidgetKey): WidgetRendererKind {
   const plugin = getWidgetPlugin(widgetKey);

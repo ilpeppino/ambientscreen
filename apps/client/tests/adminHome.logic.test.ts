@@ -7,8 +7,8 @@ import {
   WEATHER_UNITS,
 } from "../src/features/admin/adminHome.logic";
 
-test("CREATABLE_WIDGET_TYPES exposes the initial M1-2 widget set", () => {
-  expect(CREATABLE_WIDGET_TYPES).toEqual(["clockDate", "weather", "calendar"]);
+test("CREATABLE_WIDGET_TYPES includes all built-in widget keys", () => {
+  expect(CREATABLE_WIDGET_TYPES).toEqual(["clockDate", "weather", "calendar", "rssNews"]);
 });
 
 test("WEATHER_UNITS exposes weather unit options for admin config", () => {

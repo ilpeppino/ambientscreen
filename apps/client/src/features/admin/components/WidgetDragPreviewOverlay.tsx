@@ -15,10 +15,11 @@ import {
   type WidgetDragCanvasHoverDetail,
 } from "./widgetManualDrag.events";
 
-const WIDGET_ICON: Record<WidgetKey, "clock" | "weather" | "calendar"> = {
+const WIDGET_ICON: Record<WidgetKey, "clock" | "weather" | "calendar" | "alert"> = {
   clockDate: "clock",
   weather: "weather",
   calendar: "calendar",
+  rssNews: "alert",
 };
 
 /** Cursor offset so the preview doesn't sit directly under the pointer. */

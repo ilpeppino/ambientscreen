@@ -226,4 +226,36 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       includeAllDay: "boolean",
     },
   },
+  rssNews: {
+    manifest: {
+      key: "rssNews",
+      version: manifestVersion,
+      name: "RSS News",
+      description: "Displays headlines from an RSS or Atom feed URL.",
+      category: "news",
+      defaultLayout: {
+        w: 6,
+        h: 3,
+        minW: 3,
+        minH: 2,
+      },
+      refreshPolicy: { intervalMs: 300000 },
+    },
+    defaultConfig: {
+      feedUrl: "",
+      maxItems: 5,
+      showImages: true,
+      showPublishedAt: true,
+      layout: "headline-list",
+      title: "Latest News",
+    },
+    configSchema: {
+      feedUrl: "string",
+      maxItems: "number",
+      showImages: "boolean",
+      showPublishedAt: "boolean",
+      layout: ["headline-list", "ticker"],
+      title: "string",
+    },
+  },
 }

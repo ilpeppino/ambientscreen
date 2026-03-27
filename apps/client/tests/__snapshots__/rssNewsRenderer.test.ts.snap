@@ -1,0 +1,516 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RssNewsRenderer > snapshot: with image 1`] = `
+<widget-surface
+  isSelected={false}
+  mode="fullscreen"
+  style={
+    [
+      {
+        "flex": 1,
+        "minHeight": 0,
+        "padding": 12,
+      },
+      {
+        "paddingBottom": 20,
+        "paddingHorizontal": 20,
+        "paddingTop": 20,
+      },
+      {
+        "flex": 1,
+      },
+    ]
+  }
+>
+  <view
+    style={
+      [
+        {
+          "flex": 1,
+          "minHeight": 0,
+          "overflow": "hidden",
+          "paddingVertical": 8,
+          "width": "100%",
+        },
+        {
+          "paddingVertical": 0,
+        },
+        null,
+        {
+          "alignItems": "center",
+          "flex": 1,
+          "gap": 4,
+          "justifyContent": "center",
+          "minHeight": 0,
+          "overflow": "hidden",
+          "width": "100%",
+        },
+      ]
+    }
+  >
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "center",
+            "gap": 2,
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 403,
+            "minHeight": 403,
+          },
+        ]
+      }
+    >
+      <image-background
+        imageStyle={
+          {
+            "borderRadius": 12,
+          }
+        }
+        resizeMode="cover"
+        source={
+          {
+            "uri": "https://cdn.example.com/1.jpg",
+          }
+        }
+        style={
+          [
+            {
+              "aspectRatio": 1.7777777777777777,
+              "backgroundColor": "#1C1C1C",
+              "borderRadius": 12,
+              "height": "100%",
+              "overflow": "hidden",
+            },
+            {
+              "marginBottom": 5,
+              "maxHeight": 258,
+              "width": 1177.6000000000001,
+            },
+          ]
+        }
+      >
+        <linear-gradient
+          colors={
+            [
+              "rgba(0,0,0,0)",
+              "rgba(0,0,0,0.62)",
+            ]
+          }
+          end={
+            {
+              "x": 0.5,
+              "y": 1,
+            }
+          }
+          start={
+            {
+              "x": 0.5,
+              "y": 0,
+            }
+          }
+          style={{}}
+        />
+      </image-background>
+      <text
+        ellipsizeMode="tail"
+        numberOfLines={2}
+        style={
+          [
+            {
+              "color": "#FFFFFF",
+              "fontSize": 16,
+              "fontWeight": "700",
+              "maxWidth": "100%",
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 38,
+              "lineHeight": 42,
+              "width": 1177.6000000000001,
+            },
+          ]
+        }
+      >
+        Top story
+      </text>
+      <text
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#9A9A9A",
+              "fontSize": 12,
+              "fontWeight": "400",
+              "marginTop": 2,
+              "opacity": 0.55,
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 20,
+              "lineHeight": 22,
+              "width": 1177.6000000000001,
+            },
+          ]
+        }
+      >
+        11h ago
+      </text>
+    </view>
+    <view
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "alignSelf": "center",
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 158,
+            "gap": 13,
+            "marginTop": 47,
+            "minHeight": 158,
+            "width": 921.5999999999999,
+          },
+        ]
+      }
+    >
+      <text
+        ellipsizeMode="tail"
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#FFFFFF",
+              "fontSize": 14,
+              "fontWeight": "700",
+              "lineHeight": 20,
+              "maxWidth": "100%",
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 36,
+              "lineHeight": 40,
+            },
+          ]
+        }
+      >
+        Latest News
+      </text>
+      <text
+        ellipsizeMode="tail"
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#9A9A9A",
+              "fontSize": 12,
+              "fontWeight": "400",
+              "maxWidth": "100%",
+              "opacity": 0.7,
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 20,
+              "lineHeight": 22,
+            },
+          ]
+        }
+      >
+        Example News
+      </text>
+    </view>
+    <view
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "alignSelf": "center",
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 159,
+            "gap": 13,
+            "marginTop": 32,
+            "minHeight": 159,
+            "width": 921.5999999999999,
+          },
+        ]
+      }
+    >
+      <view
+        style={
+          [
+            {
+              "alignItems": "flex-start",
+              "justifyContent": "center",
+              "paddingVertical": 1,
+              "width": "100%",
+            },
+            {
+              "minHeight": 159,
+            },
+          ]
+        }
+      >
+        <text
+          ellipsizeMode="tail"
+          numberOfLines={1}
+          style={
+            [
+              {
+                "color": "#FFFFFF",
+                "fontSize": 12,
+                "fontWeight": "400",
+                "maxWidth": "100%",
+                "textAlign": "left",
+              },
+              {
+                "fontSize": 22,
+                "lineHeight": 24,
+              },
+            ]
+          }
+        >
+          Second story
+        </text>
+        <text
+          ellipsizeMode="tail"
+          numberOfLines={1}
+          style={
+            [
+              {
+                "color": "#9A9A9A",
+                "fontSize": 12,
+                "fontWeight": "400",
+                "opacity": 0.45,
+                "textAlign": "left",
+              },
+              {
+                "fontSize": 18,
+                "lineHeight": 20,
+              },
+            ]
+          }
+        >
+          12h ago
+        </text>
+      </view>
+    </view>
+  </view>
+</widget-surface>
+`;
+
+exports[`RssNewsRenderer > snapshot: without image 1`] = `
+<widget-surface
+  isSelected={false}
+  mode="display"
+  style={
+    [
+      {
+        "flex": 1,
+        "minHeight": 0,
+        "padding": 12,
+      },
+      {
+        "paddingBottom": 12,
+        "paddingHorizontal": 12,
+        "paddingTop": 12,
+      },
+      {
+        "flex": 1,
+      },
+    ]
+  }
+>
+  <widget-header
+    icon="alert"
+    mode="display"
+    title="Latest News"
+  />
+  <view
+    style={
+      [
+        {
+          "flex": 1,
+          "minHeight": 0,
+          "overflow": "hidden",
+          "paddingVertical": 8,
+          "width": "100%",
+        },
+        {
+          "paddingVertical": 8,
+        },
+        null,
+        {
+          "alignItems": "center",
+          "flex": 1,
+          "gap": 4,
+          "justifyContent": "center",
+          "minHeight": 0,
+          "overflow": "hidden",
+          "width": "100%",
+        },
+      ]
+    }
+  >
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "center",
+            "gap": 2,
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 101,
+            "minHeight": 101,
+          },
+        ]
+      }
+    >
+      <text
+        ellipsizeMode="tail"
+        numberOfLines={2}
+        style={
+          [
+            {
+              "color": "#FFFFFF",
+              "fontSize": 16,
+              "fontWeight": "700",
+              "maxWidth": "100%",
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 21,
+              "lineHeight": 23,
+              "width": 288,
+            },
+          ]
+        }
+      >
+        Top story
+      </text>
+      <text
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#9A9A9A",
+              "fontSize": 12,
+              "fontWeight": "400",
+              "marginTop": 2,
+              "opacity": 0.55,
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 9,
+              "lineHeight": 11,
+              "width": 288,
+            },
+          ]
+        }
+      >
+        11h ago
+      </text>
+    </view>
+    <view
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "alignSelf": "center",
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 43,
+            "gap": 8,
+            "marginTop": 14,
+            "minHeight": 43,
+            "width": 230.39999999999998,
+          },
+        ]
+      }
+    >
+      <text
+        ellipsizeMode="tail"
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#FFFFFF",
+              "fontSize": 14,
+              "fontWeight": "700",
+              "lineHeight": 20,
+              "maxWidth": "100%",
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 11,
+              "lineHeight": 13,
+            },
+          ]
+        }
+      >
+        Latest News
+      </text>
+      <text
+        ellipsizeMode="tail"
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#9A9A9A",
+              "fontSize": 12,
+              "fontWeight": "400",
+              "maxWidth": "100%",
+              "opacity": 0.7,
+              "textAlign": "left",
+            },
+            {
+              "fontSize": 9,
+              "lineHeight": 11,
+            },
+          ]
+        }
+      >
+        Example News
+      </text>
+    </view>
+    <view
+      style={
+        [
+          {
+            "alignItems": "flex-start",
+            "alignSelf": "center",
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 36,
+            "gap": 8,
+            "marginTop": 10,
+            "minHeight": 36,
+            "width": 230.39999999999998,
+          },
+        ]
+      }
+    />
+  </view>
+</widget-surface>
+`;

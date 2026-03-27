@@ -11,7 +11,7 @@ export interface EntitlementsResponse {
   features: Record<FeatureFlagKey, boolean>;
 }
 
-export type WidgetKey = "clockDate" | "weather" | "calendar";
+export type WidgetKey = "clockDate" | "weather" | "calendar" | "rssNews";
 
 export type WidgetDataState = "ready" | "stale" | "empty" | "error";
 
@@ -52,10 +52,20 @@ export interface CalendarWidgetConfig {
   maxEvents?: number;
 }
 
+export interface RssNewsWidgetConfig {
+  feedUrl?: string;
+  maxItems?: number;
+  showImages?: boolean;
+  showPublishedAt?: boolean;
+  layout?: "headline-list" | "ticker";
+  title?: string;
+}
+
 export interface WidgetConfigByKey {
   clockDate: ClockDateWidgetConfig;
   weather: WeatherWidgetConfig;
   calendar: CalendarWidgetConfig;
+  rssNews: RssNewsWidgetConfig;
 }
 
 export type WidgetConfig<TKey extends WidgetKey = WidgetKey> = WidgetConfigByKey[TKey];
@@ -123,6 +133,26 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
       timeWindow: ["today", "next24h", "next7d"],
       maxEvents: "number",
       includeAllDay: "boolean",
+    },
+  },
+  rssNews: {
+    key: "rssNews",
+    name: "RSS News",
+    defaultConfig: {
+      feedUrl: "",
+      maxItems: 5,
+      showImages: true,
+      showPublishedAt: true,
+      layout: "headline-list",
+      title: "Latest News",
+    },
+    configSchema: {
+      feedUrl: "string",
+      maxItems: "number",
+      showImages: "boolean",
+      showPublishedAt: "boolean",
+      layout: ["headline-list", "ticker"],
+      title: "string",
     },
   },
 };
@@ -297,10 +327,25 @@ export interface CalendarWidgetData {
   }>;
 }
 
+export interface RssNewsWidgetData {
+  title: string;
+  siteTitle?: string;
+  feedUrl: string;
+  items: Array<{
+    id: string;
+    title: string;
+    link: string;
+    summary?: string;
+    publishedAt?: string;
+    imageUrl?: string;
+  }>;
+}
+
 export interface WidgetDataByKey {
   clockDate: ClockDateWidgetData;
   weather: WeatherWidgetData;
   calendar: CalendarWidgetData;
+  rssNews: RssNewsWidgetData;
 }
 
 export interface WidgetDataEnvelope<
