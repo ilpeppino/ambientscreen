@@ -78,14 +78,18 @@ function baseProps(
 
 function createRenderContext(sizeTier: WidgetRenderContext["sizeTier"]): WidgetRenderContext {
   const fullscreen = sizeTier === "fullscreen";
+  // Large widgets need meaningful height to fit multiple detail rows.
+  const large = sizeTier === "large";
+  const widgetWidth = fullscreen || large ? 1280 : 320;
+  const widgetHeight = fullscreen ? 720 : large ? 400 : 180;
   return {
     viewportWidth: 1280,
     viewportHeight: 720,
-    widgetWidth: fullscreen ? 1280 : 320,
-    widgetHeight: fullscreen ? 720 : 180,
-    widthRatio: fullscreen ? 1 : 0.25,
-    heightRatio: fullscreen ? 1 : 0.25,
-    areaRatio: fullscreen ? 1 : 0.0625,
+    widgetWidth,
+    widgetHeight,
+    widthRatio: widgetWidth / 1280,
+    heightRatio: widgetHeight / 720,
+    areaRatio: (widgetWidth / 1280) * (widgetHeight / 720),
     orientation: "landscape",
     platform: "web",
     safeAreaInsets: { top: 0, right: 0, bottom: 0, left: 0 },
@@ -119,7 +123,7 @@ describe("RssNewsRenderer", () => {
     };
 
     const tree = TestRenderer.create(
-      React.createElement(RssNewsRenderer, baseProps(data)),
+      React.createElement(RssNewsRenderer, baseProps(data, "ready", createRenderContext("regular"))),
     );
 
     const texts = tree.root
@@ -171,7 +175,9 @@ describe("RssNewsRenderer", () => {
       return Array.isArray(children) ? children.join("") : String(children ?? "");
     });
 
-    expect(fullscreenTexts.some((value) => value.includes("Detail 3"))).toBe(true);
+    // Fullscreen uses large fonts + timestamps, fitting 2 rows; large (400 px) uses
+    // smaller per-row height with no timestamps, fitting all 3 tier-allowed rows.
+    expect(fullscreenTexts.some((value) => value.includes("Detail 2"))).toBe(true);
     expect(largeTexts.some((value) => value.includes("Detail 3"))).toBe(true);
     expect(regularTexts.some((value) => value.includes("Detail 3"))).toBe(false);
   });
