@@ -62,6 +62,11 @@ export interface WidgetRegionHeights {
   detail: number;
 }
 
+export interface WidgetRegionInsets {
+  supportTop: number;
+  detailTop: number;
+}
+
 interface FitTextToRegionInput {
   targetFontSize: number;
   regionHeight: number;
@@ -303,6 +308,31 @@ export function computeRegionHeights(context: WidgetRenderContext): WidgetRegion
   const detail = Math.max(MIN_REGION_HEIGHT, widgetHeight - hero - support);
 
   return { hero, support, detail };
+}
+
+/**
+ * Clamp top insets applied inside support/detail regions so text never spills
+ * into neighboring regions in fixed-height layouts.
+ */
+export function computeRegionInsets(
+  regions: WidgetRegionHeights,
+  requested: {
+    supportTop?: number;
+    detailTop?: number;
+  },
+): WidgetRegionInsets {
+  const supportRequested = Math.max(0, Math.round(requested.supportTop ?? 0));
+  const detailRequested = Math.max(0, Math.round(requested.detailTop ?? 0));
+
+  // Keep at least part of each region available for content and slightly lift
+  // content compared to previous margin-based offsets.
+  const supportMaxInset = Math.max(0, Math.min(Math.round(regions.support * 0.28), regions.support - 12));
+  const detailMaxInset = Math.max(0, Math.min(Math.round(regions.detail * 0.25), regions.detail - 12));
+
+  return {
+    supportTop: clamp(Math.round(supportRequested * 0.82), 0, supportMaxInset),
+    detailTop: clamp(Math.round(detailRequested * 0.82), 0, detailMaxInset),
+  };
 }
 
 export function fitTextToRegion(input: FitTextToRegionInput): { fontSize: number; lineHeight: number } {

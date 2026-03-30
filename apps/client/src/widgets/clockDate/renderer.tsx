@@ -8,6 +8,7 @@ import { colors, spacing } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 import {
   computeRegionHeights,
+  computeRegionInsets,
   deriveWidgetVisualScale,
   fitTextToRegion,
   scaleBy,
@@ -37,10 +38,11 @@ export function ClockDateRenderer({ state, data, renderContext }: WidgetRenderer
   // Hero region: primary time display.
   // In fullscreen, size is proportional to widget height (capped by width to
   // avoid single-line overflow). Otherwise use the visual-scale multiplier.
+  const innerContentWidth = Math.max(1, widgetWidth - (visualScale.framePadding * 2));
   const timeSize = isFullscreen && widgetHeight > 0
     ? Math.min(
         Math.round(widgetHeight * 0.32),
-        widgetWidth > 0 ? Math.round(widgetWidth * 0.75) : Number.MAX_SAFE_INTEGER,
+        innerContentWidth > 0 ? Math.round(innerContentWidth * 0.72) : Number.MAX_SAFE_INTEGER,
       )
     : scaleBy(36, visualScale.typographyScale, 22);
   const timeText = fitTextToRegion({
@@ -67,7 +69,8 @@ export function ClockDateRenderer({ state, data, renderContext }: WidgetRenderer
   const supportItemGap = isFullscreen && widgetHeight > 0
     ? Math.round(widgetHeight * 0.018)
     : 2;
-  const supportRegionHeight = Math.max(1, regions.support - heroSupportGap);
+  const regionInsets = computeRegionInsets(regions, { supportTop: heroSupportGap });
+  const supportRegionHeight = Math.max(1, regions.support - regionInsets.supportTop);
   const weekdayText = fitTextToRegion({
     targetFontSize: weekdaySize,
     regionHeight: Math.max(1, Math.round(supportRegionHeight * 0.52)),
@@ -103,8 +106,13 @@ export function ClockDateRenderer({ state, data, renderContext }: WidgetRenderer
       </View>
 
       {/* Support region */}
-      <View style={[styles.supportRegion, { flexBasis: regions.support, minHeight: regions.support }]}>
-        <View style={[styles.metaGroup, { marginTop: heroSupportGap, gap: supportItemGap }]}>
+      <View style={[styles.supportRegion, {
+        flexBasis: regions.support,
+        minHeight: regions.support,
+        paddingTop: regionInsets.supportTop,
+      }]}
+      >
+        <View style={[styles.metaGroup, { gap: supportItemGap }]}>
           {data?.weekdayLabel ? (
             <Text
               style={[styles.weekday, { fontSize: weekdayText.fontSize, lineHeight: weekdayText.lineHeight }]}
@@ -145,6 +153,7 @@ const styles = StyleSheet.create({
   },
   heroRegion: {
     width: "100%",
+    alignSelf: "stretch",
     minHeight: 0,
     alignItems: "center",
     justifyContent: "flex-end",
@@ -160,6 +169,7 @@ const styles = StyleSheet.create({
     minHeight: 0,
   },
   time: {
+    width: "100%",
     fontSize: 36,
     lineHeight: 38,
     fontWeight: "700",
@@ -168,7 +178,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   metaGroup: {
-    marginTop: spacing.xs,
+    width: "100%",
     alignItems: "center",
     gap: 2,
     maxWidth: "100%",
@@ -181,6 +191,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
     textAlign: "center",
+    width: "100%",
   },
   date: {
     fontSize: 11,
@@ -188,5 +199,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: colors.textSecondary,
     textAlign: "center",
+    width: "100%",
   },
 });
