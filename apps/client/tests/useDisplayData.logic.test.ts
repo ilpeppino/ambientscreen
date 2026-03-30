@@ -52,3 +52,22 @@ test("resolveSlideComposition creates default slide from legacy widgets payload"
   expect(slide.widgets).toHaveLength(1);
   expect(slide.widgets[0].widgetInstanceId).toBe("widget-1");
 });
+
+test("resolveSlideComposition preserves persisted SlideItem bounds without runtime normalization", () => {
+  const response: DisplayLayoutResponse = {
+    widgets: [
+      {
+        ...buildWidget("widget-1", 0),
+        layout: { x: 0, y: 0, w: 12, h: 6 },
+      },
+      {
+        ...buildWidget("widget-2", 0),
+        layout: { x: 0, y: 0, w: 12, h: 6 },
+      },
+    ],
+  };
+
+  const slide = resolveSlideComposition(response);
+  expect(slide.widgets[0].layout).toEqual({ x: 0, y: 0, w: 12, h: 6 });
+  expect(slide.widgets[1].layout).toEqual({ x: 0, y: 0, w: 12, h: 6 });
+});

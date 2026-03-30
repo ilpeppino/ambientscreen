@@ -37,6 +37,33 @@ export interface WidgetRendererProps<TKey extends WidgetKey = WidgetKey> {
   data: WidgetDataByKey[TKey] | null;
   config: WidgetConfigByKey[TKey];
   meta?: WidgetDataMeta;
+  renderContext?: WidgetRenderContext;
+}
+
+export type WidgetRenderOrientation = "landscape" | "portrait";
+
+export type WidgetRenderPlatform = "web" | "ios" | "android" | "unknown";
+
+export type WidgetRenderSizeTier = "compact" | "regular" | "large" | "fullscreen";
+
+export interface WidgetRenderContext {
+  viewportWidth: number;
+  viewportHeight: number;
+  widgetWidth: number;
+  widgetHeight: number;
+  widthRatio: number;
+  heightRatio: number;
+  areaRatio: number;
+  orientation: WidgetRenderOrientation;
+  platform: WidgetRenderPlatform;
+  safeAreaInsets: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  isFullscreen: boolean;
+  sizeTier: WidgetRenderSizeTier;
 }
 
 export interface WidgetSettingsFormProps<TKey extends WidgetKey = WidgetKey> {
@@ -197,6 +224,38 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       timeWindow: ["today", "next24h", "next7d"],
       maxEvents: "number",
       includeAllDay: "boolean",
+    },
+  },
+  rssNews: {
+    manifest: {
+      key: "rssNews",
+      version: manifestVersion,
+      name: "RSS News",
+      description: "Displays headlines from an RSS or Atom feed URL.",
+      category: "news",
+      defaultLayout: {
+        w: 6,
+        h: 3,
+        minW: 3,
+        minH: 2,
+      },
+      refreshPolicy: { intervalMs: 300000 },
+    },
+    defaultConfig: {
+      feedUrl: "",
+      maxItems: 5,
+      showImages: true,
+      showPublishedAt: true,
+      layout: "headline-list",
+      title: "Latest News",
+    },
+    configSchema: {
+      feedUrl: "string",
+      maxItems: "number",
+      showImages: "boolean",
+      showPublishedAt: "boolean",
+      layout: ["headline-list", "ticker"],
+      title: "string",
     },
   },
 }

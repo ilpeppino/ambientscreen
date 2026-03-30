@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../../core/config/api";
-import { apiFetchWithTimeout, toApiError, getApiAuthToken } from "./apiClient";
+import { apiFetchWithTimeout, toApiError } from "./apiClient";
 
 export type IntegrationStatus = "connected" | "needs_reauth" | "revoked" | "error";
 
@@ -14,6 +14,31 @@ export interface IntegrationConnection {
   lastSyncedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface IntegrationProviderDescriptor {
+  key: string;
+  label: string;
+  description: string;
+  authType: "oauth";
+}
+
+export interface IntegrationProviderListResponse {
+  items: IntegrationProviderDescriptor[];
+}
+
+export interface IntegrationProviderAuthorizationResponse {
+  authorizationUrl: string;
+}
+
+export async function listIntegrationProviders(): Promise<IntegrationProviderDescriptor[]> {
+  const response = await apiFetchWithTimeout(`${API_BASE_URL}/integrations/providers`);
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+
+  const data = (await response.json()) as IntegrationProviderListResponse;
+  return data.items;
 }
 
 export async function listIntegrationConnections(provider?: string): Promise<IntegrationConnection[]> {
@@ -70,30 +95,28 @@ export async function refreshIntegrationConnection(connectionId: string): Promis
   return response.json() as Promise<IntegrationConnection>;
 }
 
-/**
- * Build the URL to start Google OAuth.
- *
- * Includes the auth token as a query parameter so Linking.openURL() can
- * authenticate the request to the backend. Pass a `returnTo` value to tell
- * the backend where to redirect after the OAuth flow completes.
- *
- * Allowed returnTo values:
- *   - ambientscreen://integrations  (native deep link)
- *   - same-origin web URL           (validated server-side)
- *
- * On web, omit `returnTo` and the backend will redirect to the app's
- * /integrations path which the web app handles via useWebHistory.
- */
-export function getGoogleConnectUrl(returnTo?: string): string {
-  const base = `${API_BASE_URL}/integrations/google/start`;
-  const token = getApiAuthToken();
-
+export async function getIntegrationProviderAuthorizationUrl(
+  provider: string,
+  returnTo?: string,
+): Promise<string> {
   const params = new URLSearchParams();
-  if (token) params.set("token", token);
   if (returnTo) params.set("returnTo", returnTo);
 
   const query = params.toString();
-  return query ? `${base}?${query}` : base;
+  const response = await apiFetchWithTimeout(
+    `${API_BASE_URL}/integrations/providers/${encodeURIComponent(provider)}/start${query ? `?${query}` : ""}`,
+  );
+
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+
+  const data = (await response.json()) as IntegrationProviderAuthorizationResponse;
+  return data.authorizationUrl;
+}
+
+export async function getGoogleConnectUrl(returnTo?: string): Promise<string> {
+  return getIntegrationProviderAuthorizationUrl("google", returnTo);
 }
 
 export interface GoogleCalendarOption {

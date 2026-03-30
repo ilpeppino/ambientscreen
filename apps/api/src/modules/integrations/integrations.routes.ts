@@ -4,6 +4,11 @@ import { integrationsController } from "./integrations.controller";
 
 export const integrationsRouter = Router();
 
+integrationsRouter.get("/providers", asyncHandler((req, res) => integrationsController.listProviders(req, res)));
+integrationsRouter.get(
+  "/providers/:provider/start",
+  asyncHandler((req, res) => integrationsController.startProviderConnection(req, res)),
+);
 integrationsRouter.get("/", asyncHandler((req, res) => integrationsController.listConnections(req, res)));
 integrationsRouter.get("/:integrationConnectionId", asyncHandler((req, res) => integrationsController.getConnection(req, res)));
 integrationsRouter.patch("/:integrationConnectionId", asyncHandler((req, res) => integrationsController.updateConnection(req, res)));

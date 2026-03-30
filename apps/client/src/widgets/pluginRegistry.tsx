@@ -1,5 +1,6 @@
 import React from "react";
 import type {
+  WidgetRenderContext,
   WidgetClientPluginModule,
   WidgetConfigByKey,
   WidgetDataByKey,
@@ -62,6 +63,7 @@ export function renderWidgetFromKey(
     data: WidgetDataByKey[WidgetKey] | null;
     config?: Record<string, unknown>;
     meta?: WidgetDataMeta;
+    renderContext?: WidgetRenderContext;
   },
 ): React.ReactNode {
   const plugin = getWidgetPlugin(widgetKey);
@@ -81,6 +83,7 @@ export function renderWidgetFromKey(
     data: input.data as WidgetDataByKey[WidgetKey] | null,
     config: safeConfig,
     meta: input.meta,
+    renderContext: input.renderContext,
   });
 }
 

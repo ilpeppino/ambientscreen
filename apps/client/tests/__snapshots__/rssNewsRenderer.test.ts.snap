@@ -1,0 +1,439 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RssNewsRenderer > snapshot: with image 1`] = `
+<widget-surface
+  isSelected={false}
+  mode="fullscreen"
+  style={
+    [
+      {
+        "flex": 1,
+        "minHeight": 0,
+        "padding": 12,
+      },
+      {
+        "paddingBottom": 20,
+        "paddingHorizontal": 20,
+        "paddingTop": 20,
+      },
+      {
+        "flex": 1,
+      },
+    ]
+  }
+>
+  <view
+    style={
+      [
+        {
+          "flex": 1,
+          "minHeight": 0,
+          "overflow": "hidden",
+          "paddingVertical": 8,
+          "width": "100%",
+        },
+        {
+          "paddingVertical": 0,
+        },
+        null,
+        {
+          "alignItems": "center",
+          "flex": 1,
+          "gap": 4,
+          "justifyContent": "center",
+          "minHeight": 0,
+          "overflow": "hidden",
+          "width": "100%",
+        },
+      ]
+    }
+  >
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "center",
+            "gap": 2,
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 561,
+            "minHeight": 561,
+          },
+        ]
+      }
+    >
+      <image-background
+        imageStyle={
+          {
+            "borderRadius": 12,
+          }
+        }
+        resizeMode="cover"
+        source={
+          {
+            "uri": "https://cdn.example.com/1.jpg",
+          }
+        }
+        style={
+          [
+            {
+              "borderRadius": 12,
+              "height": 160,
+              "overflow": "hidden",
+              "width": "100%",
+            },
+            {
+              "height": 258,
+              "marginBottom": 5,
+              "width": 1177.6000000000001,
+            },
+          ]
+        }
+      />
+      <view
+        style={
+          [
+            {
+              "backgroundColor": "rgba(255, 255, 255, 0.14)",
+              "borderColor": "rgba(255, 255, 255, 0.18)",
+              "borderRadius": 8,
+              "borderWidth": 1,
+              "paddingHorizontal": 12,
+              "paddingVertical": 8,
+            },
+            {
+              "width": 1177.6000000000001,
+            },
+          ]
+        }
+      >
+        <text
+          ellipsizeMode="tail"
+          numberOfLines={2}
+          style={
+            [
+              {
+                "color": "#FFFFFF",
+                "fontSize": 16,
+                "fontWeight": "700",
+                "maxWidth": "100%",
+                "textAlign": "center",
+              },
+              {
+                "fontSize": 38,
+                "lineHeight": 42,
+                "width": "100%",
+              },
+            ]
+          }
+        >
+          Top story
+        </text>
+      </view>
+      <text
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#9A9A9A",
+              "fontSize": 12,
+              "fontWeight": "400",
+              "marginTop": 2,
+              "opacity": 0.55,
+              "textAlign": "center",
+            },
+            {
+              "fontSize": 20,
+              "lineHeight": 22,
+              "width": 1177.6000000000001,
+            },
+          ]
+        }
+      >
+        3d ago
+      </text>
+    </view>
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "stretch",
+            "justifyContent": "flex-start",
+            "minHeight": 0,
+            "overflow": "hidden",
+            "width": "100%",
+          },
+          {
+            "flexBasis": 0,
+            "gap": 0,
+            "minHeight": 0,
+            "paddingTop": 0,
+          },
+        ]
+      }
+    />
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "stretch",
+            "justifyContent": "flex-start",
+            "minHeight": 0,
+            "overflow": "hidden",
+            "width": "100%",
+          },
+          {
+            "flexBasis": 159,
+            "gap": 13,
+            "minHeight": 159,
+            "paddingTop": 26,
+          },
+        ]
+      }
+    >
+      <view
+        style={
+          [
+            {
+              "alignItems": "center",
+              "justifyContent": "center",
+              "paddingVertical": 1,
+              "width": "100%",
+            },
+            {
+              "minHeight": 48,
+            },
+          ]
+        }
+      >
+        <text
+          ellipsizeMode="tail"
+          numberOfLines={1}
+          style={
+            [
+              {
+                "color": "#FFFFFF",
+                "fontSize": 12,
+                "fontWeight": "400",
+                "maxWidth": "100%",
+                "textAlign": "center",
+              },
+              {
+                "fontSize": 22,
+                "lineHeight": 24,
+              },
+            ]
+          }
+        >
+          Second story
+        </text>
+        <text
+          ellipsizeMode="tail"
+          numberOfLines={1}
+          style={
+            [
+              {
+                "color": "#9A9A9A",
+                "fontSize": 12,
+                "fontWeight": "400",
+                "opacity": 0.45,
+                "textAlign": "center",
+              },
+              {
+                "fontSize": 20,
+                "lineHeight": 22,
+              },
+            ]
+          }
+        >
+          3d ago
+        </text>
+      </view>
+    </view>
+  </view>
+</widget-surface>
+`;
+
+exports[`RssNewsRenderer > snapshot: without image 1`] = `
+<widget-surface
+  isSelected={false}
+  mode="display"
+  style={
+    [
+      {
+        "flex": 1,
+        "minHeight": 0,
+        "padding": 12,
+      },
+      {
+        "paddingBottom": 12,
+        "paddingHorizontal": 12,
+        "paddingTop": 12,
+      },
+      {
+        "flex": 1,
+      },
+    ]
+  }
+>
+  <widget-header
+    icon="alert"
+    mode="display"
+    title="Latest News"
+  />
+  <view
+    style={
+      [
+        {
+          "flex": 1,
+          "minHeight": 0,
+          "overflow": "hidden",
+          "paddingVertical": 8,
+          "width": "100%",
+        },
+        {
+          "paddingVertical": 8,
+        },
+        null,
+        {
+          "alignItems": "center",
+          "flex": 1,
+          "gap": 4,
+          "justifyContent": "center",
+          "minHeight": 0,
+          "overflow": "hidden",
+          "width": "100%",
+        },
+      ]
+    }
+  >
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "center",
+            "gap": 2,
+            "justifyContent": "center",
+            "minHeight": 0,
+            "overflow": "hidden",
+          },
+          {
+            "flexBasis": 144,
+            "minHeight": 144,
+          },
+        ]
+      }
+    >
+      <view
+        style={
+          [
+            {
+              "backgroundColor": "rgba(255, 255, 255, 0.14)",
+              "borderColor": "rgba(255, 255, 255, 0.18)",
+              "borderRadius": 8,
+              "borderWidth": 1,
+              "paddingHorizontal": 12,
+              "paddingVertical": 8,
+            },
+            {
+              "width": 288,
+            },
+          ]
+        }
+      >
+        <text
+          ellipsizeMode="tail"
+          numberOfLines={2}
+          style={
+            [
+              {
+                "color": "#FFFFFF",
+                "fontSize": 16,
+                "fontWeight": "700",
+                "maxWidth": "100%",
+                "textAlign": "center",
+              },
+              {
+                "fontSize": 21,
+                "lineHeight": 23,
+                "width": "100%",
+              },
+            ]
+          }
+        >
+          Top story
+        </text>
+      </view>
+      <text
+        numberOfLines={1}
+        style={
+          [
+            {
+              "color": "#9A9A9A",
+              "fontSize": 12,
+              "fontWeight": "400",
+              "marginTop": 2,
+              "opacity": 0.55,
+              "textAlign": "center",
+            },
+            {
+              "fontSize": 9,
+              "lineHeight": 11,
+              "width": 288,
+            },
+          ]
+        }
+      >
+        3d ago
+      </text>
+    </view>
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "stretch",
+            "justifyContent": "flex-start",
+            "minHeight": 0,
+            "overflow": "hidden",
+            "width": "100%",
+          },
+          {
+            "flexBasis": 0,
+            "gap": 0,
+            "minHeight": 0,
+            "paddingTop": 0,
+          },
+        ]
+      }
+    />
+    <view
+      style={
+        [
+          {
+            "alignItems": "center",
+            "alignSelf": "stretch",
+            "justifyContent": "flex-start",
+            "minHeight": 0,
+            "overflow": "hidden",
+            "width": "100%",
+          },
+          {
+            "flexBasis": 36,
+            "gap": 8,
+            "minHeight": 36,
+            "paddingTop": 8,
+          },
+        ]
+      }
+    />
+  </view>
+</widget-surface>
+`;

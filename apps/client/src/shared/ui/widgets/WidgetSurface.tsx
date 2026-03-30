@@ -5,7 +5,7 @@ import { colors, radius, spacing } from "../theme";
 interface WidgetSurfaceProps {
   children?: React.ReactNode;
   isSelected?: boolean;
-  mode?: "display" | "edit";
+  mode?: "display" | "edit" | "fullscreen";
   style?: StyleProp<ViewStyle>;
 }
 
@@ -17,14 +17,18 @@ export function WidgetSurface({
   mode = "display",
   style,
 }: WidgetSurfaceProps) {
-  const surfaceModeStyle = mode === "edit" ? styles.surfaceEdit : styles.surfaceDisplay;
+  const isFullscreen = mode === "fullscreen";
+  const surfaceBaseStyle = isFullscreen ? styles.surfaceBaseFullscreen : styles.surface;
+  const surfaceModeStyle = mode === "edit" ? styles.surfaceEdit
+    : mode === "fullscreen" ? null
+    : styles.surfaceDisplay;
 
   return (
     <View
       style={[
-        styles.surface,
+        surfaceBaseStyle,
         surfaceModeStyle,
-        isSelected ? styles.surfaceSelected : null,
+        !isFullscreen && isSelected ? styles.surfaceSelected : null,
         DEBUG_WIDGET_BOUNDS ? styles.debugSurface : null,
         style,
       ]}
@@ -41,6 +45,12 @@ const styles = StyleSheet.create({
     minHeight: 0,
     borderRadius: radius.lg,
     padding: spacing.xl,
+    overflow: "hidden",
+  },
+  surfaceBaseFullscreen: {
+    flex: 1,
+    width: "100%",
+    minHeight: 0,
     overflow: "hidden",
   },
   surfaceDisplay: {

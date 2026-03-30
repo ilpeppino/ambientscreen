@@ -21,6 +21,7 @@ const WIDGET_ICON = {
   clockDate: "clock",
   weather: "weather",
   calendar: "calendar",
+  rssNews: "alert",
 } as const;
 
 interface ReadOnlyConfigurationViewProps {

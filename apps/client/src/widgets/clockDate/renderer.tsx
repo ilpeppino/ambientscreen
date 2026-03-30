@@ -6,9 +6,83 @@ import type {
 import { Text } from "../../shared/ui/components";
 import { colors, spacing } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
+import {
+  computeRegionHeights,
+  computeRegionInsets,
+  deriveWidgetVisualScale,
+  fitTextToRegion,
+  scaleBy,
+} from "../shared/widgetRenderContext";
 
-export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDate">) {
+export function ClockDateRenderer({ state, data, renderContext }: WidgetRendererProps<"clockDate">) {
+  const visualScale = deriveWidgetVisualScale(renderContext);
   const hasData = Boolean(data?.formattedTime);
+  const isFullscreen = visualScale.sizeTier === "fullscreen";
+  const widgetHeight = renderContext?.widgetHeight ?? 0;
+  const widgetWidth = renderContext?.widgetWidth ?? 0;
+  const regions = computeRegionHeights(renderContext ?? {
+    viewportWidth: 1,
+    viewportHeight: 1,
+    widgetWidth: 1,
+    widgetHeight: 1,
+    widthRatio: 1,
+    heightRatio: 1,
+    areaRatio: 1,
+    orientation: "landscape",
+    platform: "web",
+    safeAreaInsets: { top: 0, right: 0, bottom: 0, left: 0 },
+    isFullscreen: false,
+    sizeTier: "regular",
+  });
+
+  // Hero region: primary time display.
+  // In fullscreen, size is proportional to widget height (capped by width to
+  // avoid single-line overflow). Otherwise use the visual-scale multiplier.
+  const innerContentWidth = Math.max(1, widgetWidth - (visualScale.framePadding * 2));
+  const timeSize = isFullscreen && widgetHeight > 0
+    ? Math.min(
+        Math.round(widgetHeight * 0.32),
+        innerContentWidth > 0 ? Math.round(innerContentWidth * 0.72) : Number.MAX_SAFE_INTEGER,
+      )
+    : scaleBy(36, visualScale.typographyScale, 22);
+  const timeText = fitTextToRegion({
+    targetFontSize: timeSize,
+    regionHeight: regions.hero,
+    minFontSize: 18,
+    lineHeightRatio: 1.08,
+    regionFillRatio: 0.84,
+  });
+
+  // Support region: weekday + date labels.
+  const weekdaySize = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.055)
+    : scaleBy(14, visualScale.typographyScale, 10);
+  const dateSize = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.040)
+    : scaleBy(11, visualScale.typographyScale, 10);
+
+  // Inter-region spacing: generous breathing room below the hero in fullscreen.
+  // Canonical rule: support region must have clearly visible separation from hero.
+  const heroSupportGap = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.065)
+    : spacing.xs;
+  const supportItemGap = isFullscreen && widgetHeight > 0
+    ? Math.round(widgetHeight * 0.018)
+    : 2;
+  const regionInsets = computeRegionInsets(regions, { supportTop: heroSupportGap });
+  const supportRegionHeight = Math.max(1, regions.support - regionInsets.supportTop);
+  const weekdayText = fitTextToRegion({
+    targetFontSize: weekdaySize,
+    regionHeight: Math.max(1, Math.round(supportRegionHeight * 0.52)),
+    minFontSize: 10,
+    lineHeightRatio: 1.14,
+  });
+  const dateText = fitTextToRegion({
+    targetFontSize: dateSize,
+    regionHeight: Math.max(1, Math.round(supportRegionHeight * 0.40)),
+    minFontSize: 9,
+    lineHeightRatio: 1.16,
+  });
 
   return (
     <BaseWidgetFrame
@@ -18,36 +92,52 @@ export function ClockDateRenderer({ state, data }: WidgetRendererProps<"clockDat
       hasData={hasData}
       emptyMessage="No clock data available."
       contentStyle={styles.content}
+      renderContext={renderContext}
     >
-      <Text
-        style={styles.time}
-        adjustsFontSizeToFit
-        numberOfLines={1}
-        minimumFontScale={0.45}
+      <View style={[styles.heroRegion, { flexBasis: regions.hero, minHeight: regions.hero }]}>
+        <Text
+          style={[styles.time, { fontSize: timeText.fontSize, lineHeight: timeText.lineHeight }]}
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          minimumFontScale={0.45}
+        >
+          {data?.formattedTime}
+        </Text>
+      </View>
+
+      {/* Support region */}
+      <View style={[styles.supportRegion, {
+        flexBasis: regions.support,
+        minHeight: regions.support,
+        paddingTop: regionInsets.supportTop,
+      }]}
       >
-        {data?.formattedTime}
-      </Text>
-      <View style={styles.metaGroup}>
-        {data?.weekdayLabel ? (
-          <Text
-            style={styles.weekday}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.6}
-          >
-            {data.weekdayLabel}
-          </Text>
-        ) : null}
-        {data?.formattedDate ? (
-          <Text
-            style={styles.date}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.6}
-          >
-            {data.formattedDate}
-          </Text>
-        ) : null}
+        <View style={[styles.metaGroup, { gap: supportItemGap }]}>
+          {data?.weekdayLabel ? (
+            <Text
+              style={[styles.weekday, { fontSize: weekdayText.fontSize, lineHeight: weekdayText.lineHeight }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {data.weekdayLabel}
+            </Text>
+          ) : null}
+          {data?.formattedDate ? (
+            <Text
+              style={[styles.date, { fontSize: dateText.fontSize, lineHeight: dateText.lineHeight }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+            >
+              {data.formattedDate}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+
+      <View style={[styles.detailRegion, { flexBasis: regions.detail, minHeight: regions.detail }]}>
+        {null}
       </View>
     </BaseWidgetFrame>
   );
@@ -57,9 +147,29 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "flex-start",
+    width: "100%",
+    minHeight: 0,
+  },
+  heroRegion: {
+    width: "100%",
+    alignSelf: "stretch",
+    minHeight: 0,
+    alignItems: "center",
+    justifyContent: "flex-end",
+  },
+  supportRegion: {
+    width: "100%",
+    minHeight: 0,
+    alignItems: "center",
+    justifyContent: "flex-start",
+  },
+  detailRegion: {
+    width: "100%",
+    minHeight: 0,
   },
   time: {
+    width: "100%",
     fontSize: 36,
     lineHeight: 38,
     fontWeight: "700",
@@ -68,9 +178,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   metaGroup: {
-    marginTop: spacing.xs,
+    width: "100%",
     alignItems: "center",
-    gap: 1,
+    gap: 2,
+    maxWidth: "100%",
   },
   weekday: {
     fontSize: 14,
@@ -80,6 +191,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     textTransform: "uppercase",
     textAlign: "center",
+    width: "100%",
   },
   date: {
     fontSize: 11,
@@ -87,5 +199,6 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: colors.textSecondary,
     textAlign: "center",
+    width: "100%",
   },
 });

@@ -6,6 +6,7 @@ vi.mock("../src/modules/integrations/integrations.repository", () => ({
     findByUserAndId: vi.fn(),
     update: vi.fn(),
     markRevoked: vi.fn(),
+    delete: vi.fn(),
   },
 }));
 
@@ -17,8 +18,15 @@ vi.mock("../src/modules/integrations/providers/google/google-calendar.adapter", 
   },
 }));
 
+vi.mock("../src/modules/integrations/providers/google/google-oauth.service", () => ({
+  googleOAuthService: {
+    buildAuthorizationUrl: vi.fn(),
+  },
+}));
+
 import { integrationsRepository } from "../src/modules/integrations/integrations.repository";
 import { googleCalendarAdapter } from "../src/modules/integrations/providers/google/google-calendar.adapter";
+import { googleOAuthService } from "../src/modules/integrations/providers/google/google-oauth.service";
 import { integrationsService } from "../src/modules/integrations/integrations.service";
 
 const baseRecord = {
@@ -69,6 +77,31 @@ test("listConnections passes filters to repository", async () => {
   });
 });
 
+test("listProviders returns supported provider descriptors", () => {
+  const providers = integrationsService.listProviders();
+
+  expect(providers).toEqual([
+    expect.objectContaining({
+      key: "google",
+      label: "Google",
+      description: expect.stringContaining("calendar"),
+      authType: "oauth",
+    }),
+  ]);
+});
+
+test("getProviderConnectAuthorizationUrl delegates to google oauth builder", async () => {
+  vi.mocked(googleOAuthService.buildAuthorizationUrl).mockReturnValue("https://accounts.google.com/auth?state=xyz");
+
+  const url = await integrationsService.getProviderConnectAuthorizationUrl("user-1", "google", "ambientscreen://integrations");
+
+  expect(googleOAuthService.buildAuthorizationUrl).toHaveBeenCalledWith(
+    "user-1",
+    "ambientscreen://integrations",
+  );
+  expect(url).toBe("https://accounts.google.com/auth?state=xyz");
+});
+
 test("getConnectionById returns summary for owned connection", async () => {
   vi.mocked(integrationsRepository.findByUserAndId).mockResolvedValue(baseRecord as never);
 
@@ -111,13 +144,13 @@ test("updateConnectionLabel throws INTEGRATION_NOT_FOUND when connection missing
   ).rejects.toMatchObject({ code: "INTEGRATION_NOT_FOUND" });
 });
 
-test("deleteConnection marks connection as revoked", async () => {
+test("deleteConnection deletes connection after ownership check", async () => {
   vi.mocked(integrationsRepository.findByUserAndId).mockResolvedValue(baseRecord as never);
-  vi.mocked(integrationsRepository.markRevoked).mockResolvedValue({ ...baseRecord, status: "revoked" } as never);
+  vi.mocked(integrationsRepository.delete).mockResolvedValue({ ...baseRecord, status: "revoked" } as never);
 
   await integrationsService.deleteConnection("user-1", "conn-1");
 
-  expect(integrationsRepository.markRevoked).toHaveBeenCalledWith("conn-1");
+  expect(integrationsRepository.delete).toHaveBeenCalledWith("conn-1");
 });
 
 test("deleteConnection throws INTEGRATION_NOT_FOUND when connection missing", async () => {

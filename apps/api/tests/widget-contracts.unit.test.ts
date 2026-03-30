@@ -24,6 +24,16 @@ test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
     config: { provider: "ical", timeWindow: "next7d" },
   });
   expect(calendar.success).toBe(true);
+
+  const rssNews = createWidgetSchema.safeParse({
+    type: "rssNews",
+    config: {
+      feedUrl: "https://news.example.com/rss.xml",
+      maxItems: 5,
+      layout: "headline-list",
+    },
+  });
+  expect(rssNews.success).toBe(true);
 });
 
 test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
@@ -44,6 +54,12 @@ test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
     config: { provider: "googleCalendar" },
   });
   expect(invalidCalendar.success).toBe(false);
+
+  const invalidRssNews = createWidgetSchema.safeParse({
+    type: "rssNews",
+    config: { layout: "cards" },
+  });
+  expect(invalidRssNews.success).toBe(false);
 
   const invalidLayout = createWidgetSchema.safeParse({
     type: "clockDate",
@@ -82,6 +98,16 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
     timeWindow: "next7d",
     maxEvents: 10,
     includeAllDay: true,
+  });
+
+  const normalizedRssNews = normalizeWidgetConfig("rssNews", {});
+  expect(normalizedRssNews).toEqual({
+    feedUrl: "",
+    maxItems: 5,
+    showImages: true,
+    showPublishedAt: true,
+    layout: "headline-list",
+    title: "Latest News",
   });
 });
 
@@ -150,4 +176,5 @@ test("M2-1: widget manifests expose refresh policy rules", () => {
   expect(widgetManifests.clockDate.refreshPolicy.intervalMs).toBe(1000);
   expect(widgetManifests.weather.refreshPolicy.intervalMs).toBe(300000);
   expect(widgetManifests.calendar.refreshPolicy.intervalMs).toBe(60000);
+  expect(widgetManifests.rssNews.refreshPolicy.intervalMs).toBe(300000);
 });

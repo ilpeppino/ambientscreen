@@ -1,5 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { Platform, Pressable, StyleSheet, View } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 import Animated, {
   runOnJS,
@@ -8,6 +8,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { DisplayLayoutWidgetEnvelope } from "../../../services/api/displayLayoutApi";
 import { AppIcon } from "../../../shared/ui/components";
 import { Text } from "../../../shared/ui/components/Text";
@@ -28,6 +29,7 @@ import {
 import { shouldShowWidgetAffordances } from "./editMode.logic";
 import { WidgetContextActions } from "./WidgetContextActions";
 import { WidgetEditHandles } from "./WidgetEditHandles";
+import { deriveWidgetRenderContext } from "../../../widgets/shared/widgetRenderContext";
 
 interface WidgetContainerProps {
   widget: DisplayLayoutWidgetEnvelope;
@@ -62,6 +64,7 @@ function WidgetContainerBase({
   onOpenWidgetSettings,
   onRemoveWidget,
 }: WidgetContainerProps) {
+  const insets = useSafeAreaInsets();
   const frame = frameStyle as ViewStyle;
   const width = typeof frame.width === "number" ? frame.width : 0;
   const height = typeof frame.height === "number" ? frame.height : 0;
@@ -257,6 +260,17 @@ function WidgetContainerBase({
     }),
   [canEditSelectedWidget, onSelectWidget, widget.widgetInstanceId, resizePreviewX, resizePreviewY, updateResizeSnap, commitResizeLayout, clearPreview]);
 
+  const widgetRenderContext = useMemo(() => deriveWidgetRenderContext({
+    viewportWidth: containerSize.width,
+    viewportHeight: containerSize.height,
+    widgetWidth: width,
+    widgetHeight: height,
+    platform: Platform.OS === "web" ? "web" : Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "unknown",
+    safeAreaInsets: insets,
+  }), [containerSize.height, containerSize.width, height, insets, width]);
+
+  const isHeroLayout = !editMode && widgetRenderContext.sizeTier === "fullscreen";
+
   const content = useMemo(() => {
     if (widget.state === "loading") {
       return <WidgetSkeleton />;
@@ -276,6 +290,7 @@ function WidgetContainerBase({
       data: widget.data,
       config: widget.config,
       meta: widget.meta,
+      renderContext: widgetRenderContext,
     });
 
     if (!rendered) {
@@ -297,7 +312,7 @@ function WidgetContainerBase({
         {rendered}
       </View>
     );
-  }, [widget]);
+  }, [widget, widgetRenderContext]);
 
   const AnimatedView = Animated.View as unknown as React.ComponentType<any>;
 
@@ -306,6 +321,7 @@ function WidgetContainerBase({
       <AnimatedView
         style={[
           styles.container,
+          isHeroLayout ? styles.heroContainer : null,
           DEBUG_WIDGET_BOUNDS ? styles.debugOuterContainer : null,
           frameStyle,
           animatedContainerStyle,
@@ -388,7 +404,12 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.08)",
     backgroundColor: "rgba(255, 255, 255, 0.03)",
     overflow: "hidden",
-    padding: spacing.md,
+  },
+  heroContainer: {
+    borderRadius: 0,
+    borderWidth: 0,
+    borderColor: "transparent",
+    backgroundColor: "transparent",
   },
   contentPressArea: {
     flex: 1,

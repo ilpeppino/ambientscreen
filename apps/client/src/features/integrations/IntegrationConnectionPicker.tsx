@@ -3,9 +3,10 @@ import { Linking, Platform, Pressable, StyleSheet, View } from "react-native";
 import { Text } from "../../shared/ui/components/Text";
 import { colors, radius, spacing } from "../../shared/ui/theme";
 import { DEEP_LINK_SCHEME } from "../navigation/deepLinks";
+import { getProviderPresentation } from "./integrations.providers";
 import {
   listIntegrationConnections,
-  getGoogleConnectUrl,
+  getIntegrationProviderAuthorizationUrl,
   type IntegrationConnection,
 } from "../../services/api/integrationsApi";
 
@@ -26,6 +27,8 @@ export function IntegrationConnectionPicker({
 }: IntegrationConnectionPickerProps) {
   const [connections, setConnections] = useState<IntegrationConnection[]>([]);
   const [loading, setLoading] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -39,15 +42,21 @@ export function IntegrationConnectionPicker({
     load();
   }, [load]);
 
-  function handleConnect() {
-    if (provider === "google") {
-      // On native, pass a deep-link returnTo so the backend redirects back into
-      // the app after OAuth. On web, the default redirect is handled by
-      // useWebHistory parsing the path-based callback URL.
-      const returnTo = Platform.OS !== "web" ? `${DEEP_LINK_SCHEME}://integrations` : undefined;
-      void Linking.openURL(getGoogleConnectUrl(returnTo));
+  async function handleConnect() {
+    const returnTo = Platform.OS !== "web" ? `${DEEP_LINK_SCHEME}://integrations` : undefined;
+    setConnecting(true);
+    setConnectError(null);
+    try {
+      const authorizationUrl = await getIntegrationProviderAuthorizationUrl(provider, returnTo);
+      await Linking.openURL(authorizationUrl);
+    } catch (err) {
+      setConnectError(err instanceof Error ? err.message : "Unable to start connection.");
+    } finally {
+      setConnecting(false);
     }
   }
+
+  const providerPresentation = getProviderPresentation(provider);
 
   if (loading) {
     return (
@@ -62,10 +71,14 @@ export function IntegrationConnectionPicker({
       <Pressable
         style={[styles.connectButton, disabled ? styles.connectButtonDisabled : null]}
         onPress={handleConnect}
-        disabled={disabled}
+        disabled={disabled || connecting}
       >
-        <Text style={styles.connectButtonLabel}>Connect Google Account</Text>
+        <Text style={styles.connectButtonLabel}>
+          {connecting ? "Connecting..." : `Connect ${providerPresentation.label} Account`}
+        </Text>
       </Pressable>
+
+      {connectError ? <Text style={styles.errorText}>{connectError}</Text> : null}
 
       {connections.length > 0 ? (
         <View style={styles.list}>
@@ -159,6 +172,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textSecondary,
     textDecorationLine: "underline",
+  },
+  errorText: {
+    fontSize: 12,
+    color: colors.errorStrong,
   },
   hint: {
     marginTop: spacing.sm,

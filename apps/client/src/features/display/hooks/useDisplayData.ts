@@ -11,10 +11,10 @@ import {
   getEffectivePollingIntervalMs,
 } from "../displayScreen.logic";
 import {
-  normalizeWidgetLayouts,
   type WidgetLayout,
 } from "../components/LayoutGrid.logic";
 import type { RealtimeConnectionState } from "../services/realtimeClient";
+import { isUnauthorizedApiError } from "../../../services/api/apiClient";
 
 const FALLBACK_REFRESH_INTERVAL_MS = 30000;
 const EMPTY_WIDGETS: DisplayLayoutWidgetEnvelope[] = [];
@@ -27,6 +27,7 @@ interface UseDisplayDataOptions {
   editMode: boolean;
   isAppActive: boolean;
   realtimeConnectionState: RealtimeConnectionState;
+  onUnauthorized?: () => void | Promise<void>;
 }
 
 interface UseDisplayDataReturn {
@@ -50,6 +51,7 @@ export function useDisplayData({
   editMode,
   isAppActive,
   realtimeConnectionState,
+  onUnauthorized,
 }: UseDisplayDataOptions): UseDisplayDataReturn {
   const [activeSlide, setActiveSlide] = useState<DisplaySlideEnvelope | null>(null);
   const [loadingLayout, setLoadingLayout] = useState(true);
@@ -108,6 +110,10 @@ export function useDisplayData({
       setActiveSlide(resolveSlideComposition(response));
       setError(null);
     } catch (err) {
+      if (isUnauthorizedApiError(err)) {
+        await onUnauthorized?.();
+        return;
+      }
       console.error(err);
       setError(toErrorMessage(err, "Failed to load display layout"));
       if (showInitialLoading) {
@@ -118,7 +124,7 @@ export function useDisplayData({
         setLoadingLayout(false);
       }
     }
-  }, [effectiveActiveProfileId, slideId]);
+  }, [effectiveActiveProfileId, onUnauthorized, slideId]);
 
   const loadDisplayLayoutRef = useRef(loadDisplayLayout);
   loadDisplayLayoutRef.current = loadDisplayLayout;
@@ -186,36 +192,16 @@ export function buildLayoutsByWidgetId(
   }, {});
 }
 
-export function withNormalizedLayouts(
-  widgets: DisplayLayoutWidgetEnvelope[] | null | undefined,
-): DisplayLayoutWidgetEnvelope[] {
-  const safeWidgets = widgets ?? EMPTY_WIDGETS;
-  if (safeWidgets.length === 0) {
-    return EMPTY_WIDGETS;
-  }
-
-  const orderedWidgetIds = safeWidgets.map((widget) => widget.widgetInstanceId);
-  const normalizedLayoutsByWidgetId = normalizeWidgetLayouts({
-    layoutsById: buildLayoutsByWidgetId(safeWidgets),
-    orderedWidgetIds,
-  });
-
-  return safeWidgets.map((widget) => ({
-    ...widget,
-    layout: normalizedLayoutsByWidgetId[widget.widgetInstanceId] ?? widget.layout,
-  }));
-}
-
 export function resolveSlideComposition(response: DisplayLayoutResponse): DisplaySlideEnvelope {
   if (response.slide) {
     const widgetsSource = response.slide.widgets?.length ? response.slide.widgets : response.widgets;
     return {
       ...response.slide,
-      widgets: withNormalizedLayouts(widgetsSource),
+      widgets: widgetsSource,
     };
   }
 
-  return createDefaultSlide(withNormalizedLayouts(response.widgets));
+  return createDefaultSlide(response.widgets);
 }
 
 function createDefaultSlide(widgets: DisplayLayoutWidgetEnvelope[]): DisplaySlideEnvelope {

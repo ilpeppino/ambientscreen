@@ -15,6 +15,13 @@ vi.mock("../src/core/config/api", () => ({
   API_BASE_URL: "http://localhost:3000",
 }));
 
+vi.mock("../src/services/api/integrationsApi", () => ({
+  getGoogleConnectUrl: vi.fn(async (returnTo?: string) => {
+    const params = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : "";
+    return `http://localhost:3000/integrations/providers/google/start${params}`;
+  }),
+}));
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -256,13 +263,13 @@ describe("parseOAuthCallbackFromPath", () => {
 describe("getGoogleConnectUrl", () => {
   test("returns base URL when no returnTo provided", async () => {
     const { getGoogleConnectUrl } = await import("../src/services/api/integrationsApi");
-    const url = getGoogleConnectUrl();
-    expect(url).toBe("http://localhost:3000/integrations/google/start");
+    const url = await getGoogleConnectUrl();
+    expect(url).toBe("http://localhost:3000/integrations/providers/google/start");
   });
 
   test("appends returnTo as query param when provided", async () => {
     const { getGoogleConnectUrl } = await import("../src/services/api/integrationsApi");
-    const url = getGoogleConnectUrl("ambientscreen://integrations");
+    const url = await getGoogleConnectUrl("ambientscreen://integrations");
     expect(url).toContain("/start?");
     expect(url).toContain("returnTo=");
     expect(url).toContain(encodeURIComponent("ambientscreen://integrations"));
@@ -270,7 +277,7 @@ describe("getGoogleConnectUrl", () => {
 
   test("returnTo for native uses ambientscreen scheme", async () => {
     const { getGoogleConnectUrl } = await import("../src/services/api/integrationsApi");
-    const url = getGoogleConnectUrl("ambientscreen://integrations");
+    const url = await getGoogleConnectUrl("ambientscreen://integrations");
     const parsed = new URL(url);
     const returnTo = parsed.searchParams.get("returnTo");
     expect(returnTo).toBe("ambientscreen://integrations");
@@ -278,8 +285,8 @@ describe("getGoogleConnectUrl", () => {
 
   test("still contains /start path with returnTo", async () => {
     const { getGoogleConnectUrl } = await import("../src/services/api/integrationsApi");
-    const url = getGoogleConnectUrl("ambientscreen://integrations");
-    expect(url).toContain("/integrations/google/start");
+    const url = await getGoogleConnectUrl("ambientscreen://integrations");
+    expect(url).toContain("/integrations/providers/google/start");
   });
 });
 

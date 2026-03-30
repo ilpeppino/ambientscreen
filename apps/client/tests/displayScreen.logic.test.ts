@@ -12,6 +12,7 @@ test("getDisplayRefreshIntervalMs follows widget refresh policy rules", () => {
   expect(getDisplayRefreshIntervalMs("clockDate")).toBe(1000);
   expect(getDisplayRefreshIntervalMs("weather")).toBe(300000);
   expect(getDisplayRefreshIntervalMs("calendar")).toBe(60000);
+  expect(getDisplayRefreshIntervalMs("rssNews")).toBe(300000);
   expect(getDisplayRefreshIntervalMs(undefined)).toBe(null);
 });
 

@@ -25,22 +25,3 @@ export function getWidgetErrorLabel(widget: DisplayLayoutWidgetEnvelope): string
 
   return "Widget unavailable";
 }
-
-const BASE_CANVAS_WIDTH = 640;
-const BASE_CANVAS_HEIGHT = 360;
-const MIN_WIDGET_SCALE = 0.28;
-
-export function computeWidgetScale(width: number, height: number): number {
-  const safeWidth = Math.max(width, 0);
-  const safeHeight = Math.max(height, 0);
-
-  if (safeWidth === 0 || safeHeight === 0) {
-    return 1;
-  }
-
-  const widthScale = safeWidth / BASE_CANVAS_WIDTH;
-  const heightScale = safeHeight / BASE_CANVAS_HEIGHT;
-  const rawScale = Math.min(widthScale, heightScale);
-
-  return Math.max(MIN_WIDGET_SCALE, Math.min(1, rawScale));
-}

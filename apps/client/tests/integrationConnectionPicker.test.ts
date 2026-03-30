@@ -31,11 +31,15 @@ vi.mock("../src/features/navigation/deepLinks", () => ({
 }));
 
 const mockListIntegrationConnections = vi.fn();
-const mockGetGoogleConnectUrl = vi.fn().mockReturnValue("http://api/integrations/google/start");
+const mockGetIntegrationProviderAuthorizationUrl = vi.fn().mockResolvedValue(
+  "http://api/integrations/providers/google/start",
+);
 
 vi.mock("../src/services/api/integrationsApi", () => ({
   listIntegrationConnections: (...args: unknown[]) => mockListIntegrationConnections(...args),
-  getGoogleConnectUrl: (returnTo?: string) => mockGetGoogleConnectUrl(returnTo),
+  getGoogleConnectUrl: vi.fn(async () => "http://api/integrations/providers/google/start"),
+  getIntegrationProviderAuthorizationUrl: (...args: unknown[]) =>
+    mockGetIntegrationProviderAuthorizationUrl(...args),
 }));
 
 afterEach(() => {
@@ -71,8 +75,8 @@ describe("IntegrationConnectionPicker", () => {
     expect(mockListIntegrationConnections).toBeDefined();
   });
 
-  test("getGoogleConnectUrl is available and returns /start path", () => {
-    const url = mockGetGoogleConnectUrl();
+  test("start flow helper is available and returns a start path", async () => {
+    const url = await mockGetIntegrationProviderAuthorizationUrl();
     expect(url).toContain("/start");
   });
 

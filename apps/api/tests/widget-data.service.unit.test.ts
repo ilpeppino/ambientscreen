@@ -3,6 +3,7 @@ import { widgetsRepository } from "../src/modules/widgets/widgets.repository";
 import { widgetDataService } from "../src/modules/widgetData/widget-data.service";
 import { resolveCalendarWidgetData } from "../src/modules/widgetData/resolvers/calendar.resolver";
 import { resolveClockDateWidgetData } from "../src/modules/widgetData/resolvers/clockDate.resolver";
+import { resolveRssNewsWidgetData } from "../src/modules/widgetData/resolvers/rssNews.resolver";
 import { resolveWeatherWidgetData } from "../src/modules/widgetData/resolvers/weather.resolver";
 import * as widgetPluginRegistry from "../src/modules/widgets/widgetPluginRegistry";
 
@@ -303,4 +304,112 @@ test("calendar resolver returns stale when provider fails", async () => {
     events: [],
   });
   expect(result.meta?.errorCode).toBe("CALENDAR_PROVIDER_UNAVAILABLE");
+});
+
+test("rssNews resolver returns normalized ready payload from provider data", async () => {
+  const result = await resolveRssNewsWidgetData({
+    widgetInstanceId: "widget-rss",
+    widgetConfig: {
+      feedUrl: "https://news.example.com/rss.xml",
+      maxItems: 2,
+      showImages: true,
+      showPublishedAt: true,
+      layout: "headline-list",
+      title: "Tech Brief",
+    },
+    fetchFeedData: async () => ({
+      format: "rss",
+      fetchedAtIso: "2026-03-27T10:00:00.000Z",
+      feedUrl: "https://news.example.com/rss.xml",
+      channel: {
+        title: "Example News",
+        link: "https://news.example.com",
+      },
+      items: [
+        {
+          id: "a1",
+          title: "First headline",
+          link: "https://news.example.com/a1",
+          summary: "Summary 1",
+          publishedAt: "2026-03-27T09:00:00Z",
+          imageUrl: "https://cdn.example.com/a1.jpg",
+        },
+        {
+          id: "a2",
+          title: "Second headline",
+          link: "https://news.example.com/a2",
+          summary: "Summary 2",
+          publishedAt: "2026-03-27T08:30:00Z",
+        },
+      ],
+    }),
+  });
+
+  expect(result.widgetKey).toBe("rssNews");
+  expect(result.state).toBe("ready");
+  expect(result.data).toEqual({
+    title: "Tech Brief",
+    siteTitle: "Example News",
+    feedUrl: "https://news.example.com/rss.xml",
+    items: [
+      {
+        id: "a1",
+        title: "First headline",
+        link: "https://news.example.com/a1",
+        summary: "Summary 1",
+        publishedAt: "2026-03-27T09:00:00.000Z",
+        imageUrl: "https://cdn.example.com/a1.jpg",
+      },
+      {
+        id: "a2",
+        title: "Second headline",
+        link: "https://news.example.com/a2",
+        summary: "Summary 2",
+        publishedAt: "2026-03-27T08:30:00.000Z",
+        imageUrl: undefined,
+      },
+    ],
+  });
+  expect(result.meta?.source).toBe("rss");
+  expect(result.meta?.fetchedAt).toBe("2026-03-27T10:00:00.000Z");
+});
+
+test("rssNews resolver returns empty when feedUrl is missing", async () => {
+  const result = await resolveRssNewsWidgetData({
+    widgetInstanceId: "widget-rss",
+    widgetConfig: {
+      title: "Headlines",
+    },
+  });
+
+  expect(result.state).toBe("empty");
+  expect(result.data).toEqual({
+    title: "Headlines",
+    siteTitle: undefined,
+    feedUrl: "",
+    items: [],
+  });
+  expect(result.meta?.errorCode).toBe("RSS_FEED_NOT_CONFIGURED");
+});
+
+test("rssNews resolver returns stale when provider call fails", async () => {
+  const result = await resolveRssNewsWidgetData({
+    widgetInstanceId: "widget-rss",
+    widgetConfig: {
+      feedUrl: "https://news.example.com/rss.xml",
+      title: "Headlines",
+    },
+    fetchFeedData: async () => {
+      throw new Error("provider unavailable");
+    },
+  });
+
+  expect(result.state).toBe("stale");
+  expect(result.data).toEqual({
+    title: "Headlines",
+    siteTitle: undefined,
+    feedUrl: "https://news.example.com/rss.xml",
+    items: [],
+  });
+  expect(result.meta?.errorCode).toBe("RSS_PROVIDER_UNAVAILABLE");
 });

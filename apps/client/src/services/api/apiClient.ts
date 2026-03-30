@@ -35,6 +35,18 @@ export class ApiError extends Error {
   }
 }
 
+export function isUnauthorizedApiError(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    return error.isUnauthorized;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /(^|\\b)(401|unauthorized)(\\b|$)/i.test(error.message);
+}
+
 let authToken: string | null = null;
 
 export function setApiAuthToken(token: string | null) {

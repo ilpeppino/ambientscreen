@@ -12,6 +12,11 @@ export const INSPECTOR_LABELS: Record<string, string> = {
   countryCode: "Country code",
   units: "Units",
   forecastSlots: "Forecast slots",
+  feedUrl: "RSS feed URL",
+  showImages: "Show images",
+  showPublishedAt: "Show published date",
+  layout: "Layout",
+  title: "Widget title",
   format: "Format",
   showSeconds: "Show seconds",
   timezone: "Timezone",
@@ -48,6 +53,11 @@ export function formatInspectorValue(key: string, value: unknown): string {
     if (value === "24h") return "24-hour";
   }
 
+  if (key === "layout") {
+    if (value === "headline-list") return "Headline list";
+    if (value === "ticker") return "Ticker";
+  }
+
   // Boolean labels
   if (typeof value === "boolean") {
     return value ? "Yes" : "No";
@@ -74,6 +84,7 @@ export function buildWidgetReadOnlyFields(
     clockDate: ["format", "showSeconds", "timezone"],
     weather: ["city", "countryCode", "units", "forecastSlots"],
     calendar: ["provider", "account", "timeWindow", "maxEvents", "includeAllDay"],
+    rssNews: ["title", "feedUrl", "layout", "maxItems", "showImages", "showPublishedAt"],
   };
 
   const keysForWidget = fieldKeys[widgetKey] ?? [];
