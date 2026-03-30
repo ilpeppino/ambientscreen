@@ -12,7 +12,7 @@ import {
   scaleBy,
 } from "../shared/widgetRenderContext";
 
-export function WeatherRenderer({ state, data, renderContext }: WidgetRendererProps<"weather">) {
+export function WeatherRenderer({ state, data, config, renderContext }: WidgetRendererProps<"weather">) {
   const visualScale = deriveWidgetVisualScale(renderContext);
   const compact = visualScale.sizeTier === "compact";
   const isFullscreen = visualScale.sizeTier === "fullscreen";
@@ -36,6 +36,7 @@ export function WeatherRenderer({ state, data, renderContext }: WidgetRendererPr
     && (data.temperatureC !== null || Boolean(data.conditionLabel) || Boolean(data.location));
 
   const forecastSlots = data?.forecast ?? [];
+  const weatherUnits = config.units ?? "metric";
   const iconSize = visualScale.iconScale >= 1.5 ? "xl" : visualScale.iconScale >= 1.15 ? "lg" : "md";
 
   // Hero region: temperature display.
@@ -127,7 +128,7 @@ export function WeatherRenderer({ state, data, renderContext }: WidgetRendererPr
               numberOfLines={1}
               minimumFontScale={0.45}
             >
-              {data?.temperatureC === null ? "--" : data?.temperatureC}
+              {formatTemperatureValue(data?.temperatureC ?? null, weatherUnits)}
             </Text>
             <Text style={[styles.temperatureUnit, { fontSize: tempUnitFontSize, lineHeight: Math.round(tempUnitFontSize * 1.1) }]}>°C</Text>
           </View>
@@ -194,7 +195,7 @@ export function WeatherRenderer({ state, data, renderContext }: WidgetRendererPr
                   style={[styles.forecastTemp, { fontSize: forecastTempText.fontSize, lineHeight: forecastTempText.lineHeight }]}
                   numberOfLines={1}
                 >
-                  {slot.temperatureC !== null ? `${slot.temperatureC}°` : "--"}
+                  {slot.temperatureC !== null ? `${formatTemperatureValue(slot.temperatureC, weatherUnits)}°` : "--"}
                 </Text>
                 <Text
                   style={[styles.forecastCondition, { fontSize: forecastConditionText.fontSize, lineHeight: forecastConditionText.lineHeight }]}
@@ -211,6 +212,21 @@ export function WeatherRenderer({ state, data, renderContext }: WidgetRendererPr
       )}
     </BaseWidgetFrame>
   );
+}
+
+function formatTemperatureValue(
+  value: number | null,
+  units: "metric" | "imperial" | "standard",
+): string {
+  if (value === null) {
+    return "--";
+  }
+
+  if (units === "metric") {
+    return String(Math.round(value));
+  }
+
+  return String(value);
 }
 
 function formatForecastTime(isoString: string): string {
