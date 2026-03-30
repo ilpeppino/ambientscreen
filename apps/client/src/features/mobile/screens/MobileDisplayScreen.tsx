@@ -210,7 +210,7 @@ export function MobileDisplayScreen({ profile, onExit, onUnauthorized }: MobileD
         ) : null}
 
         {!loadingLayout && !error && !slidesError && activeSlideCount > 0 && timing ? (
-          <View style={[styles.slideTimer, { bottom: insets.bottom + 8 }]}> 
+          <View style={[styles.slideTimer, { top: insets.top + 8 }]}>
             <Text style={styles.slideTimerLabel}>{Math.max(0, Math.ceil(timing.remainingMs / 1000))}s</Text>
           </View>
         ) : null}

@@ -1,12 +1,12 @@
 import React from "react";
 import { ImageBackground, StyleSheet, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
 import type { WidgetRenderContext, WidgetRendererProps } from "@ambient/shared-contracts";
 import { Text } from "../../shared/ui/components";
 import { colors, radius, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 import {
   computeRegionHeights,
+  computeRegionInsets,
   computeRenderTokens,
   deriveWidgetVisualScale,
   fitTextToRegion,
@@ -66,23 +66,25 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
   const firstItem = items[0] ?? null;
   const hasData = items.length > 0;
   const title = data?.title || config.title || "Latest News";
-  const siteTitle = data?.siteTitle ?? "";
   const allowHeroImage = showImages && layout === "headline-list" && Boolean(firstItem?.imageUrl);
   const isCompact = sizeTier === "compact";
 
-  const maxDetailItems = sizeTier === "fullscreen"
+  const maxDetailItemsByTier = sizeTier === "fullscreen"
     ? 3
     : sizeTier === "large"
     ? 3
     : sizeTier === "regular"
     ? 2
-    : 1;
+    : 0;
 
   // Density-first timestamp policy: remove timestamps before reducing detail content.
   const showHeroTimestamp = showPublishedAt && !isCompact;
   const showDetailTimestamp = showPublishedAt && sizeTier === "fullscreen";
-
-  const detailItems = items.slice(1, 1 + maxDetailItems);
+  const regionInsets = computeRegionInsets(regions, {
+    supportTop: tokens.heroSupportGap,
+    detailTop: tokens.supportDetailGap,
+  });
+  const detailAvailableHeight = Math.max(1, regions.detail - regionInsets.detailTop);
 
   const heroTitleText = fitTextToRegion({
     targetFontSize: isFullscreen ? Math.round(widgetHeight * 0.058) : scaleBy(24, visualScale.typographyScale, 14),
@@ -91,12 +93,6 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
     minFontSize: 11,
     lineHeightRatio: 1.1,
     regionFillRatio: 0.74,
-  });
-  const supportTitleText = fitTextToRegion({
-    targetFontSize: scaleBy(tokens.titleFontSize, 1, 11),
-    regionHeight: Math.max(1, Math.round(regions.support * 0.36)),
-    minFontSize: 10,
-    lineHeightRatio: 1.1,
   });
   const supportMetaText = fitTextToRegion({
     targetFontSize: tokens.metaFontSize,
@@ -108,7 +104,7 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
     targetFontSize: scaleBy(13, visualScale.typographyScale, 10),
     regionHeight: Math.max(
       1,
-      Math.round(regions.detail / Math.max(1, detailItems.length || 1)),
+      Math.round(detailAvailableHeight / Math.max(1, maxDetailItemsByTier)),
     ),
     lines: 1,
     minFontSize: 9,
@@ -117,15 +113,23 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
   });
   const detailMetaText = fitTextToRegion({
     targetFontSize: tokens.metaFontSize,
-    regionHeight: Math.max(1, Math.round(regions.detail * 0.15)),
+    regionHeight: Math.max(1, Math.round(detailAvailableHeight * 0.22)),
     minFontSize: 8,
     lineHeightRatio: 1.1,
   });
+  const detailRowGap = scaleBy(tokens.itemGap, 1, 3);
+  const detailRowContentHeight = detailTitleText.lineHeight + (showDetailTimestamp ? detailMetaText.lineHeight + 2 : 0);
+  const maxDetailRowsByHeight = Math.max(
+    0,
+    Math.floor((detailAvailableHeight + detailRowGap) / Math.max(1, detailRowContentHeight + detailRowGap)),
+  );
+  const resolvedDetailRows = Math.min(maxDetailItemsByTier, maxDetailRowsByHeight);
+  const detailItems = items.slice(1, 1 + resolvedDetailRows);
 
   const heroContentWidth = Math.min(widgetWidth, widgetWidth * (isFullscreen ? 0.92 : 0.9));
-  const supportContentWidth = Math.min(widgetWidth, widgetWidth * 0.72);
-  const detailContentWidth = Math.min(widgetWidth, widgetWidth * 0.72);
   const heroImageMaxHeight = Math.max(56, Math.round(regions.hero * 0.64));
+  const heroImageHeight = Math.min(heroImageMaxHeight, Math.round(heroContentWidth * (9 / 16)));
+  const heroRegionHeight = regions.hero + regions.support;
 
   return (
     <BaseWidgetFrame
@@ -138,7 +142,7 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
       contentStyle={styles.content}
       renderContext={safeContext}
     >
-      <View style={[styles.heroRegion, { flexBasis: regions.hero, minHeight: regions.hero }]}>
+      <View style={[styles.heroRegion, { flexBasis: heroRegionHeight, minHeight: heroRegionHeight }]}>
         {allowHeroImage && firstItem?.imageUrl && !isCompact ? (
           <ImageBackground
             source={{ uri: firstItem.imageUrl }}
@@ -146,37 +150,32 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
               styles.heroImage,
               {
                 width: heroContentWidth,
-                maxHeight: heroImageMaxHeight,
+                height: heroImageHeight,
                 marginBottom: scaleBy(spacing.xs, visualScale.spacingScale, 2),
               },
             ]}
             imageStyle={styles.heroImageInner}
             resizeMode="cover"
-          >
-            <LinearGradient
-              colors={["rgba(0,0,0,0)", "rgba(0,0,0,0.62)"]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.heroImageGradient}
-            />
-          </ImageBackground>
+          />
         ) : null}
 
         {firstItem ? (
-          <Text
-            style={[
-              styles.heroTitle,
-              {
-                fontSize: heroTitleText.fontSize,
-                lineHeight: heroTitleText.lineHeight,
-                width: heroContentWidth,
-              },
-            ]}
-            numberOfLines={layout === "ticker" ? 1 : 2}
-            ellipsizeMode="tail"
-          >
-            {firstItem.title}
-          </Text>
+          <View style={[styles.heroTitleHighlight, { width: heroContentWidth }]}>
+            <Text
+              style={[
+                styles.heroTitle,
+                {
+                  fontSize: heroTitleText.fontSize,
+                  lineHeight: heroTitleText.lineHeight,
+                  width: "100%",
+                },
+              ]}
+              numberOfLines={layout === "ticker" ? 1 : 2}
+              ellipsizeMode="tail"
+            >
+              {firstItem.title}
+            </Text>
+          </View>
         ) : null}
 
         {firstItem && showHeroTimestamp && firstItem.publishedAt ? (
@@ -196,6 +195,17 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
         ) : null}
       </View>
 
+      <View
+        style={[
+          styles.supportRegion,
+          {
+            flexBasis: 0,
+            minHeight: 0,
+            paddingTop: 0,
+            gap: 0,
+          },
+        ]}
+      />
 
       <View
         style={[
@@ -203,16 +213,15 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
           {
             flexBasis: regions.detail,
             minHeight: regions.detail,
-            marginTop: tokens.supportDetailGap,
-            gap: scaleBy(tokens.itemGap, 1, 3),
-            width: detailContentWidth,
+            paddingTop: regionInsets.detailTop,
+            gap: detailRowGap,
           },
         ]}
       >
         {detailItems.map((item) => (
           <View
             key={item.id}
-            style={[styles.detailRow, { minHeight: Math.max(20, Math.round(regions.detail / Math.max(detailItems.length, 1))) }]}
+            style={[styles.detailRow, { minHeight: detailRowContentHeight }]}
           >
             <Text
               style={[styles.rowTitle, { fontSize: detailTitleText.fontSize, lineHeight: detailTitleText.lineHeight }]}
@@ -254,14 +263,14 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textPrimary,
     fontWeight: "500",
-    textAlign: "left",
+    textAlign: "center",
     maxWidth: "100%",
   },
   siteTitle: {
     ...typography.small,
     color: colors.textSecondary,
     opacity: 0.7,
-    textAlign: "left",
+    textAlign: "center",
     maxWidth: "100%",
   },
   heroRegion: {
@@ -273,62 +282,68 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   heroImage: {
-    height: "100%",
-    aspectRatio: 16 / 9,
+    height: 160,
+    width: "100%",
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
     overflow: "hidden",
   },
   heroImageInner: {
     borderRadius: radius.md,
   },
-  heroImageGradient: {
-    ...StyleSheet.absoluteFillObject,
-  },
   heroTitle: {
     ...typography.titleSm,
     color: colors.textPrimary,
     fontWeight: "700",
-    textAlign: "left",
+    textAlign: "center",
     maxWidth: "100%",
+  },
+  heroTitleHighlight: {
+    borderRadius: radius.sm,
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   heroMeta: {
     ...typography.small,
     color: colors.textSecondary,
     opacity: 0.55,
     marginTop: 2,
-    textAlign: "left",
+    textAlign: "center",
   },
   supportRegion: {
-    alignSelf: "center",
+    width: "100%",
+    alignSelf: "stretch",
     minHeight: 0,
-    alignItems: "flex-start",
-    justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "flex-start",
     overflow: "hidden",
   },
   detailRegion: {
-    alignSelf: "center",
+    width: "100%",
+    alignSelf: "stretch",
     minHeight: 0,
-    alignItems: "flex-start",
-    justifyContent: "center",
+    alignItems: "center",
+    justifyContent: "flex-start",
     overflow: "hidden",
   },
   detailRow: {
     justifyContent: "center",
-    alignItems: "flex-start",
+    alignItems: "center",
     paddingVertical: 1,
     width: "100%",
   },
   rowTitle: {
     ...typography.small,
     color: colors.textPrimary,
-    textAlign: "left",
+    textAlign: "center",
     maxWidth: "100%",
   },
   rowMeta: {
     ...typography.small,
     color: colors.textSecondary,
     opacity: 0.45,
-    textAlign: "left",
+    textAlign: "center",
   },
 });

@@ -196,7 +196,7 @@ describe("RssNewsRenderer", () => {
       return Array.isArray(children) ? children.join("") : String(children ?? "");
     });
 
-    expect(compactTexts.some((value) => value.includes("Detail 1"))).toBe(true);
+    expect(compactTexts.some((value) => value.includes("Detail 1"))).toBe(false);
     expect(compactTexts.some((value) => value.includes("Detail 2"))).toBe(false);
   });
 

@@ -6,6 +6,7 @@ import { colors, radius, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 import {
   computeRegionHeights,
+  computeRegionInsets,
   computeRenderTokens,
   deriveWidgetVisualScale,
   fitTextToRegion,
@@ -98,6 +99,10 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
       lineHeightRatio: 1.16,
       regionFillRatio: 0.82,
     });
+    const regionInsets = computeRegionInsets(regions, {
+      supportTop: tokens.heroSupportGap,
+      detailTop: tokens.supportDetailGap,
+    });
 
     return (
       <BaseWidgetFrame
@@ -127,7 +132,12 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
             </View>
 
             {/* Support region: first event metadata */}
-            <View style={[styles.supportRegion, { marginTop: tokens.heroSupportGap, flexBasis: regions.support, minHeight: regions.support }]}>
+            <View style={[styles.supportRegion, {
+              flexBasis: regions.support,
+              minHeight: regions.support,
+              paddingTop: regionInsets.supportTop,
+            }]}
+            >
               <View style={styles.metaRow}>
                 <AppIcon name="clock" size={tokens.iconSize} color="textSecondary" />
                 <Text
@@ -154,14 +164,15 @@ export function CalendarRenderer({ state, data, renderContext }: WidgetRendererP
             {/* Detail region: remaining events */}
             {remainingEvents.length > 0 ? (
               <View style={[styles.detailRegion, {
-                marginTop: tokens.supportDetailGap,
                 flexBasis: regions.detail,
                 minHeight: regions.detail,
+                paddingTop: regionInsets.detailTop,
+                gap: tokens.itemGap,
               }]}>
                 {remainingEvents.map((event) => (
                   <View
                     key={event.id}
-                    style={[styles.detailEventRow, { gap: tokens.itemGap, marginTop: tokens.itemGap }]}
+                    style={[styles.detailEventRow, { gap: tokens.itemGap }]}
                   >
                     <Text
                       style={[styles.detailEventTitle, { fontSize: detailLineText.fontSize, lineHeight: detailLineText.lineHeight }]}
@@ -312,8 +323,11 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   supportRegion: {
+    width: "100%",
+    alignSelf: "stretch",
+    minHeight: 0,
     alignItems: "center",
-    maxWidth: "100%",
+    justifyContent: "flex-start",
   },
   supportText: {
     ...typography.body,
@@ -325,8 +339,11 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   detailRegion: {
+    width: "100%",
+    alignSelf: "stretch",
+    minHeight: 0,
     alignItems: "center",
-    maxWidth: "100%",
+    justifyContent: "flex-start",
   },
   detailEventRow: {
     flexDirection: "row",

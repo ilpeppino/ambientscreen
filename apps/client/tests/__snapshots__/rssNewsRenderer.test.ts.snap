@@ -159,7 +159,7 @@ exports[`RssNewsRenderer > snapshot: with image 1`] = `
           ]
         }
       >
-        11h ago
+        1d ago
       </text>
     </view>
     <view
@@ -190,7 +190,7 @@ exports[`RssNewsRenderer > snapshot: with image 1`] = `
             {
               "color": "#FFFFFF",
               "fontSize": 14,
-              "fontWeight": "700",
+              "fontWeight": "500",
               "lineHeight": 20,
               "maxWidth": "100%",
               "textAlign": "left",
@@ -302,7 +302,7 @@ exports[`RssNewsRenderer > snapshot: with image 1`] = `
             ]
           }
         >
-          12h ago
+          1d ago
         </text>
       </view>
     </view>
@@ -423,7 +423,7 @@ exports[`RssNewsRenderer > snapshot: without image 1`] = `
           ]
         }
       >
-        11h ago
+        1d ago
       </text>
     </view>
     <view
@@ -454,7 +454,7 @@ exports[`RssNewsRenderer > snapshot: without image 1`] = `
             {
               "color": "#FFFFFF",
               "fontSize": 14,
-              "fontWeight": "700",
+              "fontWeight": "500",
               "lineHeight": 20,
               "maxWidth": "100%",
               "textAlign": "left",

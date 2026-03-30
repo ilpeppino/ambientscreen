@@ -6,6 +6,7 @@ import { colors, spacing, typography } from "../../shared/ui/theme";
 import { BaseWidgetFrame } from "../shared/BaseWidgetFrame";
 import {
   computeRegionHeights,
+  computeRegionInsets,
   deriveWidgetVisualScale,
   fitTextToRegion,
   scaleBy,
@@ -64,8 +65,12 @@ export function WeatherRenderer({ state, data, renderContext }: WidgetRendererPr
   const supportDetailGap = isFullscreen && widgetHeight > 0
     ? Math.round(widgetHeight * 0.05)
     : scaleBy(spacing.sm, visualScale.spacingScale, 4);
-  const supportRegionHeight = Math.max(1, regions.support - heroSupportGap);
-  const detailRegionHeight = Math.max(1, regions.detail - supportDetailGap);
+  const regionInsets = computeRegionInsets(regions, {
+    supportTop: heroSupportGap,
+    detailTop: supportDetailGap,
+  });
+  const supportRegionHeight = Math.max(1, regions.support - regionInsets.supportTop);
+  const detailRegionHeight = Math.max(1, regions.detail - regionInsets.detailTop);
   const locationText = fitTextToRegion({
     targetFontSize: scaleBy(14, visualScale.typographyScale, 11),
     regionHeight: Math.max(1, Math.round(supportRegionHeight * (compact ? 0.85 : 0.44))),
@@ -129,11 +134,15 @@ export function WeatherRenderer({ state, data, renderContext }: WidgetRendererPr
         </View>
       </View>
 
-      <View style={[styles.supportRegion, { flexBasis: regions.support, minHeight: regions.support }]}>
+      <View style={[styles.supportRegion, {
+        flexBasis: regions.support,
+        minHeight: regions.support,
+        paddingTop: regionInsets.supportTop,
+      }]}
+      >
         {/* Support region: location + condition */}
         <Text
           style={[styles.location, {
-            marginTop: heroSupportGap,
             fontSize: locationText.fontSize,
             lineHeight: locationText.lineHeight,
           }]}
@@ -161,9 +170,13 @@ export function WeatherRenderer({ state, data, renderContext }: WidgetRendererPr
 
       {/* Detail region: forecast strip */}
       {!compact && forecastSlots.length > 0 ? (
-        <View style={[styles.detailRegion, { flexBasis: regions.detail, minHeight: regions.detail }]}>
+        <View style={[styles.detailRegion, {
+          flexBasis: regions.detail,
+          minHeight: regions.detail,
+          paddingTop: regionInsets.detailTop,
+        }]}
+        >
           <View style={[styles.forecastRow, {
-            marginTop: supportDetailGap,
             gap: scaleBy(spacing.xs, visualScale.spacingScale, 2),
           }]}>
             {forecastSlots.map((slot, index) => (
@@ -255,7 +268,6 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
   },
   location: {
-    marginTop: spacing.sm,
     ...typography.body,
     color: colors.textSecondary,
     textAlign: "center",
@@ -276,7 +288,6 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   condition: {
-    marginTop: spacing.xs,
     ...typography.titleSm,
     color: colors.textPrimary,
     textAlign: "center",
@@ -284,7 +295,6 @@ const styles = StyleSheet.create({
   },
   forecastRow: {
     flexDirection: "row",
-    marginTop: spacing.sm,
     gap: spacing.xs,
     justifyContent: "center",
     maxWidth: "100%",
