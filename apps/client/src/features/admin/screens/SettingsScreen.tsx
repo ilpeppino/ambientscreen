@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDevSettings } from "../../../core/devSettings/devSettings.context";
 import { TextInput as AppTextInput } from "../../../shared/ui/components";
 import { AppIcon } from "../../../shared/ui/components";
 import { ConfirmDialog } from "../../../shared/ui/overlays";
@@ -117,6 +118,7 @@ export function SettingsScreen({
   const activeProfile = profiles.find((p) => p.id === activeProfileId);
   const [expandProfileActions, setExpandProfileActions] = useState(false);
   const [renameOpenDeviceId, setRenameOpenDeviceId] = useState<string | null>(null);
+  const { settings: devSettings, update: updateDevSettings } = useDevSettings();
 
   return (
     <SafeAreaView style={styles.screen}>
@@ -354,6 +356,30 @@ export function SettingsScreen({
           ) : null}
         </View>
 
+        {/* ── Section 4: Developer (dev builds only) ─────────── */}
+        {__DEV__ ? (
+          <>
+            <View style={styles.divider} />
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Developer</Text>
+              <View style={styles.devToggleRow}>
+                <View style={styles.devToggleInfo}>
+                  <Text style={styles.devToggleLabel}>Debug lines in edit mode</Text>
+                  <Text style={styles.devToggleDescription}>
+                    Shows an on-screen legend to toggle region, content, and grid overlays while in edit mode.
+                  </Text>
+                </View>
+                <Switch
+                  value={devSettings.debugOverlayEnabled}
+                  onValueChange={(v) => updateDevSettings({ debugOverlayEnabled: v })}
+                  trackColor={{ false: colors.border, true: colors.accentBlue }}
+                  thumbColor={colors.textPrimary}
+                />
+              </View>
+            </View>
+          </>
+        ) : null}
+
       </ScrollView>
 
       <ConfirmDialog
@@ -581,5 +607,24 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.textSecondary,
     lineHeight: 20,
+  },
+  devToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+  },
+  devToggleInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  devToggleLabel: {
+    ...typography.body,
+    color: colors.textPrimary,
+    fontWeight: "600",
+  },
+  devToggleDescription: {
+    ...typography.small,
+    color: colors.textSecondary,
+    lineHeight: 18,
   },
 });

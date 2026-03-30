@@ -118,81 +118,11 @@ describe("ClockDate getInspectorDefinition", () => {
     });
   });
 
-  describe("locale field", () => {
-    test("locale field id is 'locale'", () => {
+  describe("locale control removal", () => {
+    test("time section does not include a locale field", () => {
       const def = getInspectorDefinition({}, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.id).toBe("locale");
-    });
-
-    test("locale field label is 'Locale'", () => {
-      const def = getInspectorDefinition({}, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.label).toBe("Locale");
-    });
-
-    test("locale field kind is 'select'", () => {
-      const def = getInspectorDefinition({}, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.kind).toBe("select");
-    });
-
-    test("locale displayValue is '—' when not configured", () => {
-      const def = getInspectorDefinition({}, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.displayValue).toBe("—");
-    });
-
-    test("locale displayValue is 'English (US)' for en-US", () => {
-      const def = getInspectorDefinition({ locale: "en-US" }, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.displayValue).toBe("English (US)");
-    });
-
-    test("locale displayValue is 'English (UK)' for en-GB", () => {
-      const def = getInspectorDefinition({ locale: "en-GB" }, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.displayValue).toBe("English (UK)");
-    });
-
-    test("locale displayValue is 'French' for fr-FR", () => {
-      const def = getInspectorDefinition({ locale: "fr-FR" }, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.displayValue).toBe("French");
-    });
-
-    test("locale displayValue is 'Japanese' for ja-JP", () => {
-      const def = getInspectorDefinition({ locale: "ja-JP" }, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.displayValue).toBe("Japanese");
-    });
-
-    test("locale value reflects config", () => {
-      const def = getInspectorDefinition({ locale: "de-DE" }, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.value).toBe("de-DE");
-    });
-
-    test("locale has options list", () => {
-      const def = getInspectorDefinition({}, makeContext());
-      const field = def.sections[0].fields[1];
-      expect(field.options).toBeDefined();
-      expect(field.options!.length).toBeGreaterThan(0);
-    });
-
-    test("locale options include en-US", () => {
-      const def = getInspectorDefinition({}, makeContext());
-      const field = def.sections[0].fields[1];
-      const enUS = field.options!.find((o) => o.value === "en-US");
-      expect(enUS).toBeDefined();
-    });
-
-    test("locale onChange calls context.onChange with locale patch", () => {
-      const onChange = vi.fn();
-      const def = getInspectorDefinition({}, makeContext(onChange));
-      const field = def.sections[0].fields[1];
-      field.onChange?.("ja-JP" as never);
-      expect(onChange).toHaveBeenCalledWith({ locale: "ja-JP" });
+      const localeField = def.sections[0].fields.find((field) => field.id === "locale");
+      expect(localeField).toBeUndefined();
     });
   });
 
@@ -280,7 +210,7 @@ describe("ClockDate getInspectorDefinition", () => {
 
   describe("read-only summary content", () => {
     test("all displayValues are non-empty strings", () => {
-      const def = getInspectorDefinition({ timezone: "local", locale: "en-US", hour12: true }, makeContext());
+      const def = getInspectorDefinition({ timezone: "local", hour12: true }, makeContext());
       for (const section of def.sections) {
         for (const field of section.fields) {
           if (field.displayValue !== undefined) {
@@ -292,8 +222,8 @@ describe("ClockDate getInspectorDefinition", () => {
     });
 
     test("no raw config key appears as a displayValue", () => {
-      const def = getInspectorDefinition({ timezone: "local", locale: "en-US", hour12: true }, makeContext());
-      const rawKeys = ["timezone", "locale", "hour12"];
+      const def = getInspectorDefinition({ timezone: "local", hour12: true }, makeContext());
+      const rawKeys = ["timezone", "hour12"];
       for (const section of def.sections) {
         for (const field of section.fields) {
           for (const key of rawKeys) {

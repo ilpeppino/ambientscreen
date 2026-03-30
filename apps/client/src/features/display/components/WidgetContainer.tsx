@@ -30,6 +30,7 @@ import { shouldShowWidgetAffordances } from "./editMode.logic";
 import { WidgetContextActions } from "./WidgetContextActions";
 import { WidgetEditHandles } from "./WidgetEditHandles";
 import { deriveWidgetRenderContext } from "../../../widgets/shared/widgetRenderContext";
+import { useDevSettings } from "../../../core/devSettings/devSettings.context";
 
 interface WidgetContainerProps {
   widget: DisplayLayoutWidgetEnvelope;
@@ -126,6 +127,11 @@ function WidgetContainerBase({
 
   const columnWidth = containerSize.width > 0 ? containerSize.width / DISPLAY_GRID_COLUMNS : 0;
   const rowHeight = containerSize.height > 0 ? containerSize.height / DISPLAY_GRID_BASE_ROWS : 0;
+
+  const { settings: devSettings } = useDevSettings();
+  const debugActive = __DEV__ && editMode && devSettings.debugOverlayEnabled;
+  const debugRegions = debugActive && devSettings.showRegionBounds;
+  const debugContent = debugActive && devSettings.showContentBounds;
 
   const canEditSelectedWidget = shouldShowWidgetAffordances(editMode, isSelected);
   const maxPreviewWidth = Math.max(48, containerSize.width - left);
@@ -329,13 +335,18 @@ function WidgetContainerBase({
           isSelected ? styles.selectedLayer : styles.unselectedLayer,
           canEditSelectedWidget ? styles.selectedContainer : null,
           editMode && hasSelectedWidget && isSelected === false ? styles.secondaryInEditMode : null,
+          debugRegions ? styles.debugRegionBounds : null,
         ] as any}
       >
         <AnimatedView style={[styles.contentLayer, animatedContentStyle]}>
           <Pressable
             accessibilityRole={editMode ? "button" : undefined}
             disabled={editMode === false}
-            style={[styles.contentPressArea, DEBUG_WIDGET_BOUNDS ? styles.debugPressArea : null]}
+            style={[
+              styles.contentPressArea,
+              DEBUG_WIDGET_BOUNDS ? styles.debugPressArea : null,
+              debugContent ? styles.debugContentBounds : null,
+            ]}
             onPress={() => {
               if (editMode && onSelectWidget) {
                 onSelectWidget(widget.widgetInstanceId);
@@ -381,6 +392,7 @@ export const WidgetContainer = memo(WidgetContainerBase, (prevProps, nextProps) 
     && prevProps.widget.widgetKey === nextProps.widget.widgetKey
     && prevProps.widget.state === nextProps.widget.state
     && prevProps.widget.data === nextProps.widget.data
+    && prevProps.widget.config === nextProps.widget.config
     && prevProps.widget.layout.x === nextProps.widget.layout.x
     && prevProps.widget.layout.y === nextProps.widget.layout.y
     && prevProps.widget.layout.w === nextProps.widget.layout.w
@@ -428,6 +440,14 @@ const styles = StyleSheet.create({
   debugPressArea: {
     borderColor: colors.statusInfoText,
     borderWidth: 1,
+  },
+  debugRegionBounds: {
+    borderColor: "#fb923c",
+    borderWidth: 2,
+  },
+  debugContentBounds: {
+    borderColor: "#22d3ee",
+    borderWidth: 2,
   },
   editModeContainer: {
     borderColor: `${colors.textSecondary}CC`,

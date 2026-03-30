@@ -1,5 +1,5 @@
 import type { InspectorDefinition } from "../../features/admin/inspector/inspector.types";
-import { formatBoolean, formatLocaleLabel, formatTimezoneLabel } from "../../features/admin/inspector/inspector.formatters";
+import { formatBoolean, formatTimezoneLabel } from "../../features/admin/inspector/inspector.formatters";
 
 export interface ClockDateConfig {
   timezone?: string;
@@ -27,27 +27,11 @@ const TIMEZONE_OPTIONS = [
   { label: "Auckland (NZST)",      value: "Pacific/Auckland"    },
 ];
 
-const LOCALE_OPTIONS = [
-  { label: "English (US)",          value: "en-US" },
-  { label: "English (UK)",          value: "en-GB" },
-  { label: "French",                value: "fr-FR" },
-  { label: "German",                value: "de-DE" },
-  { label: "Spanish",               value: "es-ES" },
-  { label: "Italian",               value: "it-IT" },
-  { label: "Japanese",              value: "ja-JP" },
-  { label: "Chinese (Simplified)",  value: "zh-CN" },
-  { label: "Korean",                value: "ko-KR" },
-  { label: "Portuguese (Brazil)",   value: "pt-BR" },
-  { label: "Russian",               value: "ru-RU" },
-  { label: "Arabic",                value: "ar-SA" },
-];
-
 export function getInspectorDefinition(
   config: ClockDateConfig,
   context: ClockDateInspectorContext,
 ): InspectorDefinition {
   const timezone = config.timezone ?? "local";
-  const locale = config.locale;
   const hour12 = config.hour12;
 
   return {
@@ -65,16 +49,6 @@ export function getInspectorDefinition(
             editable: true,
             options: TIMEZONE_OPTIONS,
             onChange: (value: string) => context.onChange({ timezone: value }),
-          },
-          {
-            id: "locale",
-            label: "Locale",
-            kind: "select",
-            value: locale ?? null,
-            displayValue: locale ? formatLocaleLabel(locale) : "—",
-            editable: true,
-            options: LOCALE_OPTIONS,
-            onChange: (value: string) => context.onChange({ locale: value }),
           },
         ],
       },

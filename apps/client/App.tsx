@@ -36,6 +36,7 @@ import { MarketplaceScreen } from "./src/features/marketplace/screens/Marketplac
 import { IntegrationsScreen } from "./src/features/integrations/IntegrationsScreen"
 import { API_BASE_URL } from "./src/core/config/api"
 import { EntitlementsProvider } from "./src/features/entitlements/entitlements.context"
+import { DevSettingsProvider } from "./src/core/devSettings/devSettings.context"
 import { ProfilePickerScreen } from "./src/features/mobile/screens/ProfilePickerScreen"
 import { MobileDisplayScreen } from "./src/features/mobile/screens/MobileDisplayScreen"
 import { resolveMobileAppStage } from "./src/features/mobile/mobileAppShell.logic"
@@ -254,7 +255,9 @@ export default function App() {
       <SafeAreaProvider>
         <AuthProvider>
           <EntitlementsProvider>
-            <AuthenticatedApp />
+            <DevSettingsProvider>
+              <AuthenticatedApp />
+            </DevSettingsProvider>
           </EntitlementsProvider>
         </AuthProvider>
       </SafeAreaProvider>

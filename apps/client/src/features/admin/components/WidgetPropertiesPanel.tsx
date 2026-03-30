@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { widgetBuiltinDefinitions } from "@ambient/shared-contracts";
 import type { WidgetKey } from "@ambient/shared-contracts";
@@ -49,6 +49,8 @@ interface WidgetPropertiesPanelProps {
   selectedLibraryWidgetType?: WidgetKey | null;
   inspectorMode?: "canvas" | "library" | null;
   onSaveConfig?: (widgetId: string, config: Record<string, unknown>) => Promise<void>;
+  onDraftConfigChange?: (widgetId: string, config: Record<string, unknown>) => void;
+  onClearDraftConfig?: (widgetId: string) => void;
 }
 
 export function WidgetPropertiesPanel({
@@ -56,6 +58,8 @@ export function WidgetPropertiesPanel({
   selectedLibraryWidgetType = null,
   inspectorMode = null,
   onSaveConfig,
+  onDraftConfigChange,
+  onClearDraftConfig,
 }: WidgetPropertiesPanelProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
@@ -63,6 +67,8 @@ export function WidgetPropertiesPanel({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const hasMountedRef = useRef(false);
+  // Stores the draft value at the moment editing began — used for isDirty detection.
+  const initialDraftRef = useRef<Record<string, unknown>>({});
 
   useEffect(() => {
     if (!hasMountedRef.current) {
@@ -74,20 +80,39 @@ export function WidgetPropertiesPanel({
     setValidationError(null);
   }, [selectedWidget?.widgetInstanceId, selectedLibraryWidgetType, inspectorMode]);
 
+  // Propagate draft → canvas whenever the draft changes while editing.
+  // Merges onto persisted config so non-schema fields (e.g. integrationConnectionId) are preserved.
+  useEffect(() => {
+    if (!isEditing || !selectedWidget) return;
+    const canvasDraft = { ...selectedWidget.config, ...draft };
+    onDraftConfigChange?.(selectedWidget.widgetInstanceId, canvasDraft);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditing, draft, selectedWidget?.widgetInstanceId]);
+
+  const isDirty = useMemo(() => {
+    if (!isEditing) return false;
+    return JSON.stringify(draft) !== JSON.stringify(initialDraftRef.current);
+  }, [isEditing, draft]);
+
   const handleStartEdit = useCallback(() => {
     if (!selectedWidget) return;
     const schema = selectedWidget.configSchema ?? {};
-    setDraft(buildConfigDraft({ schema, config: selectedWidget.config }));
+    const initialDraft = buildConfigDraft({ schema, config: selectedWidget.config });
+    initialDraftRef.current = initialDraft;
+    setDraft(initialDraft);
     setSaveError(null);
     setValidationError(null);
     setIsEditing(true);
   }, [selectedWidget]);
 
   const handleCancelEdit = useCallback(() => {
+    if (selectedWidget) {
+      onClearDraftConfig?.(selectedWidget.widgetInstanceId);
+    }
     setIsEditing(false);
     setSaveError(null);
     setValidationError(null);
-  }, []);
+  }, [selectedWidget, onClearDraftConfig]);
 
   const handleSave = useCallback(async () => {
     if (!selectedWidget || !onSaveConfig) return;
@@ -102,13 +127,14 @@ export function WidgetPropertiesPanel({
       setSaveError(null);
       setValidationError(null);
       await onSaveConfig(selectedWidget.widgetInstanceId, draft);
+      onClearDraftConfig?.(selectedWidget.widgetInstanceId);
       setIsEditing(false);
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to save config");
     } finally {
       setSaving(false);
     }
-  }, [selectedWidget, draft, onSaveConfig]);
+  }, [selectedWidget, draft, onSaveConfig, onClearDraftConfig]);
 
   const setFieldValue = useCallback((key: string, value: unknown) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -205,17 +231,21 @@ export function WidgetPropertiesPanel({
         </View>
         <View style={styles.identityText}>
           <Text style={styles.widgetName}>{widgetName}</Text>
+          {isDirty ? (
+            <Text style={styles.unsavedLabel} accessibilityLabel="Unsaved changes">Unsaved</Text>
+          ) : null}
         </View>
+        {isDirty ? <View style={styles.dirtyDot} accessibilityLabel="Unsaved changes indicator" /> : null}
         {onSaveConfig ? (
           isEditing ? (
             <View style={styles.editActions}>
               <Pressable
-                style={styles.iconButton}
+                style={[styles.iconButton, (!isDirty || saving) ? styles.iconButtonDisabled : null]}
                 onPress={() => void handleSave()}
-                disabled={saving}
+                disabled={saving || !isDirty}
                 accessibilityLabel="Save config"
               >
-                <AppIcon name="check" size="sm" color={saving ? "textSecondary" : "textPrimary"} />
+                <AppIcon name="check" size="sm" color={saving || !isDirty ? "textSecondary" : "textPrimary"} />
               </Pressable>
               <Pressable
                 style={styles.iconButton}
@@ -436,6 +466,23 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.textPrimary,
     fontWeight: "700",
+  },
+  unsavedLabel: {
+    fontSize: 10,
+    color: colors.statusWarningText,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+  dirtyDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: colors.statusWarningText,
+    marginRight: 2,
+    alignSelf: "center",
+  },
+  iconButtonDisabled: {
+    opacity: 0.38,
   },
   editActions: {
     flexDirection: "row",

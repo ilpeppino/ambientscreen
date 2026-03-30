@@ -105,6 +105,23 @@ export function AdminEditorScreen({
   const [selectedLibraryWidgetType, setSelectedLibraryWidgetType] = useState<CreatableWidgetType | null>(null);
   const [inspectorMode, setInspectorMode] = useState<"canvas" | "library" | null>(null);
   const [widgetPlacementError, setWidgetPlacementError] = useState<string | null>(null);
+
+  // ---- Live preview draft state ----
+  // Holds in-progress config changes per widget. Canvas renders from this when present.
+  const [draftConfigByWidgetId, setDraftConfigByWidgetId] = useState<Record<string, Record<string, unknown>>>({});
+
+  const handleDraftConfigChange = useCallback((widgetId: string, config: Record<string, unknown>) => {
+    setDraftConfigByWidgetId((prev) => ({ ...prev, [widgetId]: config }));
+  }, []);
+
+  const handleClearDraftConfig = useCallback((widgetId: string) => {
+    setDraftConfigByWidgetId((prev) => {
+      if (!(widgetId in prev)) return prev;
+      const { [widgetId]: _removed, ...rest } = prev;
+      return rest;
+    });
+  }, []);
+
   const [confirmClearCanvas, setConfirmClearCanvas] = useState(false);
   const [clearingCanvas, setClearingCanvas] = useState(false);
   const [createProfileModalVisible, setCreateProfileModalVisible] = useState(false);
@@ -179,6 +196,16 @@ export function AdminEditorScreen({
     handleSaveLayout,
     handleToggleEditMode,
   } = editOps;
+
+  // Clear draft for a widget when the user selects a different widget.
+  const prevSelectedWidgetIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevSelectedWidgetIdRef.current;
+    if (prev !== null && prev !== selectedWidgetId) {
+      handleClearDraftConfig(prev);
+    }
+    prevSelectedWidgetIdRef.current = selectedWidgetId;
+  }, [selectedWidgetId, handleClearDraftConfig]);
 
   // Switching slides resets the inspector so stale widget state is cleared.
   const handleSelectSlide = (slideId: string) => {
@@ -275,6 +302,7 @@ export function AdminEditorScreen({
   async function handleSaveWidgetConfig(widgetId: string, config: Record<string, unknown>) {
     if (!activeProfileId) return;
     await updateWidgetConfig(widgetId, { config }, activeProfileId);
+    handleClearDraftConfig(widgetId);
     await loadDisplayLayout(false);
   }
 
@@ -439,6 +467,16 @@ export function AdminEditorScreen({
     [layoutWidgets, selectedWidgetId],
   );
 
+  // Merge draft configs into the widget list for the canvas so live preview works.
+  // The inspector always receives the persisted selectedWidget for dirty detection.
+  const widgetsForCanvas = useMemo(
+    () => layoutWidgets.map((w) => {
+      const draft = draftConfigByWidgetId[w.widgetInstanceId];
+      return draft ? { ...w, config: draft } : w;
+    }),
+    [layoutWidgets, draftConfigByWidgetId],
+  );
+
   // ---- Render ----
   if (loadingLayout && layoutWidgets.length === 0 && !editMode) {
     return (
@@ -539,6 +577,8 @@ export function AdminEditorScreen({
           inspectorMode={inspectorMode}
           selectedWidget={selectedWidget}
           onSaveConfig={(id, config) => handleSaveWidgetConfig(id, config)}
+          onDraftConfigChange={handleDraftConfigChange}
+          onClearDraftConfig={handleClearDraftConfig}
           width={sidebarWidth}
         />
 
@@ -553,7 +593,7 @@ export function AdminEditorScreen({
 
         <View style={styles.canvasArea}>
           <DashboardCanvas
-            widgets={layoutWidgets}
+            widgets={widgetsForCanvas}
             selectedWidgetId={selectedWidgetId}
             onSelectWidget={(widgetId) => {
               setSelectedWidgetId(widgetId);

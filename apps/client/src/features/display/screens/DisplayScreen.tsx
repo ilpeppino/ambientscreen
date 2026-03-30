@@ -53,6 +53,7 @@ import { useDashboardTransition } from "../hooks/useDashboardTransition";
 import { listSlides, type SlideRecord } from "../../../services/api/slidesApi";
 import { DisplayEditPanel } from "../components/DisplayEditPanel";
 import { applyWidgetConfigUpdate } from "../components/WidgetSettingsModal.logic";
+import { DebugLegend } from "../components/DebugLegend";
 
 interface DisplayScreenProps {
   deviceId?: string | null;
@@ -666,6 +667,11 @@ export function DisplayScreen({ deviceId, onExitDisplayMode }: DisplayScreenProp
           onSave={handleSaveWidgetConfig}
         />
       ) : null}
+      <DebugLegend
+        editMode={editMode}
+        bottom={insets.bottom + 12}
+        right={Math.max(insets.right, 12)}
+      />
       <ConfirmDialog
         visible={pendingExitDisplay}
         title="Exit without saving?"
