@@ -3,6 +3,28 @@
 All notable changes are documented here, newest first.
 
 ---
+## [v0.6.0] — 2026-03-30
+
+### Features
+
+- feat: add rssNews widget and canonical renderer refinement
+- feat(mobile): native app shell with profile picker and mobile display screen
+- feat(integrations): provider-agnostic searchable tile grid with icon-only actions
+
+### Bug Fixes
+
+- fix(tests): align rssNewsRenderer tests with post-refactor renderer behaviour
+- fix(tests): update spacing assertions for paddingTop-based region insets
+- fix: resolve mobile widget region clipping and hero layout issues (#189)
+- fix: scale widget text by region height across tiers
+- fix: align integrations provider cards
+- fix(integrations): actually delete connection on disconnect instead of marking revoked
+
+### Other
+
+- chore: commit all pending changes
+- chore(release): update CHANGELOG for v0.5.0 [skip ci]
+
 ## [v0.5.0] — 2026-03-27
 
 ### Features
