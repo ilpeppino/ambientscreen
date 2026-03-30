@@ -389,38 +389,38 @@ describe("display widget renderers", () => {
       }),
     );
 
-    // Find the metaGroup view (the support region) and return its effective marginTop.
-    // React Native applies the LAST matching style in an array, so we scan the full
-    // style array and keep the last marginTop value before returning.
-    function findMetaGroupMarginTop(tree: TestRenderer.ReactTestRenderer): number {
+    // Find the support region's effective paddingTop. The support region is
+    // identified as the first view that has both flexBasis > 0 (from the inline
+    // region sizing style) and paddingTop > 0 (the hero-to-support inset).
+    function findSupportRegionPaddingTop(tree: TestRenderer.ReactTestRenderer): number {
       const views = tree.root.findAllByType("view");
       for (const v of views) {
         const style = v.props.style;
         const styleArr = Array.isArray(style) ? style : [style];
-        let hasGap = false;
-        let lastMarginTop = -1;
+        let lastPaddingTop = 0;
+        let hasFlexBasis = false;
         for (const s of styleArr) {
-          if (s && typeof s.marginTop === "number") {
-            lastMarginTop = s.marginTop;
+          if (s && typeof s.paddingTop === "number") {
+            lastPaddingTop = s.paddingTop;
           }
-          if (s && s.gap !== undefined) {
-            hasGap = true;
+          if (s && typeof s.flexBasis === "number" && s.flexBasis > 0) {
+            hasFlexBasis = true;
           }
         }
-        if (hasGap && lastMarginTop > 0) {
-          return lastMarginTop;
+        if (hasFlexBasis && lastPaddingTop > 0) {
+          return lastPaddingTop;
         }
       }
       return 0;
     }
 
-    const fullscreenGap = findMetaGroupMarginTop(fullscreenTree);
-    const compactGap = findMetaGroupMarginTop(compactTree);
+    const fullscreenGap = findSupportRegionPaddingTop(fullscreenTree);
+    const compactGap = findSupportRegionPaddingTop(compactTree);
 
-    // Fullscreen heroSupportGap = widgetHeight * 0.065 = 46.8 ≈ 47
-    // Compact uses spacing.xs = 4
+    // Fullscreen: 720 * 0.065 = 47, reduced by computeRegionInsets factor (0.82) → ≈ 39
+    // Compact: spacing.xs = 4, reduced by computeRegionInsets factor → ≈ 3
     expect(fullscreenGap).toBeGreaterThan(compactGap);
-    expect(fullscreenGap).toBeGreaterThanOrEqual(40);
+    expect(fullscreenGap).toBeGreaterThanOrEqual(35);
   });
 
   test("calendar fullscreen renders first event as hero region", () => {
@@ -551,34 +551,37 @@ describe("display widget renderers", () => {
       }),
     );
 
-    // Find the location Text node's effective marginTop.
-    // React Native applies the LAST matching style in an array, so we scan the
-    // full style array and keep the last marginTop to get the inline override.
-    function findLocationMarginTop(tree: TestRenderer.ReactTestRenderer): number {
-      const textNodes = tree.root.findAllByType("text");
-      for (const node of textNodes) {
-        const children = node.props.children;
-        const value = Array.isArray(children) ? children.join("") : children;
-        if (value === "Amsterdam") {
-          const styleArr = Array.isArray(node.props.style) ? node.props.style : [node.props.style];
-          let lastMarginTop = 0;
-          for (const s of styleArr) {
-            if (s && typeof s.marginTop === "number") {
-              lastMarginTop = s.marginTop;
-            }
+    // Find the support region's effective paddingTop. The support region is
+    // identified as the first view that has both flexBasis > 0 (inline region
+    // sizing) and paddingTop > 0 (the hero-to-support inset).
+    function findSupportRegionPaddingTop(tree: TestRenderer.ReactTestRenderer): number {
+      const views = tree.root.findAllByType("view");
+      for (const v of views) {
+        const style = v.props.style;
+        const styleArr = Array.isArray(style) ? style : [style];
+        let lastPaddingTop = 0;
+        let hasFlexBasis = false;
+        for (const s of styleArr) {
+          if (s && typeof s.paddingTop === "number") {
+            lastPaddingTop = s.paddingTop;
           }
-          return lastMarginTop;
+          if (s && typeof s.flexBasis === "number" && s.flexBasis > 0) {
+            hasFlexBasis = true;
+          }
+        }
+        if (hasFlexBasis && lastPaddingTop > 0) {
+          return lastPaddingTop;
         }
       }
       return 0;
     }
 
-    const fullscreenMargin = findLocationMarginTop(fullscreenTree);
-    const compactMargin = findLocationMarginTop(compactTree);
+    const fullscreenMargin = findSupportRegionPaddingTop(fullscreenTree);
+    const compactMargin = findSupportRegionPaddingTop(compactTree);
 
-    // Fullscreen heroSupportGap ≈ 720 * 0.065 = 46.8 ≈ 47
-    // Compact: scaleBy(8, 0.84, 4) = 7
+    // Fullscreen: 720 * 0.065 = 47, reduced by computeRegionInsets factor (0.82) → ≈ 39
+    // Compact: scaleBy(8, 0.84, 4) = 7, reduced by computeRegionInsets factor → ≈ 6
     expect(fullscreenMargin).toBeGreaterThan(compactMargin);
-    expect(fullscreenMargin).toBeGreaterThanOrEqual(40);
+    expect(fullscreenMargin).toBeGreaterThanOrEqual(35);
   });
 });
