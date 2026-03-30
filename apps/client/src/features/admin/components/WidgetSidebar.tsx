@@ -25,6 +25,8 @@ interface WidgetSidebarProps {
   inspectorMode: "canvas" | "library" | null;
   selectedWidget: DisplayLayoutWidgetEnvelope | null;
   onSaveConfig: (widgetId: string, config: Record<string, unknown>) => Promise<void>;
+  onDraftConfigChange: (widgetId: string, config: Record<string, unknown>) => void;
+  onClearDraftConfig: (widgetId: string) => void;
 
   /** Override the sidebar width. Defaults to the value in the stylesheet (288px). */
   width?: number;
@@ -186,6 +188,8 @@ export function WidgetSidebar({
   inspectorMode,
   selectedWidget,
   onSaveConfig,
+  onDraftConfigChange,
+  onClearDraftConfig,
   width,
 }: WidgetSidebarProps) {
   const [activeTab, setActiveTab] = useState<SidebarTab>("library");
@@ -270,6 +274,8 @@ export function WidgetSidebar({
             selectedLibraryWidgetType={selectedLibraryWidgetType}
             selectedWidget={selectedWidget}
             onSaveConfig={onSaveConfig}
+            onDraftConfigChange={onDraftConfigChange}
+            onClearDraftConfig={onClearDraftConfig}
           />
         </View>
       </View>

@@ -98,6 +98,8 @@ describe("WidgetSidebar marketplace", () => {
     inspectorMode: null,
     selectedWidget: null,
     onSaveConfig: vi.fn().mockResolvedValue(undefined),
+    onDraftConfigChange: vi.fn(),
+    onClearDraftConfig: vi.fn(),
   };
 
   test("defaults to Library tab and switches to Marketplace", async () => {

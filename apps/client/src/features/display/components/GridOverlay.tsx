@@ -6,9 +6,10 @@ interface GridOverlayProps {
   visible: boolean;
   columns: number;
   rows: number;
+  lineColor?: string;
 }
 
-export function GridOverlay({ visible, columns, rows }: GridOverlayProps) {
+export function GridOverlay({ visible, columns, rows, lineColor }: GridOverlayProps) {
   if (!visible) {
     return null;
   }
@@ -20,6 +21,7 @@ export function GridOverlay({ visible, columns, rows }: GridOverlayProps) {
           key={`col-${index + 1}`}
           style={[
             styles.verticalLine,
+            lineColor ? { backgroundColor: lineColor } : null,
             {
               left: `${((index + 1) / columns) * 100}%`,
             },
@@ -31,6 +33,7 @@ export function GridOverlay({ visible, columns, rows }: GridOverlayProps) {
           key={`row-${index + 1}`}
           style={[
             styles.horizontalLine,
+            lineColor ? { backgroundColor: lineColor } : null,
             {
               top: `${((index + 1) / rows) * 100}%`,
             },

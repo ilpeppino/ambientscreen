@@ -3,6 +3,7 @@ import { vi } from "vitest";
 
 type ReactActEnvironmentGlobal = typeof globalThis & {
   IS_REACT_ACT_ENVIRONMENT: boolean;
+  __DEV__: boolean;
 };
 
 type ReactTestRendererModule = typeof import("react-test-renderer") & {
@@ -12,6 +13,10 @@ type ReactTestRendererModule = typeof import("react-test-renderer") & {
 // React 19 requires test renders to run under act() for tree access.
 // Centralize that behavior here so existing tests keep working.
 (globalThis as ReactActEnvironmentGlobal).IS_REACT_ACT_ENVIRONMENT = true;
+
+// __DEV__ is a React Native global not provided by Vitest — set to false
+// so dev-only UI branches are inactive in the test environment.
+(globalThis as ReactActEnvironmentGlobal).__DEV__ = false;
 
 function host(name: string) {
   return (props: Record<string, unknown>) =>
@@ -147,4 +152,12 @@ vi.mock("react-native-safe-area-context", () => ({
   SafeAreaView: host("safe-area-view"),
   SafeAreaProvider: host("safe-area-provider"),
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
+vi.mock("@react-native-async-storage/async-storage", () => ({
+  default: {
+    getItem: vi.fn(async () => null),
+    setItem: vi.fn(async () => undefined),
+    removeItem: vi.fn(async () => undefined),
+  },
 }));

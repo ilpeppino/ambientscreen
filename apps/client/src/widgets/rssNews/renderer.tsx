@@ -62,6 +62,9 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
   const layout = config.layout ?? "headline-list";
   const showImages = config.showImages ?? true;
   const showPublishedAt = config.showPublishedAt ?? true;
+  const configuredMaxItems = typeof config.maxItems === "number" && Number.isFinite(config.maxItems)
+    ? Math.max(1, Math.round(config.maxItems))
+    : 5;
   const items = data?.items ?? [];
   const firstItem = items[0] ?? null;
   const hasData = items.length > 0;
@@ -69,13 +72,9 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
   const allowHeroImage = showImages && layout === "headline-list" && Boolean(firstItem?.imageUrl);
   const isCompact = sizeTier === "compact";
 
-  const maxDetailItemsByTier = sizeTier === "fullscreen"
-    ? 3
-    : sizeTier === "large"
-    ? 3
-    : sizeTier === "regular"
-    ? 2
-    : 0;
+  const targetDetailRows = sizeTier === "compact"
+    ? 0
+    : Math.max(0, Math.min(items.length - 1, configuredMaxItems - 1));
 
   // Density-first timestamp policy: remove timestamps before reducing detail content.
   const showHeroTimestamp = showPublishedAt && !isCompact;
@@ -104,7 +103,7 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
     targetFontSize: scaleBy(13, visualScale.typographyScale, 10),
     regionHeight: Math.max(
       1,
-      Math.round(detailAvailableHeight / Math.max(1, maxDetailItemsByTier)),
+      Math.round(detailAvailableHeight / Math.max(1, targetDetailRows)),
     ),
     lines: 1,
     minFontSize: 9,
@@ -123,7 +122,7 @@ export function RssNewsRenderer({ state, data, config, renderContext }: WidgetRe
     0,
     Math.floor((detailAvailableHeight + detailRowGap) / Math.max(1, detailRowContentHeight + detailRowGap)),
   );
-  const resolvedDetailRows = Math.min(maxDetailItemsByTier, maxDetailRowsByHeight);
+  const resolvedDetailRows = Math.min(targetDetailRows, maxDetailRowsByHeight);
   const detailItems = items.slice(1, 1 + resolvedDetailRows);
 
   const heroContentWidth = Math.min(widgetWidth, widgetWidth * (isFullscreen ? 0.92 : 0.9));

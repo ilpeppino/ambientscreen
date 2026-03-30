@@ -17,6 +17,7 @@ import {
 } from "./LayoutGrid.logic";
 import { GridOverlay } from "./GridOverlay";
 import { shouldShowGridOverlay } from "./editMode.logic";
+import { useDevSettings } from "../../../core/devSettings/devSettings.context";
 import { WidgetContainer } from "./WidgetContainer";
 
 interface LayoutGridProps {
@@ -67,6 +68,7 @@ export function LayoutGrid({
   onRemoveWidget,
 }: LayoutGridProps) {
   const windowDimensions = useWindowDimensions();
+  const { settings: devSettings } = useDevSettings();
   const [containerSize, setContainerSize] = useState({
     width: windowDimensions.width,
     height: windowDimensions.height,
@@ -191,9 +193,18 @@ export function LayoutGrid({
         />
       ))}
       <GridOverlay
-        visible={shouldShowGridOverlay(editMode)}
+        visible={
+          __DEV__ && editMode && devSettings.debugOverlayEnabled
+            ? devSettings.showGridLines
+            : shouldShowGridOverlay(editMode)
+        }
         columns={DISPLAY_GRID_COLUMNS}
         rows={DISPLAY_GRID_BASE_ROWS}
+        lineColor={
+          __DEV__ && editMode && devSettings.debugOverlayEnabled && devSettings.showGridLines
+            ? "#a78bfa"
+            : undefined
+        }
       />
     </View>
   );
