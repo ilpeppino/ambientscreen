@@ -442,11 +442,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   debugRegionBounds: {
-    borderColor: "#fb923c",
+    borderColor: colors.statusWarningText,
     borderWidth: 2,
   },
   debugContentBounds: {
-    borderColor: "#22d3ee",
+    borderColor: colors.statusInfoText,
     borderWidth: 2,
   },
   editModeContainer: {

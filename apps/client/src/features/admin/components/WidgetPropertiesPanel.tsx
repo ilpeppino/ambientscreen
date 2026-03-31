@@ -388,11 +388,21 @@ function InlineFieldEditor({ descriptor, value, onChange }: InlineFieldEditorPro
         style={styles.textInput}
         value={descriptor.kind === "number"
           ? (typeof value === "number" && Number.isFinite(value) ? String(value) : "")
+          : descriptor.kind === "stringArray"
+          ? (Array.isArray(value) ? value.join(", ") : "")
           : (typeof value === "string" ? value : "")}
         onChangeText={(text) => {
           if (descriptor.kind === "number") {
             const parsed = Number.parseInt(text, 10);
             onChange(descriptor.key, Number.isNaN(parsed) ? 0 : parsed);
+          } else if (descriptor.kind === "stringArray") {
+            onChange(
+              descriptor.key,
+              text
+                .split(",")
+                .map((item) => item.trim())
+                .filter((item) => item.length > 0),
+            );
           } else {
             onChange(descriptor.key, text);
           }

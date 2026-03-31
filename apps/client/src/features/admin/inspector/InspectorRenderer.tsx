@@ -149,10 +149,11 @@ function renderField(
         >
           <InspectorResourcePicker
             options={field.options ?? []}
-            value={field.value as string | null}
+            value={field.value as string | string[] | null}
             onChange={(v) => field.onChange?.(v as never)}
             loading={!disabled && resourcesLoading}
             disabled={disabled}
+            selectionMode={field.selectionMode}
           />
         </InspectorFieldGroup>
       );

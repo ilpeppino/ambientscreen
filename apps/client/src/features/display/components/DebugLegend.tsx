@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useDevSettings } from "../../../core/devSettings/devSettings.context";
+import { colors } from "../../../shared/ui/theme";
 
 interface DebugLegendProps {
   editMode: boolean;
@@ -9,9 +10,9 @@ interface DebugLegendProps {
 }
 
 const LEGEND_ITEMS = [
-  { key: "showRegionBounds" as const, label: "Regions", color: "#fb923c" },
-  { key: "showContentBounds" as const, label: "Content", color: "#22d3ee" },
-  { key: "showGridLines" as const, label: "Grid", color: "#a78bfa" },
+  { key: "showRegionBounds" as const, label: "Regions", color: colors.statusWarningText },
+  { key: "showContentBounds" as const, label: "Content", color: colors.statusInfoText },
+  { key: "showGridLines" as const, label: "Grid", color: colors.accentBlue },
 ] as const;
 
 export function DebugLegend({ editMode, bottom, right }: DebugLegendProps) {

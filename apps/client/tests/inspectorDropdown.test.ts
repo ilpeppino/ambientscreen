@@ -452,6 +452,54 @@ describe("InspectorResourcePicker", () => {
 
     expect(onChange).toHaveBeenCalledWith("cal-2");
   });
+
+  test("multi-select mode renders button trigger and checkbox options", () => {
+    const tree = TestRenderer.create(
+      React.createElement(InspectorResourcePicker, {
+        options: [
+          { label: "Primary calendar", value: "cal-1" },
+          { label: "Work calendar", value: "cal-2" },
+        ],
+        value: ["cal-1"],
+        selectionMode: "multiple",
+        onChange: vi.fn(),
+      }),
+    );
+
+    expect(findByRole(tree, "button")).toHaveLength(1);
+
+    act(() => {
+      findByRole(tree, "button")[0].props.onPress();
+    });
+
+    const checkboxes = findByRole(tree, "checkbox");
+    expect(checkboxes).toHaveLength(2);
+  });
+
+  test("multi-select mode toggles selected resources", () => {
+    const onChange = vi.fn();
+    const tree = TestRenderer.create(
+      React.createElement(InspectorResourcePicker, {
+        options: [
+          { label: "Primary calendar", value: "cal-1" },
+          { label: "Work calendar", value: "cal-2" },
+        ],
+        value: ["cal-1"],
+        selectionMode: "multiple",
+        onChange,
+      }),
+    );
+
+    act(() => {
+      findByRole(tree, "button")[0].props.onPress();
+    });
+
+    act(() => {
+      findByRole(tree, "checkbox")[1].props.onPress();
+    });
+
+    expect(onChange).toHaveBeenCalledWith(["cal-1", "cal-2"]);
+  });
 });
 
 // ---------------------------------------------------------------------------

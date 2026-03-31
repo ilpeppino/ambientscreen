@@ -5,9 +5,9 @@ import type { GoogleCalendarResult } from "../src/modules/widgetData/providers/g
 const BASE_CONFIG = {
   provider: "google" as const,
   integrationConnectionId: "conn-001",
-  calendarId: "primary",
+  calendarIds: ["primary"],
   timeWindow: "next7d" as const,
-  maxEvents: 10,
+  maxItems: 10,
   includeAllDay: true,
 };
 

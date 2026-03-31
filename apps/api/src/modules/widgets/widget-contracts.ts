@@ -88,6 +88,10 @@ function toZodConfigFieldSchema(schema: WidgetConfigFieldSchema) {
     return z.enum(schema as [string, ...string[]]);
   }
 
+  if (schema === "string[]") {
+    return z.array(z.string());
+  }
+
   if (schema === "boolean") {
     return z.boolean();
   }
@@ -132,11 +136,41 @@ const createWidgetConfigSchemaByType: Record<SupportedWidgetType, z.ZodTypeAny> 
     .strict(),
   calendar: (configSchemasByWidget.calendar as z.ZodObject<Record<string, z.ZodTypeAny>>)
     .extend({
+      // Legacy fields kept on create input for backward compatibility.
+      calendarId: z.string().optional(),
+      maxEvents: z.number().int().min(1).max(20).optional(),
       sourceType: z.literal("ical").optional(),
       feedUrl: z.string().url().optional(),
       lookAheadDays: z.number().int().min(1).max(31).optional(),
     })
-    .strict(),
+    .strict()
+    .superRefine((config, context) => {
+      if (config.provider !== "google") {
+        return;
+      }
+
+      const hasConnection = typeof config.integrationConnectionId === "string"
+        && config.integrationConnectionId.trim().length > 0;
+
+      if (!hasConnection) {
+        return;
+      }
+
+      const canonicalIds = Array.isArray(config.calendarIds)
+        ? config.calendarIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+        : [];
+      const legacyId = typeof config.calendarId === "string" && config.calendarId.trim().length > 0
+        ? config.calendarId
+        : null;
+
+      if (canonicalIds.length === 0 && !legacyId) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "At least one calendar must be selected for Google Calendar.",
+          path: ["calendarIds"],
+        });
+      }
+    }),
   rssNews: configSchemasByWidget.rssNews,
 };
 
@@ -223,6 +257,30 @@ function mapLegacyConfig(
         mapped.timeWindow = "next7d";
       }
     }
+
+    if (Array.isArray(mapped.calendarIds)) {
+      mapped.calendarIds = mapped.calendarIds
+        .filter((id): id is string => typeof id === "string")
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0);
+    } else {
+      delete mapped.calendarIds;
+    }
+
+    if (
+      (!Array.isArray(mapped.calendarIds) || mapped.calendarIds.length === 0)
+      && typeof mapped.calendarId === "string"
+      && mapped.calendarId.trim().length > 0
+    ) {
+      mapped.calendarIds = [mapped.calendarId.trim()];
+    }
+
+    if (typeof mapped.maxEvents === "number" && typeof mapped.maxItems !== "number") {
+      mapped.maxItems = mapped.maxEvents;
+    }
+
+    delete mapped.calendarId;
+    delete mapped.maxEvents;
 
     delete mapped.sourceType;
     delete mapped.feedUrl;

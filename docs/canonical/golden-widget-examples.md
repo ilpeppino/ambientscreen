@@ -225,7 +225,7 @@ export interface WeatherInspectorContext {
 ```ts
 // Section 1: Connection — provider selector, icalUrl or connectionPicker
 // Section 2: Calendar  — resourcePicker, disabled until connection exists
-// Section 3: Display   — timeWindow, includeAllDay, maxEvents
+// Section 3: Display   — timeWindow, includeAllDay, maxItems
 ```
 
 **`isVisible` for conditional field display**:
@@ -248,8 +248,9 @@ export interface WeatherInspectorContext {
 **`isDisabled` for gating downstream fields**:
 ```ts
 {
-  id: "calendarId",
+  id: "calendarIds",
   kind: "resourcePicker",
+  selectionMode: "multiple",
   isDisabled: !hasConnection,       // user sees the field but can't use it yet
   ...
 },
