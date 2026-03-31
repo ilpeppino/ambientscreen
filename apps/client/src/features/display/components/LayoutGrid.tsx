@@ -19,6 +19,7 @@ import { GridOverlay } from "./GridOverlay";
 import { shouldShowGridOverlay } from "./editMode.logic";
 import { useDevSettings } from "../../../core/devSettings/devSettings.context";
 import { WidgetContainer } from "./WidgetContainer";
+import { colors } from "../../../shared/ui/theme";
 
 interface LayoutGridProps {
   widgets: DisplayLayoutWidgetEnvelope[];
@@ -202,7 +203,7 @@ export function LayoutGrid({
         rows={DISPLAY_GRID_BASE_ROWS}
         lineColor={
           __DEV__ && editMode && devSettings.debugOverlayEnabled && devSettings.showGridLines
-            ? "#a78bfa"
+            ? colors.accentBlue
             : undefined
         }
       />

@@ -35,13 +35,14 @@ export interface CalendarConfig {
   /** iCal subscription URL. Stored as `account` in CalendarWidgetConfig. */
   icalUrl?: string;
   integrationConnectionId?: string;
-  /**
-   * Google Calendar ID.
-   * undefined means the server will use the primary/default calendar.
-   */
+  /** Canonical Google resource selection. */
+  calendarIds?: string[];
+  /** @deprecated Legacy single calendar input. */
   calendarId?: string;
   timeWindow?: "today" | "next24h" | "next7d";
   includeAllDay?: boolean;
+  maxItems?: number;
+  /** @deprecated Legacy display cap input. */
   maxEvents?: number;
 }
 
@@ -57,7 +58,7 @@ export interface CalendarInspectorContext {
   /** Initiate OAuth connect flow for a new Google account. */
   onConnect: () => void;
   onSelectConnection: (connectionId: string) => void;
-  onSelectCalendar: (calendarId: string) => void;
+  onSelectCalendars: (calendarIds: string[]) => void;
   /** Re-fetch calendar list from the active connection. */
   onRefresh: () => void;
   onChange: (patch: Partial<CalendarConfig>) => void;
@@ -85,10 +86,15 @@ export function getInspectorDefinition(
   const connectionId = config.integrationConnectionId ?? null;
   const timeWindow   = config.timeWindow ?? "next7d";
   const includeAllDay = config.includeAllDay ?? true;
-  const maxEvents    = config.maxEvents ?? 10;
+  const maxItems = config.maxItems ?? config.maxEvents ?? 10;
 
   const selectedConnection = context.connections.find((c) => c.id === connectionId);
-  const selectedCalendar   = context.calendars.find((c) => c.id === config.calendarId);
+  const selectedCalendarIds = getSelectedCalendarIds(config);
+  const selectedCalendars = context.calendars.filter((calendar) => selectedCalendarIds.includes(calendar.id));
+  const selectedCalendarsDisplay = formatSelectedCalendarsSummary(
+    selectedCalendars.map((calendar) => calendar.label),
+    selectedCalendarIds.length,
+  );
 
   const hasConnection = connectionId !== null;
 
@@ -115,6 +121,7 @@ export function getInspectorDefinition(
                 provider: value,
                 // Reset downstream selections when switching providers
                 integrationConnectionId: undefined,
+                calendarIds: undefined,
                 calendarId: undefined,
                 icalUrl: undefined,
               }),
@@ -161,17 +168,17 @@ export function getInspectorDefinition(
         isVisible: provider === "google",
         fields: [
           {
-            id: "calendarId",
-            label: "Calendar",
+            id: "calendarIds",
+            label: "Calendars",
             kind: "resourcePicker",
-            value: config.calendarId ?? null,
-            // calendarId === undefined → server uses the primary/default calendar
-            displayValue: selectedCalendar?.label ?? "Primary calendar",
+            selectionMode: "multiple",
+            value: selectedCalendarIds,
+            displayValue: selectedCalendarsDisplay,
             editable: true,
             options: context.calendars.map((cal) => ({ label: cal.label, value: cal.id })),
-            helperText: "Choose which calendar to display",
+            helperText: "Choose one or more calendars to merge in this widget",
             isDisabled: !hasConnection,
-            onChange: (id: string) => context.onSelectCalendar(id),
+            onChange: (ids: string[]) => context.onSelectCalendars(ids),
           },
         ],
         actions: [
@@ -215,11 +222,11 @@ export function getInspectorDefinition(
           },
 
           {
-            id: "maxEvents",
+            id: "maxItems",
             label: "Max events",
             kind: "segmented",
-            value: maxEvents,
-            displayValue: String(maxEvents),
+            value: maxItems,
+            displayValue: String(maxItems),
             editable: true,
             options: [
               { label: "5",  value: 5  },
@@ -227,10 +234,46 @@ export function getInspectorDefinition(
               { label: "15", value: 15 },
               { label: "20", value: 20 },
             ],
-            onChange: (value: number) => context.onChange({ maxEvents: value }),
+            onChange: (value: number) => context.onChange({ maxItems: value }),
           },
         ],
       },
     ],
   };
+}
+
+function getSelectedCalendarIds(config: CalendarConfig): string[] {
+  const idsFromArray = Array.isArray(config.calendarIds)
+    ? config.calendarIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    : [];
+
+  if (idsFromArray.length > 0) {
+    return idsFromArray;
+  }
+
+  if (typeof config.calendarId === "string" && config.calendarId.trim().length > 0) {
+    return [config.calendarId];
+  }
+
+  return ["primary"];
+}
+
+function formatSelectedCalendarsSummary(labels: string[], selectedCount: number): string {
+  if (selectedCount === 0) {
+    return "Primary calendar";
+  }
+
+  if (selectedCount === 1 && labels.length === 0) {
+    return "Primary calendar";
+  }
+
+  if (labels.length === 1 && selectedCount === 1) {
+    return labels[0];
+  }
+
+  if (labels.length === 2 && selectedCount === 2) {
+    return `${labels[0]}, ${labels[1]}`;
+  }
+
+  return `${selectedCount} calendars selected`;
 }

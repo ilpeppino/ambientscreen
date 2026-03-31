@@ -97,15 +97,15 @@ export function useCalendarInspectorContext({
 
   const onSelectConnection = useCallback(
     (id: string) => {
-      // Reset calendarId when switching connections
-      onChange({ integrationConnectionId: id, calendarId: undefined });
+      // Reset selected calendars when switching connections.
+      onChange({ integrationConnectionId: id, calendarIds: undefined, calendarId: undefined });
     },
     [onChange],
   );
 
-  const onSelectCalendar = useCallback(
-    (id: string) => {
-      onChange({ calendarId: id });
+  const onSelectCalendars = useCallback(
+    (ids: string[]) => {
+      onChange({ calendarIds: ids, calendarId: undefined });
     },
     [onChange],
   );
@@ -128,7 +128,7 @@ export function useCalendarInspectorContext({
     calendarsLoading,
     onConnect,
     onSelectConnection,
-    onSelectCalendar,
+    onSelectCalendars,
     onRefresh: loadCalendars,
     onChange: handleChange,
   };

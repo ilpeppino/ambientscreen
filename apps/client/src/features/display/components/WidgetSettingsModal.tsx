@@ -152,6 +152,7 @@ export function WidgetSettingsModal({
               descriptor={descriptor}
               value={draft[descriptor.key]}
               onStringChange={(value) => handleStringChange(descriptor.key, value)}
+              onStringArrayChange={(value) => setDraft((current) => ({ ...current, [descriptor.key]: value }))}
               onNumberChange={(value) => handleNumberChange(descriptor.key, value)}
               onBooleanChange={(value) => handleBooleanChange(descriptor.key, value)}
               onEnumChange={(value) => handleEnumChange(descriptor.key, value)}
@@ -167,6 +168,7 @@ interface FieldEditorProps {
   descriptor: WidgetConfigFieldDescriptor;
   value: unknown;
   onStringChange: (value: string) => void;
+  onStringArrayChange: (value: string[]) => void;
   onNumberChange: (value: number) => void;
   onBooleanChange: (value: boolean) => void;
   onEnumChange: (value: string) => void;
@@ -176,6 +178,7 @@ function FieldEditor({
   descriptor,
   value,
   onStringChange,
+  onStringArrayChange,
   onNumberChange,
   onBooleanChange,
   onEnumChange,
@@ -224,6 +227,24 @@ function FieldEditor({
         autoCorrect={false}
         autoCapitalize="none"
         keyboardType="numeric"
+      />
+    );
+  }
+
+  if (descriptor.kind === "stringArray") {
+    return (
+      <AppTextInput
+        value={Array.isArray(value) ? value.join(", ") : ""}
+        onChangeText={(nextValue) => {
+          const nextArray = nextValue
+            .split(",")
+            .map((item) => item.trim())
+            .filter((item) => item.length > 0);
+          onStringArrayChange(nextArray);
+        }}
+        inputStyle={styles.textInput}
+        autoCorrect={false}
+        autoCapitalize="none"
       />
     );
   }

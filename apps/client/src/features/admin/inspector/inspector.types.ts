@@ -39,6 +39,8 @@ export interface InspectorFieldDefinition {
    * OAuth logic must live outside the widget — this is a callback, not a flow.
    */
   onConnect?: () => void;
+  /** Picker interaction mode for selectable resources. Defaults to single. */
+  selectionMode?: "single" | "multiple";
   isVisible?: boolean;
   isDisabled?: boolean;
 }

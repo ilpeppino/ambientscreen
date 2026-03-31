@@ -193,7 +193,7 @@ Allowed values:
 | `select` | Inline-expand dropdown | Many options (typically 6+) or options are too long for segments (e.g. timezone, locale) |
 | `optionList` | Always-visible radio list | Explicit opt-in only — all options must be visible simultaneously |
 | `connectionPicker` | Dropdown for accounts + "Connect" button | OAuth connection selection |
-| `resourcePicker` | Dropdown with async state | Resource selection from provider (calendar, report, etc.) |
+| `resourcePicker` | Dropdown with async state (single or multi) | Resource selection from provider (calendar, report, etc.) |
 | `text` | Text input | Free-form string entry |
 | `custom` | Read-only fallback | Plugin-provided or unsupported kinds |
 
@@ -340,7 +340,7 @@ Use cases:
 
 - all `select` fields (via InspectorSelectField)
 - account selection inside `connectionPicker`
-- resource selection inside `resourcePicker`
+- resource selection inside `resourcePicker` (single-select and multi-select)
 
 Rules:
 

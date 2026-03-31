@@ -96,7 +96,7 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
     provider: "ical",
     account: "",
     timeWindow: "next7d",
-    maxEvents: 10,
+    maxItems: 10,
     includeAllDay: true,
   });
 
@@ -123,7 +123,7 @@ test("M4-3: normalizeWidgetConfig maps legacy calendar config to V1 admin shape"
     provider: "ical",
     account: "https://calendar.example.com/feed.ics",
     timeWindow: "next7d",
-    maxEvents: 5,
+    maxItems: 5,
     includeAllDay: true,
   });
 });

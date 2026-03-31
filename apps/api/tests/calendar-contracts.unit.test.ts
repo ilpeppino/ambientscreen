@@ -48,10 +48,10 @@ describe("calendar shared contracts", () => {
       expect(def.defaultConfig.provider).toBe("ical");
     });
 
-    test("maxEvents has a sensible default", () => {
-      expect(typeof def.defaultConfig.maxEvents).toBe("number");
-      expect(def.defaultConfig.maxEvents!).toBeGreaterThanOrEqual(1);
-      expect(def.defaultConfig.maxEvents!).toBeLessThanOrEqual(20);
+    test("maxItems has a sensible default", () => {
+      expect(typeof def.defaultConfig.maxItems).toBe("number");
+      expect(def.defaultConfig.maxItems!).toBeGreaterThanOrEqual(1);
+      expect(def.defaultConfig.maxItems!).toBeLessThanOrEqual(20);
     });
 
     test("includeAllDay defaults to true", () => {
@@ -76,16 +76,16 @@ describe("calendar shared contracts", () => {
       expect(def.configSchema.integrationConnectionId).toBe("string");
     });
 
-    test("maxEvents field is number type", () => {
-      expect(def.configSchema.maxEvents).toBe("number");
+    test("maxItems field is number type", () => {
+      expect(def.configSchema.maxItems).toBe("number");
     });
 
     test("includeAllDay field is boolean type", () => {
       expect(def.configSchema.includeAllDay).toBe("boolean");
     });
 
-    test("calendarId field is string type", () => {
-      expect(def.configSchema.calendarId).toBe("string");
+    test("calendarIds field is string[] type", () => {
+      expect(def.configSchema.calendarIds).toBe("string[]");
     });
 
     test("timeWindow enum contains all expected values", () => {

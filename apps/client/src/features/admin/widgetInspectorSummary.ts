@@ -4,9 +4,9 @@ export const INSPECTOR_LABELS: Record<string, string> = {
   provider: "Provider",
   account: "iCal URL",
   integrationConnectionId: "Connected account",
-  calendarId: "Calendar",
+  calendarIds: "Calendars",
   timeWindow: "Time window",
-  maxEvents: "Max events",
+  maxItems: "Max events",
   includeAllDay: "Include all-day events",
   city: "City",
   countryCode: "Country code",
@@ -78,26 +78,27 @@ export function buildWidgetReadOnlyFields(
   config: Record<string, unknown>,
 ): InspectorField[] {
   const fields: InspectorField[] = [];
+  const normalizedConfig = normalizeCalendarSummaryConfig(widgetKey, config);
 
   // Define which fields to show for each widget, in order
   const fieldKeys: Record<WidgetKey, string[]> = {
     clockDate: ["format", "showSeconds", "timezone"],
     weather: ["city", "countryCode", "units", "forecastSlots"],
-    calendar: ["provider", "account", "timeWindow", "maxEvents", "includeAllDay"],
+    calendar: ["provider", "account", "timeWindow", "maxItems", "includeAllDay"],
     rssNews: ["title", "feedUrl", "layout", "maxItems", "showImages", "showPublishedAt"],
   };
 
   const keysForWidget = fieldKeys[widgetKey] ?? [];
 
   // Special handling for calendar: skip account if provider is not ical
-  const calendarProvider = config.provider as string | undefined;
+  const calendarProvider = normalizedConfig.provider as string | undefined;
   const filteredKeys =
     widgetKey === "calendar" && calendarProvider !== "ical"
       ? keysForWidget.filter((k) => k !== "account")
       : keysForWidget;
 
   for (const key of filteredKeys) {
-    const value = config[key];
+    const value = normalizedConfig[key];
 
     // Skip null, undefined, empty string
     if (value === null || value === undefined || value === "") {
@@ -124,4 +125,21 @@ export function buildWidgetReadOnlyFields(
   }
 
   return fields;
+}
+
+function normalizeCalendarSummaryConfig(
+  widgetKey: WidgetKey,
+  config: Record<string, unknown>,
+): Record<string, unknown> {
+  if (widgetKey !== "calendar") {
+    return config;
+  }
+
+  const normalized = { ...config };
+
+  if (typeof normalized.maxItems !== "number" && typeof normalized.maxEvents === "number") {
+    normalized.maxItems = normalized.maxEvents;
+  }
+
+  return normalized;
 }

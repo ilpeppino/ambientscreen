@@ -229,7 +229,7 @@ All authenticated plugins must include:
 - integrationConnectionId
 
 Optional:
-- resource identifiers (e.g. calendarId, repoId)
+- resource identifiers (e.g. calendarIds, repoId)
 - display options
 
 ---

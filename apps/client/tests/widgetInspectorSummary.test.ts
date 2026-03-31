@@ -66,7 +66,7 @@ describe("formatInspectorValue", () => {
 
   describe("numbers", () => {
     test("10 → 10", () => {
-      expect(formatInspectorValue("maxEvents", 10)).toBe("10");
+      expect(formatInspectorValue("maxItems", 10)).toBe("10");
     });
 
     test("3 → 3", () => {
@@ -210,12 +210,12 @@ describe("buildWidgetReadOnlyFields", () => {
   });
 
   describe("calendar widget — iCal mode", () => {
-    test("shows provider, account, timeWindow, maxEvents, includeAllDay", () => {
+    test("shows provider, account, timeWindow, maxItems, includeAllDay", () => {
       const fields = buildWidgetReadOnlyFields("calendar", {
         provider: "ical",
         account: "https://example.com/feed.ics",
         timeWindow: "next7d",
-        maxEvents: 10,
+        maxItems: 10,
         includeAllDay: true,
       });
 
@@ -223,7 +223,7 @@ describe("buildWidgetReadOnlyFields", () => {
       expect(fields.map((f) => f.key)).toContain("provider");
       expect(fields.map((f) => f.key)).toContain("account");
       expect(fields.map((f) => f.key)).toContain("timeWindow");
-      expect(fields.map((f) => f.key)).toContain("maxEvents");
+      expect(fields.map((f) => f.key)).toContain("maxItems");
       expect(fields.map((f) => f.key)).toContain("includeAllDay");
     });
 
@@ -237,31 +237,31 @@ describe("buildWidgetReadOnlyFields", () => {
       expect(fields.map((f) => f.key)).not.toContain("integrationConnectionId");
     });
 
-    test("calendarId is excluded", () => {
+    test("calendarIds is excluded", () => {
       const fields = buildWidgetReadOnlyFields("calendar", {
         provider: "ical",
         account: "https://example.com/feed.ics",
-        calendarId: "primary",
+        calendarIds: ["primary"],
       });
 
-      expect(fields.map((f) => f.key)).not.toContain("calendarId");
+      expect(fields.map((f) => f.key)).not.toContain("calendarIds");
     });
   });
 
   describe("calendar widget — Google mode", () => {
-    test("shows provider, timeWindow, maxEvents, includeAllDay", () => {
+    test("shows provider, timeWindow, maxItems, includeAllDay", () => {
       const fields = buildWidgetReadOnlyFields("calendar", {
         provider: "google",
         integrationConnectionId: "conn-123",
-        calendarId: "primary",
+        calendarIds: ["primary"],
         timeWindow: "today",
-        maxEvents: 5,
+        maxItems: 5,
         includeAllDay: false,
       });
 
       expect(fields.map((f) => f.key)).toContain("provider");
       expect(fields.map((f) => f.key)).toContain("timeWindow");
-      expect(fields.map((f) => f.key)).toContain("maxEvents");
+      expect(fields.map((f) => f.key)).toContain("maxItems");
       expect(fields.map((f) => f.key)).toContain("includeAllDay");
     });
 
@@ -284,14 +284,14 @@ describe("buildWidgetReadOnlyFields", () => {
       expect(fields.map((f) => f.key)).not.toContain("integrationConnectionId");
     });
 
-    test("calendarId is excluded", () => {
+    test("calendarIds is excluded", () => {
       const fields = buildWidgetReadOnlyFields("calendar", {
         provider: "google",
         integrationConnectionId: "conn-123",
-        calendarId: "primary",
+        calendarIds: ["primary"],
       });
 
-      expect(fields.map((f) => f.key)).not.toContain("calendarId");
+      expect(fields.map((f) => f.key)).not.toContain("calendarIds");
     });
   });
 
@@ -300,7 +300,7 @@ describe("buildWidgetReadOnlyFields", () => {
       const fields = buildWidgetReadOnlyFields("calendar", {
         provider: "google",
         timeWindow: "next24h",
-        maxEvents: 15,
+        maxItems: 15,
         includeAllDay: false,
       });
 
@@ -320,7 +320,7 @@ describe("buildWidgetReadOnlyFields", () => {
       const config = {
         provider: "google",
         timeWindow: "next7d",
-        maxEvents: 10,
+        maxItems: 10,
         includeAllDay: true,
       };
 

@@ -130,16 +130,16 @@ capabilities: authenticatedData
 Fields:
 - `provider` (fixed: `google`)
 - `integrationConnectionId` (required)
-- `calendarId` (optional, default: `primary`)
-- `maxEvents` (optional, default: `5`)
+- `calendarIds` (required array; can include one or more IDs)
+- `maxItems` (optional, default: `5`)
 
 ### 3.4 Default Config
 
 ```ts
 {
   provider: "google",
-  calendarId: "primary",
-  maxEvents: 5
+  calendarIds: ["primary"],
+  maxItems: 5
 }
 ```
 

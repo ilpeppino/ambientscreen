@@ -316,7 +316,7 @@ test("M4-3: calendar widget can be created with provider, account, and time wind
         provider: "ical",
         account: "https://calendar.example.com/work.ics",
         timeWindow: "next24h",
-        maxEvents: 8,
+        maxItems: 8,
         includeAllDay: false
       }
     }
@@ -329,7 +329,7 @@ test("M4-3: calendar widget can be created with provider, account, and time wind
       provider?: string;
       account?: string;
       timeWindow?: string;
-      maxEvents?: number;
+      maxItems?: number;
       includeAllDay?: boolean;
     };
   };
@@ -337,7 +337,7 @@ test("M4-3: calendar widget can be created with provider, account, and time wind
   expect(createdWidget.config.provider).toBe("ical");
   expect(createdWidget.config.account).toBe("https://calendar.example.com/work.ics");
   expect(createdWidget.config.timeWindow).toBe("next24h");
-  expect(createdWidget.config.maxEvents).toBe(8);
+  expect(createdWidget.config.maxItems).toBe(8);
   expect(createdWidget.config.includeAllDay).toBe(false);
 });
 
@@ -378,7 +378,7 @@ test("M2-1: widget config must match widget contract schema", async () => {
     body: {
       type: "calendar",
       config: {
-        maxEvents: 99
+        maxItems: 99
       }
     }
   });

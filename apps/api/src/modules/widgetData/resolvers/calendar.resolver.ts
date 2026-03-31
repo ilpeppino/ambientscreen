@@ -24,9 +24,32 @@ function toCalendarConfig(config: unknown): WidgetConfigByKey["calendar"] {
     ? raw.timeWindow
     : "next7d";
 
-  const maxEvents = typeof raw.maxEvents === "number" && Number.isInteger(raw.maxEvents)
-    ? Math.min(20, Math.max(1, raw.maxEvents))
+  const maxItemsInput = typeof raw.maxItems === "number"
+    ? raw.maxItems
+    : typeof raw.maxEvents === "number"
+    ? raw.maxEvents
+    : null;
+
+  const maxItems = typeof maxItemsInput === "number" && Number.isInteger(maxItemsInput)
+    ? Math.min(20, Math.max(1, maxItemsInput))
     : 10;
+
+  const normalizedCalendarIds = Array.isArray(raw.calendarIds)
+    ? raw.calendarIds
+      .filter((id): id is string => typeof id === "string")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0)
+    : [];
+
+  const legacyCalendarId = typeof raw.calendarId === "string" && raw.calendarId.trim().length > 0
+    ? raw.calendarId.trim()
+    : undefined;
+
+  const calendarIds = normalizedCalendarIds.length > 0
+    ? normalizedCalendarIds
+    : legacyCalendarId
+    ? [legacyCalendarId]
+    : undefined;
 
   return {
     provider,
@@ -34,10 +57,11 @@ function toCalendarConfig(config: unknown): WidgetConfigByKey["calendar"] {
     integrationConnectionId: typeof raw.integrationConnectionId === "string"
       ? raw.integrationConnectionId
       : undefined,
-    calendarId: typeof raw.calendarId === "string" ? raw.calendarId : undefined,
+    calendarIds,
+    calendarId: legacyCalendarId,
     timeWindow,
     includeAllDay: typeof raw.includeAllDay === "boolean" ? raw.includeAllDay : true,
-    maxEvents,
+    maxItems,
   };
 }
 
@@ -81,7 +105,7 @@ async function resolveIcalCalendar(
   const account = config.account ?? "";
   const timeWindow = config.timeWindow ?? "next7d";
   const includeAllDay = config.includeAllDay ?? true;
-  const maxEvents = config.maxEvents ?? 10;
+  const maxItems = config.maxItems ?? config.maxEvents ?? 10;
 
   if (!account) {
     return {
@@ -105,7 +129,7 @@ async function resolveIcalCalendar(
       windowStartIso,
       windowEndIso,
       includeAllDay,
-      maxEvents,
+      maxEvents: maxItems,
     });
 
     if (result.events.length === 0) {
@@ -158,9 +182,16 @@ async function resolveGoogleCalendar(
   }) => Promise<GoogleCalendarResult>,
 ): Promise<WidgetDataEnvelope<CalendarWidgetData, "calendar">> {
   const connectionId = config.integrationConnectionId;
-  const calendarId = config.calendarId ?? "primary";
+  const selectedCalendarIds = Array.isArray(config.calendarIds)
+    ? config.calendarIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0)
+    : [];
+  const fallbackCalendarId = typeof config.calendarId === "string" && config.calendarId.trim().length > 0
+    ? config.calendarId
+    : "primary";
+  const calendarIds = selectedCalendarIds.length > 0 ? selectedCalendarIds : [fallbackCalendarId];
   const timeWindow = config.timeWindow ?? "next7d";
-  const maxEvents = config.maxEvents ?? 10;
+  const maxItems = config.maxItems ?? config.maxEvents ?? 10;
+  const includeAllDay = config.includeAllDay ?? true;
 
   if (!connectionId) {
     return {
@@ -205,15 +236,33 @@ async function resolveGoogleCalendar(
     // stored in the widget config is the user's own connection.
     void userId; // acknowledged — ownership validated upstream
 
-    const result = await fetchGoogleEvents({
-      accessToken,
-      calendarId,
-      timeMin: windowStartIso,
-      timeMax: windowEndIso,
-      maxResults: maxEvents,
-    });
+    const results = await Promise.all(
+      calendarIds.map((calendarId) =>
+        fetchGoogleEvents({
+          accessToken,
+          calendarId,
+          timeMin: windowStartIso,
+          timeMax: windowEndIso,
+          maxResults: maxItems,
+        })),
+    );
 
-    if (result.events.length === 0) {
+    const mergedEvents = results
+      .flatMap((result) => result.events)
+      .filter((event) => includeAllDay || !event.allDay)
+      .sort((a, b) => {
+        const byStart = new Date(a.startIso).getTime() - new Date(b.startIso).getTime();
+        if (byStart !== 0) return byStart;
+        return a.id.localeCompare(b.id);
+      })
+      .slice(0, maxItems);
+
+    const fetchedAtIso = results
+      .map((result) => result.fetchedAtIso)
+      .sort()
+      .at(-1) ?? new Date().toISOString();
+
+    if (mergedEvents.length === 0) {
       return {
         widgetInstanceId,
         widgetKey: "calendar",
@@ -221,7 +270,7 @@ async function resolveGoogleCalendar(
         data: buildEmptyCalendarData(),
         meta: {
           source: "google",
-          fetchedAt: result.fetchedAtIso,
+          fetchedAt: fetchedAtIso,
           message: "No upcoming events in the configured time window.",
         },
       };
@@ -231,8 +280,8 @@ async function resolveGoogleCalendar(
       widgetInstanceId,
       widgetKey: "calendar",
       state: "ready",
-      data: { upcomingCount: result.events.length, events: result.events },
-      meta: { source: "google", fetchedAt: result.fetchedAtIso },
+      data: { upcomingCount: mergedEvents.length, events: mergedEvents },
+      meta: { source: "google", fetchedAt: fetchedAtIso },
     };
   } catch {
     return {

@@ -832,8 +832,8 @@ The Google Calendar widget resolver must receive config shaped like:
 {
   provider: "google";
   integrationConnectionId: string;
-  calendarId?: string;           // provider-specific selection
-  maxEvents?: number;             // display parameter
+  calendarIds?: string[];         // provider-specific multi-resource selection
+  maxItems?: number;              // display parameter
 }
 ```
 

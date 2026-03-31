@@ -46,9 +46,15 @@ export interface CalendarWidgetConfig {
   provider?: "ical" | "google";
   account?: string;
   integrationConnectionId?: string;
+  /** Canonical Google resource selection: one or more calendar IDs under a single connection. */
+  calendarIds?: string[];
+  /** @deprecated Use `calendarIds` instead. */
   calendarId?: string;
   timeWindow?: "today" | "next24h" | "next7d";
   includeAllDay?: boolean;
+  /** Canonical display cap for upcoming events. */
+  maxItems?: number;
+  /** @deprecated Use `maxItems` instead. */
   maxEvents?: number;
 }
 
@@ -72,6 +78,7 @@ export type WidgetConfig<TKey extends WidgetKey = WidgetKey> = WidgetConfigByKey
 
 export type WidgetConfigFieldSchema =
   | "string"
+  | "string[]"
   | "boolean"
   | "number"
   | readonly [string, ...string[]];
@@ -122,16 +129,16 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
       provider: "ical",
       account: "",
       timeWindow: "next7d",
-      maxEvents: 10,
+      maxItems: 10,
       includeAllDay: true,
     },
     configSchema: {
       provider: ["ical", "google"],
       account: "string",
       integrationConnectionId: "string",
-      calendarId: "string",
+      calendarIds: "string[]",
       timeWindow: ["today", "next24h", "next7d"],
-      maxEvents: "number",
+      maxItems: "number",
       includeAllDay: "boolean",
     },
   },

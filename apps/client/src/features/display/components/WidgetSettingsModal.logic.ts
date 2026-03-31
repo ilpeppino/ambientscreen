@@ -1,6 +1,6 @@
 import type { WidgetConfigFieldSchema, WidgetConfigSchema } from "@ambient/shared-contracts";
 
-export type WidgetConfigFieldKind = "string" | "boolean" | "number" | "enum";
+export type WidgetConfigFieldKind = "string" | "boolean" | "number" | "enum" | "stringArray";
 
 export interface WidgetConfigFieldDescriptor {
   key: string;
@@ -49,6 +49,14 @@ export function toFieldDescriptor(key: string, schema: WidgetConfigFieldSchema):
     };
   }
 
+  if (schema === "string[]") {
+    return {
+      key,
+      label: humanizeFieldLabel(key),
+      kind: "stringArray",
+    };
+  }
+
   return {
     key,
     label: humanizeFieldLabel(key),
@@ -80,6 +88,13 @@ export function buildConfigDraft(input: BuildConfigDraftInput): Record<string, u
 
     if (fieldSchema === "number") {
       draft[key] = typeof currentValue === "number" ? currentValue : 0;
+      continue;
+    }
+
+    if (fieldSchema === "string[]") {
+      draft[key] = Array.isArray(currentValue)
+        ? currentValue.filter((item): item is string => typeof item === "string")
+        : [];
       continue;
     }
 
@@ -119,6 +134,13 @@ export function validateConfigDraft(
     if (fieldSchema === "number") {
       if (typeof value !== "number" || Number.isNaN(value)) {
         return { valid: false, message: `${humanizeFieldLabel(key)} must be a number.` };
+      }
+      continue;
+    }
+
+    if (fieldSchema === "string[]") {
+      if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
+        return { valid: false, message: `${humanizeFieldLabel(key)} must be a list of text values.` };
       }
       continue;
     }

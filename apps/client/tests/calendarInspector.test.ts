@@ -8,7 +8,7 @@ function makeContext(overrides: Partial<CalendarInspectorContext> = {}): Calenda
     calendars: [],
     onConnect: vi.fn(),
     onSelectConnection: vi.fn(),
-    onSelectCalendar: vi.fn(),
+    onSelectCalendars: vi.fn(),
     onRefresh: vi.fn(),
     onChange: vi.fn(),
     ...overrides,
@@ -128,13 +128,28 @@ describe("getInspectorDefinition — Calendar section", () => {
     expect(calField?.isDisabled).toBe(false);
   });
 
-  it("uses primary calendar as displayValue when calendarId is undefined", () => {
+  it("uses primary calendar as displayValue when no calendarIds are selected", () => {
     const def = getInspectorDefinition(
-      makeConfig({ provider: "google", integrationConnectionId: "conn-1", calendarId: undefined }),
+      makeConfig({ provider: "google", integrationConnectionId: "conn-1", calendarIds: [] }),
       makeContext(),
     );
     const calField = def.sections[1].fields.find((f) => f.kind === "resourcePicker");
     expect(calField?.displayValue).toBe("Primary calendar");
+  });
+
+  it("supports multi-select resource picker for calendars", () => {
+    const def = getInspectorDefinition(
+      makeConfig({ provider: "google", integrationConnectionId: "conn-1", calendarIds: ["cal-1", "cal-2"] }),
+      makeContext({
+        calendars: [
+          { id: "cal-1", label: "Work" },
+          { id: "cal-2", label: "Personal" },
+        ],
+      }),
+    );
+    const calField = def.sections[1].fields.find((f) => f.kind === "resourcePicker");
+    expect(calField?.selectionMode).toBe("multiple");
+    expect(calField?.displayValue).toBe("Work, Personal");
   });
 
   it("has a Refresh calendars section-level action", () => {
@@ -145,13 +160,13 @@ describe("getInspectorDefinition — Calendar section", () => {
 });
 
 describe("getInspectorDefinition — Display section", () => {
-  it("includes timeWindow, includeAllDay, maxEvents fields", () => {
+  it("includes timeWindow, includeAllDay, maxItems fields", () => {
     const def = getInspectorDefinition(makeConfig(), makeContext());
     const displaySection = def.sections[2];
     const ids = displaySection.fields.map((f) => f.id);
     expect(ids).toContain("timeWindow");
     expect(ids).toContain("includeAllDay");
-    expect(ids).toContain("maxEvents");
+    expect(ids).toContain("maxItems");
   });
 
   it("timeWindow field is segmented kind", () => {
@@ -166,9 +181,9 @@ describe("getInspectorDefinition — Display section", () => {
     expect(field?.kind).toBe("boolean");
   });
 
-  it("maxEvents field is segmented kind", () => {
+  it("maxItems field is segmented kind", () => {
     const def = getInspectorDefinition(makeConfig(), makeContext());
-    const field = def.sections[2].fields.find((f) => f.id === "maxEvents");
+    const field = def.sections[2].fields.find((f) => f.id === "maxItems");
     expect(field?.kind).toBe("segmented");
   });
 
@@ -190,9 +205,9 @@ describe("getInspectorDefinition — Display section", () => {
     expect(fieldFalse?.displayValue).toBe("No");
   });
 
-  it("maxEvents options are 5, 10, 15, 20", () => {
+  it("maxItems options are 5, 10, 15, 20", () => {
     const def = getInspectorDefinition(makeConfig(), makeContext());
-    const field = def.sections[2].fields.find((f) => f.id === "maxEvents");
+    const field = def.sections[2].fields.find((f) => f.id === "maxItems");
     const values = field?.options?.map((o) => o.value) ?? [];
     expect(values).toEqual([5, 10, 15, 20]);
   });
