@@ -6,8 +6,9 @@ import type { Option } from "./inspector.types";
 
 interface InspectorOptionListProps {
   options: Option[];
-  value: string | number | null | undefined;
-  onChange: (value: string | number) => void;
+  value: string | number | Array<string | number> | null | undefined;
+  onChange: (value: string | number | Array<string | number>) => void;
+  selectionMode?: "single" | "multiple";
   disabled?: boolean;
   placeholder?: string;
 }
@@ -16,6 +17,7 @@ export function InspectorOptionList({
   options,
   value,
   onChange,
+  selectionMode = "single",
   disabled,
   placeholder,
 }: InspectorOptionListProps) {
@@ -28,14 +30,30 @@ export function InspectorOptionList({
   return (
     <View style={styles.list}>
       {options.map((opt) => {
-        const selected = opt.value === value;
+        const selected = Array.isArray(value)
+          ? value.includes(opt.value)
+          : opt.value === value;
+
+        const handlePress = () => {
+          if (disabled) return;
+          if (selectionMode === "multiple") {
+            const current = Array.isArray(value) ? value : [];
+            const next = selected
+              ? current.filter((entry) => entry !== opt.value)
+              : [...current, opt.value];
+            onChange(next);
+            return;
+          }
+          onChange(opt.value);
+        };
+
         return (
           <Pressable
             key={String(opt.value)}
             style={[styles.row, selected ? styles.rowSelected : null]}
-            onPress={() => !disabled && onChange(opt.value)}
+            onPress={handlePress}
             disabled={disabled}
-            accessibilityRole="radio"
+            accessibilityRole={selectionMode === "multiple" ? "checkbox" : "radio"}
             accessibilityState={{ selected }}
           >
             <Text style={[styles.label, selected ? styles.labelSelected : null]}>

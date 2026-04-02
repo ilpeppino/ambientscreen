@@ -1,6 +1,7 @@
 import { calendarWidgetPlugin } from "./plugins/calendar.plugin";
 import { clockDateWidgetPlugin } from "./plugins/clockDate.plugin";
 import { rssNewsWidgetPlugin } from "./plugins/rssNews.plugin";
+import { tasksWidgetPlugin } from "./plugins/tasks.plugin";
 import { weatherWidgetPlugin } from "./plugins/weather.plugin";
 import { registerWidgetPlugin } from "./pluginRegistry";
 
@@ -15,6 +16,7 @@ export function registerBuiltinWidgetPlugins() {
   registerWidgetPlugin(weatherWidgetPlugin);
   registerWidgetPlugin(calendarWidgetPlugin);
   registerWidgetPlugin(rssNewsWidgetPlugin);
+  registerWidgetPlugin(tasksWidgetPlugin);
 
   registered = true;
 }

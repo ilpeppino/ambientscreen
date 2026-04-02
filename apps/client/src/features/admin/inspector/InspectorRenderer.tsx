@@ -187,9 +187,10 @@ function renderField(
         >
           <InspectorOptionList
             options={field.options ?? []}
-            value={field.value as string | number}
+            value={field.value as string | number | Array<string | number>}
             onChange={(v) => field.onChange?.(v as never)}
             disabled={disabled}
+            selectionMode={field.selectionMode}
           />
         </InspectorFieldGroup>
       );

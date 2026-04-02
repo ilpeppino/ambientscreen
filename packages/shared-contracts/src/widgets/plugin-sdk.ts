@@ -258,4 +258,36 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       title: "string",
     },
   },
+  tasks: {
+    manifest: {
+      key: "tasks",
+      version: manifestVersion,
+      name: "Tasks",
+      description: "Shows active tasks from one or more selected lists.",
+      category: "productivity",
+      defaultLayout: {
+        w: 6,
+        h: 3,
+        minW: 3,
+        minH: 2,
+      },
+      refreshPolicy: { intervalMs: 60000 },
+    },
+    defaultConfig: {
+      provider: "google-tasks",
+      integrationConnectionId: "",
+      selectedTaskListIds: [],
+      displayMode: "list",
+      maxItems: 5,
+      showCompleted: false,
+    },
+    configSchema: {
+      provider: ["google-tasks", "microsoft-todo", "todoist"],
+      integrationConnectionId: "string",
+      selectedTaskListIds: "string[]",
+      displayMode: ["list", "compact", "focus"],
+      maxItems: "number",
+      showCompleted: "boolean",
+    },
+  },
 }

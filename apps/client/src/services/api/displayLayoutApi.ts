@@ -3,6 +3,8 @@ import { apiFetchWithTimeout, toApiErrorMessage } from "./apiClient";
 import type {
   CalendarWidgetData,
   ClockDateWidgetData,
+  RssNewsWidgetData,
+  TasksWidgetData,
   WeatherWidgetData,
   WidgetConfigSchema,
   WidgetKey,
@@ -44,6 +46,12 @@ export type DisplayLayoutWidgetEnvelope =
     })
   | (DisplayLayoutWidgetBase<"calendar"> & {
       data: CalendarWidgetData | null;
+    })
+  | (DisplayLayoutWidgetBase<"rssNews"> & {
+      data: RssNewsWidgetData | null;
+    })
+  | (DisplayLayoutWidgetBase<"tasks"> & {
+      data: TasksWidgetData | null;
     });
 
 export interface DisplaySlideEnvelope {

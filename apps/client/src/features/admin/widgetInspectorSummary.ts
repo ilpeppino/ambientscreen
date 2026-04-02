@@ -20,6 +20,9 @@ export const INSPECTOR_LABELS: Record<string, string> = {
   format: "Format",
   showSeconds: "Show seconds",
   timezone: "Timezone",
+  selectedTaskListIds: "Task lists",
+  displayMode: "Display mode",
+  showCompleted: "Show completed",
 };
 
 export function formatInspectorValue(key: string, value: unknown): string {
@@ -31,6 +34,9 @@ export function formatInspectorValue(key: string, value: unknown): string {
   if (key === "provider") {
     if (value === "google") return "Google Calendar";
     if (value === "ical") return "iCal Feed";
+    if (value === "google-tasks") return "Google Tasks";
+    if (value === "microsoft-todo") return "Microsoft To Do";
+    if (value === "todoist") return "Todoist";
   }
 
   // Time window labels
@@ -56,6 +62,16 @@ export function formatInspectorValue(key: string, value: unknown): string {
   if (key === "layout") {
     if (value === "headline-list") return "Headline list";
     if (value === "ticker") return "Ticker";
+  }
+
+  if (key === "displayMode") {
+    if (value === "list") return "List";
+    if (value === "compact") return "Compact";
+    if (value === "focus") return "Focus";
+  }
+
+  if (key === "selectedTaskListIds" && Array.isArray(value)) {
+    return value.length > 0 ? `${value.length} selected` : "All lists";
   }
 
   // Boolean labels
@@ -86,6 +102,7 @@ export function buildWidgetReadOnlyFields(
     weather: ["city", "countryCode", "units", "forecastSlots"],
     calendar: ["provider", "account", "timeWindow", "maxItems", "includeAllDay"],
     rssNews: ["title", "feedUrl", "layout", "maxItems", "showImages", "showPublishedAt"],
+    tasks: ["provider", "selectedTaskListIds", "displayMode", "maxItems", "showCompleted"],
   };
 
   const keysForWidget = fieldKeys[widgetKey] ?? [];

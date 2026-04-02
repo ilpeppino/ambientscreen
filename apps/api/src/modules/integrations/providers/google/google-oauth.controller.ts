@@ -2,12 +2,11 @@ import type { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { getRequestUserId } from "../../../auth/auth.middleware";
 import { googleOAuthService } from "./google-oauth.service";
-import { googleCalendarAdapter } from "./google-calendar.adapter";
-import { integrationsRepository } from "../../integrations.repository";
 import { apiErrors } from "../../../../core/http/api-error";
-import { googleCalendarsQuerySchema } from "../../integrations.schemas";
+import { googleCalendarsQuerySchema, googleTaskListsQuerySchema } from "../../integrations.schemas";
 import { getAppBaseUrl, getAuthJwtSecret } from "../../../../core/config/env";
 import { isAllowedReturnTo } from "./google-oauth.utils";
+import { integrationsService } from "../../integrations.service";
 
 export const googleOAuthController = {
   async start(req: Request, res: Response): Promise<void> {
@@ -65,36 +64,22 @@ export const googleOAuthController = {
     }
 
     const { integrationConnectionId } = parseResult.data;
-    const connection = await integrationsRepository.findByUserAndId(userId, integrationConnectionId);
+    const items = await integrationsService.listGoogleCalendars(userId, integrationConnectionId);
+    res.json({ items });
+  },
 
-    if (!connection) {
-      throw apiErrors.integrationNotFound("Connection not found.");
+  async listTaskLists(req: Request, res: Response): Promise<void> {
+    const userId = getRequestUserId(req);
+    const parseResult = googleTaskListsQuerySchema.safeParse(req.query);
+    if (!parseResult.success) {
+      throw apiErrors.validation(
+        "integrationConnectionId is required and must be a valid UUID",
+        parseResult.error.format(),
+      );
     }
 
-    if (connection.provider !== "google") {
-      throw apiErrors.integrationProviderMismatch("This connection is not a Google connection.");
-    }
-
-    if (connection.status === "revoked") {
-      throw apiErrors.integrationNeedsReauth("This connection needs to be reconnected.");
-    }
-
-    if (connection.status === "needs_reauth") {
-      throw apiErrors.integrationNeedsReauth("This connection needs to be reconnected.");
-    }
-
-    try {
-      const items = await googleCalendarAdapter.fetchCalendars(connection);
-      res.json({ items });
-    } catch (err) {
-      const msg = (err as Error).message;
-      if (msg === "INTEGRATION_NEEDS_REAUTH") {
-        throw apiErrors.integrationNeedsReauth("This connection needs to be reconnected.");
-      }
-      if (msg === "INTEGRATION_REFRESH_FAILED") {
-        throw apiErrors.integrationRefreshFailed("Unable to refresh the connection.");
-      }
-      throw apiErrors.integrationProviderError("Unable to load calendars.");
-    }
+    const { integrationConnectionId } = parseResult.data;
+    const items = await integrationsService.listGoogleTaskLists(userId, integrationConnectionId);
+    res.json({ items });
   },
 };

@@ -21,3 +21,7 @@ export const patchConnectionSchema = z.object({
 export const googleCalendarsQuerySchema = z.object({
   integrationConnectionId: integrationConnectionIdSchema,
 });
+
+export const googleTaskListsQuerySchema = z.object({
+  integrationConnectionId: integrationConnectionIdSchema,
+});

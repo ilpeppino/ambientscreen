@@ -16,7 +16,7 @@ export const SUPPORTED_PROVIDER_DESCRIPTORS: IntegrationProviderDescriptor[] = [
   {
     key: "google",
     label: "Google",
-    description: "Connect a Google account to access calendar resources.",
+    description: "Connect a Google account to access calendar and task resources.",
     authType: "oauth",
   },
 ];
@@ -62,4 +62,10 @@ export interface GoogleCalendarOption {
   summary: string;
   primary: boolean;
   accessRole: string | null;
+}
+
+export interface GoogleTaskListOption {
+  id: string;
+  title: string;
+  updatedAt?: string;
 }

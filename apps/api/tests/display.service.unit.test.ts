@@ -120,7 +120,7 @@ afterEach(() => {
 });
 
 test("displayService resolves all widgets and attaches layout", async () => {
-  const result = await displayService.getDisplayLayout("user-1");
+  const result = await displayService.getDisplayLayout("user-1", "user-1");
 
   expect(result.slide?.id).toBe("slide-1");
   expect(result.widgets.length).toBe(2);
@@ -194,7 +194,7 @@ test("displayService continues when one resolver throws", async () => {
     } as never;
   });
 
-  const result = await displayService.getDisplayLayout("user-1");
+  const result = await displayService.getDisplayLayout("user-1", "user-1");
   expect(result.widgets.length).toBe(2);
 
   const clockWidget = result.widgets.find((widget) => widget.widgetKey === "clockDate");
@@ -223,7 +223,7 @@ test("displayService returns unsupported envelope for unknown widget type", asyn
     ] as never;
   });
 
-  const result = await displayService.getDisplayLayout("user-1");
+  const result = await displayService.getDisplayLayout("user-1", "user-1");
 
   expect(result.widgets.length).toBe(1);
   expect(result.widgets[0].widgetInstanceId).toBe("widget-unknown");
@@ -276,7 +276,7 @@ test("displayService keeps persisted widget identity when resolver returns misma
     },
   ] as never);
 
-  const result = await displayService.getDisplayLayout("user-1");
+  const result = await displayService.getDisplayLayout("user-1", "user-1");
   expect(result.widgets).toHaveLength(1);
   expect(result.widgets[0].widgetInstanceId).toBe("widget-1");
   expect(result.widgets[0].widgetKey).toBe("clockDate");
@@ -285,7 +285,7 @@ test("displayService keeps persisted widget identity when resolver returns misma
 test("displayService returns empty payload when no slide exists", async () => {
   vi.spyOn(slidesService, "getSlideForDisplay").mockResolvedValueOnce(null as never);
 
-  const result = await displayService.getDisplayLayout("user-1");
+  const result = await displayService.getDisplayLayout("user-1", "user-1");
   expect(result.slide).toBeNull();
   expect(result.widgets).toEqual([]);
 });

@@ -2,6 +2,7 @@ import { apiErrors } from "../../core/http/api-error";
 import { integrationsRepository } from "./integrations.repository";
 import { toSummary } from "./integration-connection.mapper";
 import { googleCalendarAdapter } from "./providers/google/google-calendar.adapter";
+import { googleTasksAdapter } from "./providers/google/google-tasks.adapter";
 import { googleOAuthService } from "./providers/google/google-oauth.service";
 import { decryptToken } from "../../core/crypto/encryption";
 import {
@@ -9,6 +10,8 @@ import {
   type IntegrationConnectionSummary,
   type IntegrationProviderDescriptor,
   type IntegrationProvider,
+  type GoogleCalendarOption,
+  type GoogleTaskListOption,
 } from "./integrations.types";
 
 interface ListConnectionsFilter {
@@ -82,6 +85,58 @@ export const integrationsService = {
     }
 
     throw apiErrors.integrationProviderMismatch("Unsupported provider for refresh.");
+  },
+
+  async listGoogleCalendars(userId: string, connectionId: string): Promise<GoogleCalendarOption[]> {
+    const record = await integrationsRepository.findByUserAndId(userId, connectionId);
+    if (!record) throw apiErrors.integrationNotFound("Connection not found.");
+    if (record.provider !== "google") {
+      throw apiErrors.integrationProviderMismatch("This connection is not a Google connection.");
+    }
+    if (record.status === "revoked" || record.status === "needs_reauth") {
+      throw apiErrors.integrationNeedsReauth("This connection needs to be reconnected.");
+    }
+
+    try {
+      return await googleCalendarAdapter.fetchCalendars(record);
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg === "INTEGRATION_NEEDS_REAUTH") {
+        throw apiErrors.integrationNeedsReauth("This connection needs to be reconnected.");
+      }
+      if (msg === "INTEGRATION_REFRESH_FAILED") {
+        throw apiErrors.integrationRefreshFailed("Unable to refresh the connection.");
+      }
+      throw apiErrors.integrationProviderError("Unable to load calendars.");
+    }
+  },
+
+  async listGoogleTaskLists(userId: string, connectionId: string): Promise<GoogleTaskListOption[]> {
+    const record = await integrationsRepository.findByUserAndId(userId, connectionId);
+    if (!record) throw apiErrors.integrationNotFound("Connection not found.");
+    if (record.provider !== "google") {
+      throw apiErrors.integrationProviderMismatch("This connection is not a Google connection.");
+    }
+    if (record.status === "revoked" || record.status === "needs_reauth") {
+      throw apiErrors.integrationNeedsReauth("This connection needs to be reconnected.");
+    }
+
+    try {
+      const lists = await googleTasksAdapter.fetchTaskLists(record);
+      return lists.map((list) => ({
+        id: list.id,
+        title: list.title,
+      }));
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg === "INTEGRATION_NEEDS_REAUTH") {
+        throw apiErrors.integrationNeedsReauth("This connection needs to be reconnected.");
+      }
+      if (msg === "INTEGRATION_REFRESH_FAILED") {
+        throw apiErrors.integrationRefreshFailed("Unable to refresh the connection.");
+      }
+      throw apiErrors.integrationProviderError("Unable to load task lists.");
+    }
   },
 
   /** Internal use only — used by widget resolvers to obtain a valid decrypted token. Never exposed to clients. */

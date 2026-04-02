@@ -54,7 +54,7 @@ function normalizeState(state: WidgetDataState): DisplayWidgetState {
 }
 
 export const displayService = {
-  async getDisplayLayout(profileId: string, slideId?: string): Promise<DisplayLayoutResponse> {
+  async getDisplayLayout(profileId: string, userId: string, slideId?: string): Promise<DisplayLayoutResponse> {
     const slide = await slidesService.getSlideForDisplay({
       profileId,
       slideId: slideId ?? null,
@@ -119,6 +119,7 @@ export const displayService = {
           widgetInstanceId: widget.id,
           widgetKey: widgetType,
           widgetConfig: normalizedConfig,
+          userId,
         });
 
         return {

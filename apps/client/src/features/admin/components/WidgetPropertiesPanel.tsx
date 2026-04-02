@@ -16,12 +16,14 @@ import { InspectorReadOnlyField, InspectorReadOnlySection } from "./InspectorRea
 import { buildWidgetReadOnlyFields } from "../widgetInspectorSummary";
 import { CalendarInspectorContent } from "../../../widgets/calendar/CalendarInspectorContent";
 import { ClockDateInspectorContent } from "../../../widgets/clockDate/ClockDateInspectorContent";
+import { TasksInspectorContent } from "../../../widgets/tasks/TasksInspectorContent";
 
 const WIDGET_ICON = {
   clockDate: "clock",
   weather: "weather",
   calendar: "calendar",
   rssNews: "alert",
+  tasks: "check",
 } as const;
 
 interface ReadOnlyConfigurationViewProps {
@@ -279,6 +281,13 @@ export function WidgetPropertiesPanel({
       ) : selectedWidget.widgetKey === "clockDate" ? (
         // ClockDate uses the shared inspector system for both read-only and edit modes.
         <ClockDateInspectorContent
+          config={selectedWidget.config}
+          draft={draft}
+          mode={isEditing ? "edit" : "readOnly"}
+          onChange={(patch) => setDraft((prev) => ({ ...prev, ...patch }))}
+        />
+      ) : selectedWidget.widgetKey === "tasks" ? (
+        <TasksInspectorContent
           config={selectedWidget.config}
           draft={draft}
           mode={isEditing ? "edit" : "readOnly"}

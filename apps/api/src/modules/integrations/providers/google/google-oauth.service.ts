@@ -38,9 +38,9 @@ export const googleOAuthService = {
     error?: string;
   }): Promise<{ success: boolean; redirectUrl: string }> {
     const baseUrl = getAppBaseUrl();
-    const defaultSuccess = `${baseUrl}/integrations?provider=google&status=success`;
+    const defaultSuccess = `${baseUrl}/#/integrations?provider=google&status=success`;
     const defaultFailure = (code: string) =>
-      `${baseUrl}/integrations?provider=google&status=error&code=${code}`;
+      `${baseUrl}/#/integrations?provider=google&status=error&code=${code}`;
 
     if (!query.state) {
       return { success: false, redirectUrl: defaultFailure("missing_state") };
@@ -110,5 +110,4 @@ export const googleOAuthService = {
     }
   },
 };
-
 

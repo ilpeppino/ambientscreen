@@ -137,3 +137,21 @@ export async function listGoogleCalendars(integrationConnectionId: string): Prom
   const data = (await response.json()) as { items: GoogleCalendarOption[] };
   return data.items;
 }
+
+export interface GoogleTaskListOption {
+  id: string;
+  title: string;
+  updatedAt?: string;
+}
+
+export async function listGoogleTaskLists(integrationConnectionId: string): Promise<GoogleTaskListOption[]> {
+  const params = new URLSearchParams({ integrationConnectionId });
+  const response = await apiFetchWithTimeout(
+    `${API_BASE_URL}/integrations/google/tasks/lists?${params.toString()}`,
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const data = (await response.json()) as { items: GoogleTaskListOption[] };
+  return data.items;
+}

@@ -11,7 +11,7 @@ export interface EntitlementsResponse {
   features: Record<FeatureFlagKey, boolean>;
 }
 
-export type WidgetKey = "clockDate" | "weather" | "calendar" | "rssNews";
+export type WidgetKey = "clockDate" | "weather" | "calendar" | "rssNews" | "tasks";
 
 export type WidgetDataState = "ready" | "stale" | "empty" | "error";
 
@@ -67,11 +67,24 @@ export interface RssNewsWidgetConfig {
   title?: string;
 }
 
+export type TasksWidgetProvider = "google-tasks" | "microsoft-todo" | "todoist";
+export type TasksWidgetDisplayMode = "list" | "compact" | "focus";
+
+export interface TasksWidgetConfig {
+  provider?: TasksWidgetProvider;
+  integrationConnectionId?: string;
+  selectedTaskListIds?: string[];
+  displayMode?: TasksWidgetDisplayMode;
+  maxItems?: number;
+  showCompleted?: boolean;
+}
+
 export interface WidgetConfigByKey {
   clockDate: ClockDateWidgetConfig;
   weather: WeatherWidgetConfig;
   calendar: CalendarWidgetConfig;
   rssNews: RssNewsWidgetConfig;
+  tasks: TasksWidgetConfig;
 }
 
 export type WidgetConfig<TKey extends WidgetKey = WidgetKey> = WidgetConfigByKey[TKey];
@@ -160,6 +173,26 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
       showPublishedAt: "boolean",
       layout: ["headline-list", "ticker"],
       title: "string",
+    },
+  },
+  tasks: {
+    key: "tasks",
+    name: "Tasks",
+    defaultConfig: {
+      provider: "google-tasks",
+      integrationConnectionId: "",
+      selectedTaskListIds: [],
+      displayMode: "list",
+      maxItems: 5,
+      showCompleted: false,
+    },
+    configSchema: {
+      provider: ["google-tasks", "microsoft-todo", "todoist"],
+      integrationConnectionId: "string",
+      selectedTaskListIds: "string[]",
+      displayMode: ["list", "compact", "focus"],
+      maxItems: "number",
+      showCompleted: "boolean",
     },
   },
 };
@@ -348,11 +381,29 @@ export interface RssNewsWidgetData {
   }>;
 }
 
+export interface NormalizedTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  dueDate?: string;
+  updatedAt?: string;
+  sourceListName?: string;
+}
+
+export interface TasksWidgetData {
+  tasks: NormalizedTask[];
+  lists: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
 export interface WidgetDataByKey {
   clockDate: ClockDateWidgetData;
   weather: WeatherWidgetData;
   calendar: CalendarWidgetData;
   rssNews: RssNewsWidgetData;
+  tasks: TasksWidgetData;
 }
 
 export interface WidgetDataEnvelope<

@@ -34,6 +34,19 @@ test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
     },
   });
   expect(rssNews.success).toBe(true);
+
+  const tasks = createWidgetSchema.safeParse({
+    type: "tasks",
+    config: {
+      provider: "google-tasks",
+      integrationConnectionId: "550e8400-e29b-41d4-a716-446655440000",
+      selectedTaskListIds: ["work", "home"],
+      displayMode: "list",
+      maxItems: 5,
+      showCompleted: false,
+    },
+  });
+  expect(tasks.success).toBe(true);
 });
 
 test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
@@ -66,6 +79,12 @@ test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
     layout: { x: -1, y: 0, w: 1, h: 1 },
   });
   expect(invalidLayout.success).toBe(false);
+
+  const invalidTasks = createWidgetSchema.safeParse({
+    type: "tasks",
+    config: { provider: "google_tasks", displayMode: "dense" },
+  });
+  expect(invalidTasks.success).toBe(false);
 });
 
 test("M2-1: createWidgetSchema allows missing layout for backward compatibility", () => {
@@ -108,6 +127,16 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
     showPublishedAt: true,
     layout: "headline-list",
     title: "Latest News",
+  });
+
+  const normalizedTasks = normalizeWidgetConfig("tasks", {});
+  expect(normalizedTasks).toEqual({
+    provider: "google-tasks",
+    integrationConnectionId: "",
+    selectedTaskListIds: [],
+    displayMode: "list",
+    maxItems: 5,
+    showCompleted: false,
   });
 });
 
@@ -177,4 +206,5 @@ test("M2-1: widget manifests expose refresh policy rules", () => {
   expect(widgetManifests.weather.refreshPolicy.intervalMs).toBe(300000);
   expect(widgetManifests.calendar.refreshPolicy.intervalMs).toBe(60000);
   expect(widgetManifests.rssNews.refreshPolicy.intervalMs).toBe(300000);
+  expect(widgetManifests.tasks.refreshPolicy.intervalMs).toBe(60000);
 });

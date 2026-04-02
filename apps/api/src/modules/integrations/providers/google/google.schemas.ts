@@ -28,3 +28,27 @@ export const googleCalendarListResponseSchema = z.object({
     )
     .optional(),
 });
+
+export const googleTaskListsResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string().optional(),
+      updated: z.string().optional(),
+    }),
+  ).optional(),
+});
+
+export const googleTasksResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      title: z.string().optional(),
+      status: z.string().optional(),
+      due: z.string().optional(),
+      updated: z.string().optional(),
+      deleted: z.boolean().optional(),
+      hidden: z.boolean().optional(),
+    }),
+  ).optional(),
+});

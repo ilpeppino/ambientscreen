@@ -16,13 +16,15 @@ export type WidgetEnvelope =
   | WidgetDataEnvelope<WidgetDataByKey["clockDate"], "clockDate">
   | WidgetDataEnvelope<WidgetDataByKey["weather"], "weather">
   | WidgetDataEnvelope<WidgetDataByKey["calendar"], "calendar">
-  | WidgetDataEnvelope<WidgetDataByKey["rssNews"], "rssNews">;
+  | WidgetDataEnvelope<WidgetDataByKey["rssNews"], "rssNews">
+  | WidgetDataEnvelope<WidgetDataByKey["tasks"], "tasks">;
 
 export const widgetRegistry = {
   clockDate: getWidgetPlugin("clockDate"),
   weather: getWidgetPlugin("weather"),
   calendar: getWidgetPlugin("calendar"),
   rssNews: getWidgetPlugin("rssNews"),
+  tasks: getWidgetPlugin("tasks"),
 };
 
 export function renderWidgetFromKey(

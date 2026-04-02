@@ -46,6 +46,7 @@ displayRouter.get(
 
     const result = await displayService.getDisplayLayout(
       profile.id,
+      userId,
       getQuerySlideId(req.query?.slideId),
     );
     res.json(result);

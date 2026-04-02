@@ -1,5 +1,11 @@
 import { getGoogleClientId, getGoogleClientSecret, getGoogleRedirectUri } from "../../../../core/config/env";
-import { googleTokenResponseSchema, googleUserInfoSchema, googleCalendarListResponseSchema } from "./google.schemas";
+import {
+  googleTokenResponseSchema,
+  googleUserInfoSchema,
+  googleCalendarListResponseSchema,
+  googleTaskListsResponseSchema,
+  googleTasksResponseSchema,
+} from "./google.schemas";
 
 export interface GoogleTokenSet {
   accessToken: string;
@@ -22,13 +28,35 @@ export interface GoogleCalendarListItem {
   accessRole: string | null;
 }
 
+export interface GoogleTaskListItem {
+  id: string;
+  title: string;
+  updatedAt?: string;
+}
+
+export interface GoogleTaskItem {
+  id: string;
+  title: string;
+  completed: boolean;
+  dueDate?: string;
+  updatedAt?: string;
+}
+
 export const googleClient = {
   buildAuthUrl(state: string): string {
+    const scopes = [
+      "openid",
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/calendar.readonly",
+      "https://www.googleapis.com/auth/tasks.readonly",
+    ].join(" ");
+
     const params = new URLSearchParams({
       client_id: getGoogleClientId(),
       redirect_uri: getGoogleRedirectUri(),
       response_type: "code",
-      scope: "https://www.googleapis.com/auth/calendar.readonly",
+      scope: scopes,
       access_type: "offline",
       prompt: "consent",
       state,
@@ -60,7 +88,13 @@ export const googleClient = {
       accessToken: parsed.access_token,
       refreshToken: parsed.refresh_token,
       expiresAt: new Date(Date.now() + parsed.expires_in * 1000),
-      scopes: parsed.scope ? parsed.scope.split(" ") : ["https://www.googleapis.com/auth/calendar.readonly"],
+      scopes: parsed.scope ? parsed.scope.split(" ") : [
+        "openid",
+        "email",
+        "profile",
+        "https://www.googleapis.com/auth/calendar.readonly",
+        "https://www.googleapis.com/auth/tasks.readonly",
+      ],
     };
   },
 
@@ -125,5 +159,63 @@ export const googleClient = {
       primary: item.primary ?? false,
       accessRole: item.accessRole ?? null,
     }));
+  },
+
+  async fetchTaskLists(accessToken: string): Promise<GoogleTaskListItem[]> {
+    const response = await fetch("https://tasks.googleapis.com/tasks/v1/users/@me/lists", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("GOOGLE_TASKS_UNAUTHORIZED");
+      }
+      throw new Error(`GOOGLE_TASKS_LISTS_ERROR:${response.status}`);
+    }
+
+    const raw = await response.json();
+    const parsed = googleTaskListsResponseSchema.parse(raw);
+
+    return (parsed.items ?? []).map((item) => ({
+      id: item.id,
+      title: item.title ?? item.id,
+      updatedAt: item.updated,
+    }));
+  },
+
+  async fetchTasksForList(accessToken: string, taskListId: string): Promise<GoogleTaskItem[]> {
+    const params = new URLSearchParams({
+      showCompleted: "true",
+      showHidden: "false",
+      showDeleted: "false",
+      maxResults: "100",
+    });
+
+    const response = await fetch(
+      `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(taskListId)}/tasks?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("GOOGLE_TASKS_UNAUTHORIZED");
+      }
+      throw new Error(`GOOGLE_TASKS_ITEMS_ERROR:${response.status}`);
+    }
+
+    const raw = await response.json();
+    const parsed = googleTasksResponseSchema.parse(raw);
+
+    return (parsed.items ?? [])
+      .filter((item) => item.deleted !== true && item.hidden !== true)
+      .map((item) => ({
+        id: item.id,
+        title: item.title?.trim() || "Untitled task",
+        completed: item.status === "completed",
+        dueDate: item.due,
+        updatedAt: item.updated,
+      }));
   },
 };
