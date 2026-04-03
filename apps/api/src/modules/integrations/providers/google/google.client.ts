@@ -5,6 +5,9 @@ import {
   googleCalendarListResponseSchema,
   googleTaskListsResponseSchema,
   googleTasksResponseSchema,
+  googleGmailMessagesListSchema,
+  googleGmailMessageDetailSchema,
+  googleGmailLabelsSchema,
 } from "./google.schemas";
 
 export interface GoogleTokenSet {
@@ -42,6 +45,24 @@ export interface GoogleTaskItem {
   updatedAt?: string;
 }
 
+export interface GoogleGmailMessageListItem {
+  id: string;
+}
+
+export interface GoogleGmailMessageMetadata {
+  id: string;
+  internalDate: string;
+  labelIds: string[];
+  snippet?: string;
+  headers: Record<string, string>;
+}
+
+export interface GoogleGmailLabelItem {
+  id: string;
+  name: string;
+  type: "system" | "user";
+}
+
 export const googleClient = {
   buildAuthUrl(state: string): string {
     const scopes = [
@@ -50,6 +71,7 @@ export const googleClient = {
       "profile",
       "https://www.googleapis.com/auth/calendar.readonly",
       "https://www.googleapis.com/auth/tasks.readonly",
+      "https://www.googleapis.com/auth/gmail.metadata",
     ].join(" ");
 
     const params = new URLSearchParams({
@@ -94,6 +116,7 @@ export const googleClient = {
         "profile",
         "https://www.googleapis.com/auth/calendar.readonly",
         "https://www.googleapis.com/auth/tasks.readonly",
+        "https://www.googleapis.com/auth/gmail.metadata",
       ],
     };
   },
@@ -217,5 +240,104 @@ export const googleClient = {
         dueDate: item.due,
         updatedAt: item.updated,
       }));
+  },
+
+  async fetchGmailMessages(input: {
+    accessToken: string;
+    labelId?: string;
+    maxResults: number;
+    query?: string;
+  }): Promise<{ resultSizeEstimate: number; messages: GoogleGmailMessageListItem[] }> {
+    const params = new URLSearchParams({
+      maxResults: String(input.maxResults),
+    });
+
+    if (input.labelId) {
+      params.set("labelIds", input.labelId);
+    }
+
+    if (input.query) {
+      params.set("q", input.query);
+    }
+
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${input.accessToken}` },
+      },
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("GOOGLE_GMAIL_UNAUTHORIZED");
+      }
+      throw new Error(`GOOGLE_GMAIL_MESSAGES_ERROR:${response.status}`);
+    }
+
+    const raw = await response.json();
+    const parsed = googleGmailMessagesListSchema.parse(raw);
+
+    return {
+      resultSizeEstimate: parsed.resultSizeEstimate ?? 0,
+      messages: (parsed.messages ?? []).map((item) => ({ id: item.id })),
+    };
+  },
+
+  async fetchGmailMessageMetadata(accessToken: string, messageId: string): Promise<GoogleGmailMessageMetadata> {
+    const params = new URLSearchParams({
+      format: "metadata",
+      metadataHeaders: "Subject",
+    });
+    params.append("metadataHeaders", "From");
+
+    const response = await fetch(
+      `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("GOOGLE_GMAIL_UNAUTHORIZED");
+      }
+      throw new Error(`GOOGLE_GMAIL_MESSAGE_ERROR:${response.status}`);
+    }
+
+    const raw = await response.json();
+    const parsed = googleGmailMessageDetailSchema.parse(raw);
+    const headers = Object.fromEntries(
+      (parsed.payload?.headers ?? []).map((header) => [header.name.toLowerCase(), header.value]),
+    );
+
+    return {
+      id: parsed.id,
+      internalDate: parsed.internalDate ?? String(Date.now()),
+      labelIds: parsed.labelIds ?? [],
+      snippet: parsed.snippet,
+      headers,
+    };
+  },
+
+  async fetchGmailLabels(accessToken: string): Promise<GoogleGmailLabelItem[]> {
+    const response = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/labels", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error("GOOGLE_GMAIL_UNAUTHORIZED");
+      }
+      throw new Error(`GOOGLE_GMAIL_LABELS_ERROR:${response.status}`);
+    }
+
+    const raw = await response.json();
+    const parsed = googleGmailLabelsSchema.parse(raw);
+
+    return (parsed.labels ?? []).map((label) => ({
+      id: label.id,
+      name: label.name,
+      type: label.type ?? "user",
+    }));
   },
 };

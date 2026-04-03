@@ -11,7 +11,7 @@ export interface EntitlementsResponse {
   features: Record<FeatureFlagKey, boolean>;
 }
 
-export type WidgetKey = "clockDate" | "weather" | "calendar" | "rssNews" | "tasks";
+export type WidgetKey = "clockDate" | "weather" | "calendar" | "rssNews" | "tasks" | "emailFeed";
 
 export type WidgetDataState = "ready" | "stale" | "empty" | "error";
 
@@ -79,12 +79,26 @@ export interface TasksWidgetConfig {
   showCompleted?: boolean;
 }
 
+export type EmailFeedWidgetProvider = "gmail" | "outlook" | "imap" | "slack" | "teams";
+export type EmailFeedLabelPreset = "INBOX" | "IMPORTANT" | "CUSTOM";
+
+export interface EmailFeedWidgetConfig {
+  provider?: EmailFeedWidgetProvider;
+  integrationConnectionId?: string;
+  label?: EmailFeedLabelPreset;
+  customLabel?: string;
+  onlyUnread?: boolean;
+  showPreview?: boolean;
+  maxItems?: number;
+}
+
 export interface WidgetConfigByKey {
   clockDate: ClockDateWidgetConfig;
   weather: WeatherWidgetConfig;
   calendar: CalendarWidgetConfig;
   rssNews: RssNewsWidgetConfig;
   tasks: TasksWidgetConfig;
+  emailFeed: EmailFeedWidgetConfig;
 }
 
 export type WidgetConfig<TKey extends WidgetKey = WidgetKey> = WidgetConfigByKey[TKey];
@@ -193,6 +207,27 @@ export const widgetConfigRegistry: { [TKey in WidgetKey]: WidgetConfigDefinition
       displayMode: ["list", "compact", "focus"],
       maxItems: "number",
       showCompleted: "boolean",
+    },
+  },
+  emailFeed: {
+    key: "emailFeed",
+    name: "Email Feed",
+    defaultConfig: {
+      provider: "gmail",
+      integrationConnectionId: "",
+      label: "INBOX",
+      onlyUnread: true,
+      showPreview: false,
+      maxItems: 8,
+    },
+    configSchema: {
+      provider: ["gmail", "outlook", "imap", "slack", "teams"],
+      integrationConnectionId: "string",
+      label: ["INBOX", "IMPORTANT", "CUSTOM"],
+      customLabel: "string",
+      onlyUnread: "boolean",
+      showPreview: "boolean",
+      maxItems: "number",
     },
   },
 };
@@ -398,12 +433,30 @@ export interface TasksWidgetData {
   }>;
 }
 
+export interface NormalizedMessage {
+  id: string;
+  title: string;
+  sender: string;
+  timestamp: string;
+  isUnread: boolean;
+  preview?: string;
+  source?: string;
+}
+
+export interface EmailFeedWidgetData {
+  provider: EmailFeedWidgetProvider;
+  mailboxLabel: string;
+  unreadCount: number;
+  messages: NormalizedMessage[];
+}
+
 export interface WidgetDataByKey {
   clockDate: ClockDateWidgetData;
   weather: WeatherWidgetData;
   calendar: CalendarWidgetData;
   rssNews: RssNewsWidgetData;
   tasks: TasksWidgetData;
+  emailFeed: EmailFeedWidgetData;
 }
 
 export interface WidgetDataEnvelope<

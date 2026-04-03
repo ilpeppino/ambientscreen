@@ -25,3 +25,7 @@ export const googleCalendarsQuerySchema = z.object({
 export const googleTaskListsQuerySchema = z.object({
   integrationConnectionId: integrationConnectionIdSchema,
 });
+
+export const googleGmailLabelsQuerySchema = z.object({
+  integrationConnectionId: integrationConnectionIdSchema,
+});

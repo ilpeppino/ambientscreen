@@ -47,6 +47,19 @@ test("M2-1: createWidgetSchema accepts valid per-widget config shapes", () => {
     },
   });
   expect(tasks.success).toBe(true);
+
+  const emailFeed = createWidgetSchema.safeParse({
+    type: "emailFeed",
+    config: {
+      provider: "gmail",
+      integrationConnectionId: "550e8400-e29b-41d4-a716-446655440000",
+      label: "INBOX",
+      onlyUnread: true,
+      showPreview: false,
+      maxItems: 8,
+    },
+  });
+  expect(emailFeed.success).toBe(true);
 });
 
 test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
@@ -85,6 +98,12 @@ test("M2-1: createWidgetSchema rejects config shape mismatches", () => {
     config: { provider: "google_tasks", displayMode: "dense" },
   });
   expect(invalidTasks.success).toBe(false);
+
+  const invalidEmailFeed = createWidgetSchema.safeParse({
+    type: "emailFeed",
+    config: { provider: "gmail", label: "INBOX", maxItems: 100 },
+  });
+  expect(invalidEmailFeed.success).toBe(false);
 });
 
 test("M2-1: createWidgetSchema allows missing layout for backward compatibility", () => {
@@ -137,6 +156,16 @@ test("M2-1: normalizeWidgetConfig falls back to defaults for invalid input", () 
     displayMode: "list",
     maxItems: 5,
     showCompleted: false,
+  });
+
+  const normalizedEmailFeed = normalizeWidgetConfig("emailFeed", {});
+  expect(normalizedEmailFeed).toEqual({
+    provider: "gmail",
+    integrationConnectionId: "",
+    label: "INBOX",
+    onlyUnread: true,
+    showPreview: false,
+    maxItems: 8,
   });
 });
 
@@ -207,4 +236,5 @@ test("M2-1: widget manifests expose refresh policy rules", () => {
   expect(widgetManifests.calendar.refreshPolicy.intervalMs).toBe(60000);
   expect(widgetManifests.rssNews.refreshPolicy.intervalMs).toBe(300000);
   expect(widgetManifests.tasks.refreshPolicy.intervalMs).toBe(60000);
+  expect(widgetManifests.emailFeed.refreshPolicy.intervalMs).toBe(60000);
 });

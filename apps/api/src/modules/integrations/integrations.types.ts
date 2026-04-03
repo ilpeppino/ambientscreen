@@ -69,3 +69,9 @@ export interface GoogleTaskListOption {
   title: string;
   updatedAt?: string;
 }
+
+export interface GoogleGmailLabelOption {
+  id: string;
+  name: string;
+  type: "system" | "user";
+}

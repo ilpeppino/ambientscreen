@@ -8,7 +8,7 @@ import {
 } from "../src/features/admin/adminHome.logic";
 
 test("CREATABLE_WIDGET_TYPES includes all built-in widget keys", () => {
-  expect(CREATABLE_WIDGET_TYPES).toEqual(["clockDate", "weather", "calendar", "rssNews", "tasks"]);
+  expect(CREATABLE_WIDGET_TYPES).toEqual(["clockDate", "weather", "calendar", "rssNews", "tasks", "emailFeed"]);
 });
 
 test("WEATHER_UNITS exposes weather unit options for admin config", () => {

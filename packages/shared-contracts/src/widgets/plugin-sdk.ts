@@ -290,4 +290,37 @@ export const widgetBuiltinDefinitions: { [TKey in WidgetKey]: WidgetBuiltinDefin
       showCompleted: "boolean",
     },
   },
+  emailFeed: {
+    manifest: {
+      key: "emailFeed",
+      version: manifestVersion,
+      name: "Email Feed",
+      description: "Shows recent messages from connected accounts with privacy-safe previews.",
+      category: "communication",
+      defaultLayout: {
+        w: 6,
+        h: 3,
+        minW: 3,
+        minH: 2,
+      },
+      refreshPolicy: { intervalMs: 60000 },
+    },
+    defaultConfig: {
+      provider: "gmail",
+      integrationConnectionId: "",
+      label: "INBOX",
+      onlyUnread: true,
+      showPreview: false,
+      maxItems: 8,
+    },
+    configSchema: {
+      provider: ["gmail", "outlook", "imap", "slack", "teams"],
+      integrationConnectionId: "string",
+      label: ["INBOX", "IMPORTANT", "CUSTOM"],
+      customLabel: "string",
+      onlyUnread: "boolean",
+      showPreview: "boolean",
+      maxItems: "number",
+    },
+  },
 }

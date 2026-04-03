@@ -23,6 +23,10 @@ export const INSPECTOR_LABELS: Record<string, string> = {
   selectedTaskListIds: "Task lists",
   displayMode: "Display mode",
   showCompleted: "Show completed",
+  label: "Mailbox",
+  customLabel: "Custom label",
+  onlyUnread: "Unread only",
+  showPreview: "Show preview",
 };
 
 export function formatInspectorValue(key: string, value: unknown): string {
@@ -37,6 +41,11 @@ export function formatInspectorValue(key: string, value: unknown): string {
     if (value === "google-tasks") return "Google Tasks";
     if (value === "microsoft-todo") return "Microsoft To Do";
     if (value === "todoist") return "Todoist";
+    if (value === "gmail") return "Gmail";
+    if (value === "outlook") return "Outlook";
+    if (value === "imap") return "IMAP";
+    if (value === "slack") return "Slack";
+    if (value === "teams") return "Teams";
   }
 
   // Time window labels
@@ -68,6 +77,12 @@ export function formatInspectorValue(key: string, value: unknown): string {
     if (value === "list") return "List";
     if (value === "compact") return "Compact";
     if (value === "focus") return "Focus";
+  }
+
+  if (key === "label") {
+    if (value === "INBOX") return "Inbox";
+    if (value === "IMPORTANT") return "Important";
+    if (value === "CUSTOM") return "Custom";
   }
 
   if (key === "selectedTaskListIds" && Array.isArray(value)) {
@@ -103,6 +118,7 @@ export function buildWidgetReadOnlyFields(
     calendar: ["provider", "account", "timeWindow", "maxItems", "includeAllDay"],
     rssNews: ["title", "feedUrl", "layout", "maxItems", "showImages", "showPublishedAt"],
     tasks: ["provider", "selectedTaskListIds", "displayMode", "maxItems", "showCompleted"],
+    emailFeed: ["provider", "label", "customLabel", "onlyUnread", "showPreview", "maxItems"],
   };
 
   const keysForWidget = fieldKeys[widgetKey] ?? [];
@@ -112,6 +128,8 @@ export function buildWidgetReadOnlyFields(
   const filteredKeys =
     widgetKey === "calendar" && calendarProvider !== "ical"
       ? keysForWidget.filter((k) => k !== "account")
+      : widgetKey === "emailFeed" && normalizedConfig.label !== "CUSTOM"
+      ? keysForWidget.filter((k) => k !== "customLabel")
       : keysForWidget;
 
   for (const key of filteredKeys) {

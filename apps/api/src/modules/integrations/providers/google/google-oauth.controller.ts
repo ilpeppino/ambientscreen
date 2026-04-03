@@ -3,7 +3,11 @@ import jwt from "jsonwebtoken";
 import { getRequestUserId } from "../../../auth/auth.middleware";
 import { googleOAuthService } from "./google-oauth.service";
 import { apiErrors } from "../../../../core/http/api-error";
-import { googleCalendarsQuerySchema, googleTaskListsQuerySchema } from "../../integrations.schemas";
+import {
+  googleCalendarsQuerySchema,
+  googleGmailLabelsQuerySchema,
+  googleTaskListsQuerySchema,
+} from "../../integrations.schemas";
 import { getAppBaseUrl, getAuthJwtSecret } from "../../../../core/config/env";
 import { isAllowedReturnTo } from "./google-oauth.utils";
 import { integrationsService } from "../../integrations.service";
@@ -80,6 +84,21 @@ export const googleOAuthController = {
 
     const { integrationConnectionId } = parseResult.data;
     const items = await integrationsService.listGoogleTaskLists(userId, integrationConnectionId);
+    res.json({ items });
+  },
+
+  async listGmailLabels(req: Request, res: Response): Promise<void> {
+    const userId = getRequestUserId(req);
+    const parseResult = googleGmailLabelsQuerySchema.safeParse(req.query);
+    if (!parseResult.success) {
+      throw apiErrors.validation(
+        "integrationConnectionId is required and must be a valid UUID",
+        parseResult.error.format(),
+      );
+    }
+
+    const { integrationConnectionId } = parseResult.data;
+    const items = await integrationsService.listGoogleGmailLabels(userId, integrationConnectionId);
     res.json({ items });
   },
 };

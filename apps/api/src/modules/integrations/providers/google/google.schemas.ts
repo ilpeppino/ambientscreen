@@ -52,3 +52,38 @@ export const googleTasksResponseSchema = z.object({
     }),
   ).optional(),
 });
+
+export const googleGmailMessagesListSchema = z.object({
+  resultSizeEstimate: z.number().optional(),
+  messages: z.array(
+    z.object({
+      id: z.string(),
+      threadId: z.string().optional(),
+    }),
+  ).optional(),
+});
+
+export const googleGmailMessageDetailSchema = z.object({
+  id: z.string(),
+  internalDate: z.string().optional(),
+  labelIds: z.array(z.string()).optional(),
+  snippet: z.string().optional(),
+  payload: z.object({
+    headers: z.array(
+      z.object({
+        name: z.string(),
+        value: z.string(),
+      }),
+    ).optional(),
+  }).optional(),
+});
+
+export const googleGmailLabelsSchema = z.object({
+  labels: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      type: z.enum(["system", "user"]).optional(),
+    }),
+  ).optional(),
+});

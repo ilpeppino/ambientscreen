@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-Three built-in widgets serve as the canonical reference implementations for all future widget development. When building a new widget, copy the relevant golden example and adapt it — do not start from scratch.
+Four built-in widgets serve as the canonical reference implementations for all future widget development. When building a new widget, copy the relevant golden example and adapt it — do not start from scratch.
 
 Each example demonstrates a distinct archetype:
 
@@ -16,6 +16,7 @@ Each example demonstrates a distinct archetype:
 | `clockDate` | Simple widget | No external provider, no auth, pure system data |
 | `weather` | Unauthenticated provider widget | External HTTP provider, no OAuth, normalized data envelope |
 | `calendar` | Authenticated / integration-backed widget | OAuth connection, resource picker, integration platform, both iCal and Google paths |
+| `emailFeed` | Authenticated complex message widget | Lead-List archetype, provider-agnostic normalized message model, Gmail-first integration path |
 
 ---
 
@@ -260,7 +261,50 @@ export interface WeatherInspectorContext {
 
 ---
 
-## 6. Full golden-widget checklist
+## 6. Golden example: emailFeed (authenticated complex message widget)
+
+### Why emailFeed is the complex message example
+
+- Uses the Lead-List archetype with explicit Hero / Support / Detail regions
+- Uses safe-fit row computation to prevent overlap and clipping across tiers
+- Keeps renderer provider-agnostic by consuming a normalized message model only
+- Uses integration-backed Gmail resolver today while preserving provider extension points (`outlook`, `imap`, `slack`, `teams`)
+- Uses shared inspector components with live canvas updates (no widget-local save action)
+
+### File map
+
+| Role | File |
+|------|------|
+| Shared definition | `packages/shared-contracts/src/widgets/plugin-sdk.ts` → `widgetBuiltinDefinitions.emailFeed` |
+| Shared data contract | `packages/shared-contracts/src/index.ts` → `EmailFeedWidgetData`, `NormalizedMessage` |
+| API plugin | `apps/api/src/modules/widgets/plugins/emailFeed.plugin.ts` |
+| Resolver | `apps/api/src/modules/widgetData/resolvers/emailFeed.resolver.ts` |
+| Gmail adapter | `apps/api/src/modules/integrations/providers/google/google-gmail.adapter.ts` |
+| Client plugin | `apps/client/src/widgets/plugins/emailFeed.plugin.tsx` |
+| Renderer | `apps/client/src/widgets/emailFeed/renderer.tsx` |
+| Inspector definition | `apps/client/src/widgets/emailFeed/inspector.ts` |
+| Inspector context | `apps/client/src/widgets/emailFeed/useEmailFeedInspectorContext.ts` |
+| Shared rendering primitives | `apps/client/src/widgets/shared/messageFeedPrimitives.tsx` |
+
+### Normalized message model
+
+```ts
+{
+  id: string
+  title: string
+  sender: string
+  timestamp: string
+  isUnread: boolean
+  preview?: string
+  source?: string
+}
+```
+
+Gmail-specific fields (headers, snippets, labelIds) are mapped in the resolver/adapter and are never exposed directly to the renderer.
+
+---
+
+## 7. Full golden-widget checklist
 
 Use this checklist when evaluating any new widget:
 
@@ -310,7 +354,7 @@ Use this checklist when evaluating any new widget:
 
 ---
 
-## 7. Known drift and notes
+## 8. Known drift and notes
 
 ### clockDate — `hour12` is canonical; `format` is deprecated
 
@@ -344,7 +388,7 @@ See the file header in `apps/client/src/widgets/calendar/inspector.ts` for detai
 
 ---
 
-## 8. Related documents
+## 9. Related documents
 
 - `docs/canonical/plugin-sdk.md` — full Plugin SDK contract
 - `docs/canonical/inspector-components-api.md` — shared inspector system API

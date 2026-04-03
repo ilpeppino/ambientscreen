@@ -10,6 +10,7 @@ import {
   CloudSun,
   Grid3x3,
   Lock,
+  Mail,
   Pencil,
   Plus,
   RefreshCw,
@@ -30,6 +31,7 @@ import {
 const ICON_MAP = {
   alert: AlertTriangle,
   lock: Lock,
+  mail: Mail,
   star: Star,
   settings: Settings,
   search: Search,

@@ -19,3 +19,4 @@ googleOAuthRouter.get("/google/start", requireAuth, asyncHandler((req, res) => g
 googleOAuthRouter.get("/google/callback", asyncHandler((req, res) => googleOAuthController.callback(req, res)));
 googleOAuthRouter.get("/google/calendars", requireAuth, asyncHandler((req, res) => googleOAuthController.listCalendars(req, res)));
 googleOAuthRouter.get("/google/tasks/lists", requireAuth, asyncHandler((req, res) => googleOAuthController.listTaskLists(req, res)));
+googleOAuthRouter.get("/google/gmail/labels", requireAuth, asyncHandler((req, res) => googleOAuthController.listGmailLabels(req, res)));

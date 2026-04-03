@@ -155,3 +155,21 @@ export async function listGoogleTaskLists(integrationConnectionId: string): Prom
   const data = (await response.json()) as { items: GoogleTaskListOption[] };
   return data.items;
 }
+
+export interface GoogleGmailLabelOption {
+  id: string;
+  name: string;
+  type: "system" | "user";
+}
+
+export async function listGoogleGmailLabels(integrationConnectionId: string): Promise<GoogleGmailLabelOption[]> {
+  const params = new URLSearchParams({ integrationConnectionId });
+  const response = await apiFetchWithTimeout(
+    `${API_BASE_URL}/integrations/google/gmail/labels?${params.toString()}`,
+  );
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const data = (await response.json()) as { items: GoogleGmailLabelOption[] };
+  return data.items;
+}

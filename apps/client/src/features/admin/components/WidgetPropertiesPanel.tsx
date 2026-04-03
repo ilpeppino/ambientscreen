@@ -16,6 +16,7 @@ import { InspectorReadOnlyField, InspectorReadOnlySection } from "./InspectorRea
 import { buildWidgetReadOnlyFields } from "../widgetInspectorSummary";
 import { CalendarInspectorContent } from "../../../widgets/calendar/CalendarInspectorContent";
 import { ClockDateInspectorContent } from "../../../widgets/clockDate/ClockDateInspectorContent";
+import { EmailFeedInspectorContent } from "../../../widgets/emailFeed/EmailFeedInspectorContent";
 import { TasksInspectorContent } from "../../../widgets/tasks/TasksInspectorContent";
 
 const WIDGET_ICON = {
@@ -24,6 +25,7 @@ const WIDGET_ICON = {
   calendar: "calendar",
   rssNews: "alert",
   tasks: "check",
+  emailFeed: "mail",
 } as const;
 
 interface ReadOnlyConfigurationViewProps {
@@ -288,6 +290,13 @@ export function WidgetPropertiesPanel({
         />
       ) : selectedWidget.widgetKey === "tasks" ? (
         <TasksInspectorContent
+          config={selectedWidget.config}
+          draft={draft}
+          mode={isEditing ? "edit" : "readOnly"}
+          onChange={(patch) => setDraft((prev) => ({ ...prev, ...patch }))}
+        />
+      ) : selectedWidget.widgetKey === "emailFeed" ? (
+        <EmailFeedInspectorContent
           config={selectedWidget.config}
           draft={draft}
           mode={isEditing ? "edit" : "readOnly"}
